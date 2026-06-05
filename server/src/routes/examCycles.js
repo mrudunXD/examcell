@@ -41,6 +41,24 @@ router.delete('/:id', requireCoordinator, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+// POST /:id/activate — make this cycle "active", demote others to "draft"
+router.post('/:id/activate', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+
+  db.transaction(() => {
+    // Demote all other active cycles to draft
+    db.prepare("UPDATE exam_cycles SET status='draft', updated_at=datetime('now') WHERE status='active' AND id != ?")
+      .run(req.params.id);
+    // Promote this one to active
+    db.prepare("UPDATE exam_cycles SET status='active', updated_at=datetime('now') WHERE id=?")
+      .run(req.params.id);
+  })();
+
+  res.json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
+}));
+
 // ── SLOTS ────────────────────────────────────────────────────────────────────
 
 router.get('/:cycleId/slots', asyncHandler(async (req, res) => {

@@ -400,7 +400,16 @@ export default function ExamCyclesPage() {
                     </div>
                   </div>
                   <div className="flex-row" style={{ gap: 4 }} onClick={e => e.stopPropagation()}>
-                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={() => setActiveCycle(cycle.id)}>Set Active</button>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={async () => {
+                      try {
+                        await api.post(`/exam-cycles/${cycle.id}/activate`);
+                        setActiveCycle(cycle.id);
+                        toast.success(`"${cycle.name}" set as active cycle`);
+                        fetchCycles();
+                      } catch (err) {
+                        toast.error(err.response?.data?.error || 'Could not activate cycle');
+                      }
+                    }}>Set Active</button>
                     <Link to={`/conflicts/${cycle.id}`} className="btn btn-warning btn-sm" style={{ fontSize: 10 }}>Conflicts</Link>
                     <Link to={`/export/${cycle.id}`} className="btn btn-success btn-sm" style={{ fontSize: 10 }}>Export</Link>
                     {isCoord && <>
