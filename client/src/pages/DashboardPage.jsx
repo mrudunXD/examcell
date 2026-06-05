@@ -41,7 +41,12 @@ export default function DashboardPage() {
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
       setCycles(r.data);
-      if (!activeCycleId && r.data.length > 0) setActiveCycle(r.data[0].id);
+      const ids = r.data.map(c => c.id);
+      if (!activeCycleId || !ids.includes(activeCycleId)) {
+        // stored ID is stale or missing — use first available
+        if (r.data.length > 0) setActiveCycle(r.data[0].id);
+        else setActiveCycle(null);
+      }
     }).catch(() => {});
   }, []);
 

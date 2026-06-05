@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
-const EMPTY = { name: '', prn: '', roll_no: '', branch: '', year: 'FY', semester: 1, scheme: 'K Scheme' };
+const EMPTY = { name: '', prn: '', roll_no: '', branch: '', section: '', year: 'FY', semester: 1 };
 
 function StudentModal({ student, onClose, onSave }) {
   const [form, setForm] = useState(student || EMPTY);
@@ -41,10 +41,16 @@ function StudentModal({ student, onClose, onSave }) {
               <label className="form-label">Roll No (Class) *</label>
               <input className="input" value={form.roll_no} onChange={e => setForm({ ...form, roll_no: e.target.value })} required placeholder="23BCE001" />
             </div>
+          <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Branch *</label>
               <input className="input" value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })} required placeholder="CSE, Mechanical…" />
             </div>
+            <div className="form-group">
+              <label className="form-label">Section</label>
+              <input className="input" value={form.section} onChange={e => setForm({ ...form, section: e.target.value })} placeholder="A, B, C…" />
+            </div>
+          </div>
           </div>
           <div className="grid-2">
             <div className="form-group">
@@ -59,10 +65,6 @@ function StudentModal({ student, onClose, onSave }) {
                 {SEMESTERS.map(s => <option key={s} value={s}>Sem {s}</option>)}
               </select>
             </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Scheme</label>
-            <input className="input" value={form.scheme} onChange={e => setForm({ ...form, scheme: e.target.value })} placeholder="K Scheme" />
           </div>
           <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 6, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -243,8 +245,8 @@ export default function StudentsPage() {
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
-              <th>Branch</th><th>Year</th><th>Sem</th><th>Scheme</th><th>Actions</th>
+                      <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
+              <th>Branch</th><th>Sec</th><th>Year</th><th>Sem</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -259,9 +261,9 @@ export default function StudentsPage() {
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{s.prn}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-red)' }}>{s.roll_no}</td>
                 <td>{s.branch}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)' }}>{s.section || '—'}</td>
                 <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>Sem {s.semester}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)' }}>{s.scheme}</td>
                 <td>
                   <div className="flex-row" style={{ gap: 4 }}>
                     <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('edit'); }} aria-label="Edit">

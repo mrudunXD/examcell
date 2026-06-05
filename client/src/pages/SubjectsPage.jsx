@@ -4,10 +4,13 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
-const EMPTY = { code: '', name: '', branch: '', year: 'FY', semester: 1, scheme: 'K Scheme' };
+const EMPTY = { code: '', name: '', branch: '', year: 'FY', semester: 1, abbreviation: '', course_type: '' };
 
 function SubjectModal({ subject, onClose, onSave }) {
-  const [form, setForm] = useState(subject || EMPTY);
+  const [form, setForm] = useState(subject
+    ? { code: subject.code, name: subject.name, branch: subject.branch, year: subject.year, semester: subject.semester, abbreviation: subject.abbreviation || '', course_type: subject.course_type || '' }
+    : EMPTY
+  );
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -55,9 +58,22 @@ function SubjectModal({ subject, onClose, onSave }) {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Scheme</label>
-              <input className="input" value={form.scheme} onChange={e => setForm({ ...form, scheme: e.target.value })} />
+              <label className="form-label">Abbreviation</label>
+              <input className="input" value={form.abbreviation} onChange={e => setForm({ ...form, abbreviation: e.target.value })} placeholder="BMS, ENG…" />
             </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Course Type</label>
+            <select className="select" value={form.course_type} onChange={e => setForm({ ...form, course_type: e.target.value })}>
+              <option value="">Select…</option>
+              <option value="DSC">DSC — Discipline Specific Core</option>
+              <option value="AEC">AEC — Ability Enhancement</option>
+              <option value="SEC">SEC — Skill Enhancement</option>
+              <option value="VEC">VEC — Value Education</option>
+              <option value="DSE">DSE — Discipline Specific Elective</option>
+              <option value="GE">GE — Generic Elective</option>
+              <option value="INP">INP — Internship/Project</option>
+            </select>
           </div>
           <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -106,7 +122,7 @@ export default function SubjectsPage() {
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>#</th><th>Code</th><th>Name</th><th>Branch</th><th>Year</th><th>Sem</th><th>Scheme</th><th>Actions</th></tr>
+            <tr><th>#</th><th>Code</th><th>Abbr.</th><th>Name</th><th>Type</th><th>Branch</th><th>Year</th><th>Sem</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {loading
@@ -117,11 +133,16 @@ export default function SubjectsPage() {
                 <tr key={s.id}>
                   <td style={{ color: 'var(--np-n400)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--np-red)', fontSize: 12 }}>{s.code}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n600)' }}>{s.abbreviation || '—'}</td>
                   <td style={{ fontWeight: 600 }}>{s.name}</td>
+                  <td>
+                    {s.course_type && (
+                      <span className="badge badge-neutral" style={{ fontSize: 9 }}>{s.course_type}</span>
+                    )}
+                  </td>
                   <td>{s.branch}</td>
                   <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>Sem {s.semester}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)' }}>{s.scheme}</td>
                   <td>
                     <div className="flex-row" style={{ gap: 4 }}>
                       <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('form'); }} aria-label="Edit"><Pencil size={12} strokeWidth={1.5} /></button>

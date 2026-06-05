@@ -15,6 +15,7 @@ import supervisorRoutes from './routes/supervisors.js';
 import conflictRoutes from './routes/conflicts.js';
 import exportRoutes from './routes/export.js';
 import dashboardRoutes from './routes/dashboard.js';
+import auditRoutes from './routes/audit.js';
 
 import { initDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -49,6 +50,7 @@ app.use('/api/supervisors', supervisorRoutes);
 app.use('/api/conflicts', conflictRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/audit', auditRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 

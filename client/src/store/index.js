@@ -31,7 +31,8 @@ export const useAppStore = create((set, get) => ({
   activeCycleId: localStorage.getItem('activeCycleId') || null,
 
   setActiveCycle: (id) => {
-    localStorage.setItem('activeCycleId', id);
+    if (id) localStorage.setItem('activeCycleId', id);
+    else localStorage.removeItem('activeCycleId');
     set({ activeCycleId: id });
   },
 }));

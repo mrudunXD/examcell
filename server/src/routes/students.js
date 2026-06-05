@@ -13,43 +13,47 @@ router.use(authenticate);
 // GET /api/students
 router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
-  const { branch, year, search } = req.query;
+  const { branch, year, search, section } = req.query;
   let query = 'SELECT * FROM students WHERE is_active = 1';
   const params = [];
-  if (branch) { query += ' AND branch = ?'; params.push(branch); }
-  if (year) { query += ' AND year = ?'; params.push(year); }
-  if (search) { query += ' AND (name LIKE ? OR prn LIKE ? OR roll_no LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
-  query += ' ORDER BY year, branch, roll_no';
+  if (branch)   { query += ' AND branch = ?';   params.push(branch); }
+  if (year)     { query += ' AND year = ?';     params.push(year); }
+  if (section)  { query += ' AND section = ?';  params.push(section); }
+  if (search)   {
+    query += ' AND (name LIKE ? OR prn LIKE ? OR roll_no LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  query += ' ORDER BY year, branch, section, roll_no';
   res.json(db.prepare(query).all(...params));
 }));
 
 // POST /api/students
 router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const { name, prn, roll_no, branch, year, semester, scheme } = req.body;
-  if (!name || !prn || !roll_no || !branch || !year || !semester) {
+  const { name, prn, roll_no, branch, section, year, semester } = req.body;
+  if (!name || !prn || !roll_no || !branch || !year || !semester)
     return res.status(400).json({ error: 'name, prn, roll_no, branch, year, semester are required' });
-  }
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO students (id, name, prn, roll_no, branch, year, semester, scheme)
+    INSERT INTO students (id, name, prn, roll_no, branch, section, year, semester)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name.trim(), prn.trim(), roll_no.trim(), branch.trim(), year, parseInt(semester), scheme || 'K Scheme');
+  `).run(id, name.trim(), prn.trim(), roll_no.trim(), branch.trim(), (section || '').trim() || null, year, parseInt(semester));
   res.status(201).json(db.prepare('SELECT * FROM students WHERE id = ?').get(id));
 }));
 
 // PUT /api/students/:id
 router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const { name, prn, roll_no, branch, year, semester, scheme } = req.body;
+  const { name, prn, roll_no, branch, section, year, semester } = req.body;
   db.prepare(`
-    UPDATE students SET name=?, prn=?, roll_no=?, branch=?, year=?, semester=?, scheme=?, updated_at=datetime('now')
+    UPDATE students
+    SET name=?, prn=?, roll_no=?, branch=?, section=?, year=?, semester=?, updated_at=datetime('now')
     WHERE id=? AND is_active=1
-  `).run(name, prn, roll_no, branch, year, parseInt(semester), scheme, req.params.id);
+  `).run(name, prn, roll_no, branch, (section || '').trim() || null, year, parseInt(semester), req.params.id);
   res.json(db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
 }));
 
-// DELETE /api/students/:id
+// DELETE /api/students/:id  (soft delete)
 router.delete('/:id', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   db.prepare("UPDATE students SET is_active=0 WHERE id=?").run(req.params.id);
@@ -61,14 +65,18 @@ router.post('/import', requireCoordinator, upload.single('file'), asyncHandler(a
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const csv = req.file.buffer.toString('utf-8');
-  const { data, errors } = Papa.parse(csv, { header: true, skipEmptyLines: true, transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, '_') });
+  const { data } = Papa.parse(csv, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, '_'),
+  });
 
   const db = getDb();
   const inserted = [];
   const failed = [];
 
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO students (id, name, prn, roll_no, branch, year, semester, scheme)
+    INSERT OR IGNORE INTO students (id, name, prn, roll_no, branch, section, year, semester)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
@@ -79,8 +87,15 @@ router.post('/import', requireCoordinator, upload.single('file'), asyncHandler(a
         const missing = required.filter(f => !row[f]);
         if (missing.length) { failed.push({ row, reason: `Missing: ${missing.join(', ')}` }); continue; }
         const validYears = ['FY', 'SY', 'TY', 'LY'];
-        if (!validYears.includes(row.year?.toUpperCase())) { failed.push({ row, reason: 'year must be FY/SY/TY/LY' }); continue; }
-        stmt.run(crypto.randomUUID(), row.name.trim(), row.prn.trim(), row.roll_no.trim(), row.branch.trim(), row.year.toUpperCase(), parseInt(row.semester), row.scheme || 'K Scheme');
+        if (!validYears.includes(row.year?.toUpperCase())) {
+          failed.push({ row, reason: 'year must be FY/SY/TY/LY' }); continue;
+        }
+        stmt.run(
+          crypto.randomUUID(),
+          row.name.trim(), row.prn.trim(), row.roll_no.trim(),
+          row.branch.trim(), (row.section || '').trim() || null,
+          row.year.toUpperCase(), parseInt(row.semester),
+        );
         inserted.push(row.prn);
       } catch (e) {
         failed.push({ row, reason: e.message });

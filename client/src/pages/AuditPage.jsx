@@ -13,12 +13,9 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/exam-cycles').then(async r => {
-      if (r.data.length > 0) {
-        const d = await api.get(`/dashboard/${r.data[0].id}`);
-        setLogs(d.data.recentAudit || []);
-      }
-    }).catch(() => toast.error('Could not load audit log'))
+    api.get('/audit')
+      .then(r => setLogs(r.data || []))
+      .catch(() => toast.error('Could not load audit log'))
       .finally(() => setLoading(false));
   }, []);
 
