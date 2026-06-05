@@ -18,11 +18,9 @@ export default function SupervisorsPage() {
       const [dr, fr, sr] = await Promise.all([
         api.get(`/supervisors/${slotId}`),
         api.get('/faculty'),
-        api.get(`/seating/${slotId}`)
+        api.get(`/seating/${slotId}`),
       ]);
-      setDuties(dr.data);
-      setFaculty(fr.data);
-      setSlotInfo(sr.data.slot);
+      setDuties(dr.data); setFaculty(fr.data); setSlotInfo(sr.data.slot);
     } catch { toast.error('Failed to load'); }
     finally { setLoading(false); }
   };
@@ -32,8 +30,7 @@ export default function SupervisorsPage() {
     setGenerating(true);
     try {
       const { data } = await api.post(`/supervisors/generate/${slotId}`);
-      toast.success(data.message);
-      fetch();
+      toast.success(data.message); fetch();
     } catch (err) { toast.error(err.response?.data?.error || 'Generation failed'); }
     finally { setGenerating(false); }
   };
@@ -45,75 +42,129 @@ export default function SupervisorsPage() {
     } catch { toast.error('Reassignment failed'); }
   };
 
-  // Group duties by room
+  // Group by room
   const grouped = {};
   for (const d of duties) {
-    const key = d.room_no;
-    if (!grouped[key]) grouped[key] = { room_no: d.room_no, block: d.block, duties: [] };
-    grouped[key].duties.push(d);
+    if (!grouped[d.room_no]) grouped[d.room_no] = { room_no: d.room_no, block: d.block, duties: [] };
+    grouped[d.room_no].duties.push(d);
   }
 
   return (
     <div className="fade-in">
-      <div className="page-header">
+      <div className="page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div className="flex-row" style={{ gap: 8, marginBottom: 6 }}>
-            <Link to="/exam-cycles" className="btn btn-ghost btn-sm"><ArrowLeft size={13} /></Link>
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Exam Cycles</span>
+          <div className="flex-row" style={{ gap: 6, marginBottom: 8 }}>
+            <Link to="/exam-cycles" className="btn btn-ghost btn-sm">
+              <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
+            </Link>
           </div>
-          <h1>Supervisor Assignment</h1>
-          {slotInfo && <p>{slotInfo.subject_code} — {slotInfo.subject_name} · {slotInfo.date} at {slotInfo.start_time}</p>}
+          <div className="accent-bar" />
+          <h1 className="page-title">Supervisor Assignment</h1>
+          {slotInfo && (
+            <p className="page-subtitle">{slotInfo.subject_code} — {slotInfo.subject_name} · {slotInfo.date} · {slotInfo.start_time}</p>
+          )}
         </div>
-        <div className="flex-row">
-          <button className="btn btn-ghost btn-sm" onClick={fetch}><RefreshCw size={14} /></button>
+        <div className="flex-row" style={{ gap: 6 }}>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={fetch} aria-label="Refresh">
+            <RefreshCw size={13} strokeWidth={1.5} />
+          </button>
           <button className="btn btn-primary" onClick={generate} disabled={generating}>
-            {generating ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Generating…</> : <><Play size={14} /> Auto-Assign</>}
+            {generating
+              ? <><div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> Generating…</>
+              : <><Play size={13} strokeWidth={1.5} /> Auto-Assign</>}
           </button>
         </div>
       </div>
 
-      {loading ? <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
-      : duties.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
-          <UserCog size={40} color="var(--color-text-muted)" style={{ margin: '0 auto 14px' }} />
-          <h3>No Supervisors Assigned</h3>
-          <p className="text-muted" style={{ fontSize: 13, margin: '8px 0 20px' }}>
-            Click "Auto-Assign" to generate supervisor assignments respecting all constraints.
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+      ) : duties.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: 64 }}>
+          <div style={{ border: '1px solid #E5E5E0', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
+            <UserCog size={28} strokeWidth={1} color="#A3A3A3" />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+            No Supervisors Assigned
+          </div>
+          <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', marginBottom: 24, fontSize: 14 }}>
+            Click "Auto-Assign" to generate supervisor duties respecting all constraints.
           </p>
-          <button className="btn btn-primary" onClick={generate}>Auto-Assign Supervisors</button>
+          <button className="btn btn-primary" onClick={generate} disabled={generating}>
+            <Play size={13} strokeWidth={1.5} /> Auto-Assign Supervisors
+          </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {Object.values(grouped).map(room => (
-            <div key={room.room_no} className="card">
-              <div className="flex-between" style={{ marginBottom: 14 }}>
+        <div style={{ border: '1px solid #111' }}>
+          {Object.values(grouped).map((room, ri) => (
+            <div key={room.room_no} style={{ borderBottom: ri < Object.values(grouped).length - 1 ? '1px solid #E5E5E0' : 'none' }}>
+              {/* Room header */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 16px',
+                background: '#111111',
+                color: '#F9F9F7',
+              }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>Room {room.room_no}</div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{room.block}</div>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>
+                    Room {room.room_no}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 12 }}>
+                    {room.block}
+                  </span>
                 </div>
-                <span className="badge badge-success">{room.duties.length} assigned</span>
+                <span className="badge" style={{ color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.2)', fontSize: 9 }}>
+                  {room.duties.length} assigned
+                </span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {room.duties.map(d => (
-                  <div key={d.id} style={{
-                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                    borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12
+
+              {/* Duties */}
+              {room.duties.map((d, di) => (
+                <div
+                  key={d.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '12px 16px',
+                    borderBottom: di < room.duties.length - 1 ? '1px solid #E5E5E0' : 'none',
+                  }}
+                >
+                  {/* Role badge */}
+                  <div style={{
+                    width: 70, flexShrink: 0,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    padding: '3px 0',
+                    textAlign: 'center',
+                    border: `1px solid ${d.role === 'primary' ? '#111111' : '#E5E5E0'}`,
+                    background: d.role === 'primary' ? '#111111' : 'transparent',
+                    color: d.role === 'primary' ? '#F9F9F7' : 'var(--np-n500)',
                   }}>
-                    <span className={`badge ${d.role === 'primary' ? 'badge-fy' : 'badge-sy'}`} style={{ width: 70, justifyContent: 'center' }}>
-                      {d.role}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{d.faculty_name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{d.department}</div>
-                    </div>
-                    <select className="select" style={{ width: 220, fontSize: 12 }}
-                      value={d.faculty_id}
-                      onChange={e => reassign(d.id, e.target.value)}>
-                      {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
-                    </select>
+                    {d.role}
                   </div>
-                ))}
-              </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{d.faculty_name}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>{d.department}</div>
+                  </div>
+
+                  {/* Inline reassign */}
+                  <select
+                    className="select"
+                    style={{ width: 220, fontSize: 11 }}
+                    value={d.faculty_id}
+                    onChange={e => reassign(d.id, e.target.value)}
+                  >
+                    {faculty.map(f => (
+                      <option key={f.id} value={f.id}>{f.name} ({f.department})</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
           ))}
         </div>

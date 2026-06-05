@@ -2,23 +2,32 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, BookOpen, Building2, UserCheck, CalendarDays,
-  AlertTriangle, CheckCircle, Clock, BarChart3, RefreshCw,
-  ArrowRight, Grid3x3, FileDown
+  AlertTriangle, Grid3x3, FileDown, RefreshCw, ArrowRight
 } from 'lucide-react';
 import api from '../lib/api.js';
 import { useAppStore } from '../store/index.js';
 import toast from 'react-hot-toast';
-import { format, parseISO } from 'date-fns';
 
-function StatCard({ icon: Icon, value, label, color, subtext }) {
+function StatCard({ icon: Icon, value, label, sub, accent }) {
   return (
-    <div className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
-      <div className="icon" style={{ background: `${color}22` }}>
-        <Icon size={20} color={color} />
+    <div className="stat-card hard-shadow-hover" style={{
+      borderTop: `3px solid ${accent || '#111111'}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div className="stat-card-value" style={{ color: accent || '#111111' }}>{value ?? '—'}</div>
+          <div className="stat-card-label">{label}</div>
+          {sub && <div className="stat-card-sub">{sub}</div>}
+        </div>
+        <div style={{
+          border: `1px solid ${accent || '#111111'}`,
+          padding: 8,
+          color: accent || '#111111',
+          opacity: 0.6,
+        }}>
+          <Icon size={16} strokeWidth={1.5} />
+        </div>
       </div>
-      <div className="value" style={{ color }}>{value ?? '—'}</div>
-      <div className="label">{label}</div>
-      {subtext && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{subtext}</div>}
     </div>
   );
 }
@@ -47,18 +56,16 @@ export default function DashboardPage() {
 
   const s = stats?.stats;
 
-  const statusColor = (status) => ({
-    draft: '#9ca3af', active: '#3b82f6', finalised: '#10b981', archived: '#6b7280'
-  })[status] || '#9ca3af';
-
   return (
     <div className="fade-in">
+      {/* Page header */}
       <div className="page-header">
         <div>
-          <h1>📋 Exam Coordinator Dashboard</h1>
-          <p>MIT World Peace University — Examination Cell</p>
+          <div className="accent-bar" />
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Examination Coordinator Overview</p>
         </div>
-        <div className="flex-row">
+        <div className="flex-row" style={{ gap: 8 }}>
           {cycles.length > 0 && (
             <select
               className="select"
@@ -66,55 +73,76 @@ export default function DashboardPage() {
               value={activeCycleId || ''}
               onChange={e => setActiveCycle(e.target.value)}
             >
-              {cycles.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           )}
-          <button className="btn btn-ghost btn-icon" onClick={() => setLoading(true) || api.get(`/dashboard/${activeCycleId}`).then(r => { setStats(r.data); setLoading(false); })}>
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
+          <button
+            className="btn btn-ghost btn-icon"
+            onClick={() => {
+              if (!activeCycleId) return;
+              setLoading(true);
+              api.get(`/dashboard/${activeCycleId}`).then(r => setStats(r.data)).finally(() => setLoading(false));
+            }}
+            aria-label="Refresh"
+          >
+            <RefreshCw size={14} strokeWidth={1.5} className={loading ? 'spin' : ''} style={{ animation: loading ? 'spin 0.6s linear infinite' : 'none' }} />
           </button>
         </div>
       </div>
 
       {!activeCycleId ? (
-        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
-          <CalendarDays size={40} color="var(--color-text-muted)" style={{ margin: '0 auto 14px' }} />
-          <h3 style={{ marginBottom: 8 }}>No Exam Cycles Yet</h3>
-          <p className="text-muted" style={{ marginBottom: 20, fontSize: 13 }}>Create an exam cycle to get started.</p>
-          <Link to="/exam-cycles" className="btn btn-primary">Create Exam Cycle <ArrowRight size={14} /></Link>
+        <div className="card" style={{ textAlign: 'center', padding: 64 }}>
+          <div style={{ border: '1px solid #E5E5E0', display: 'inline-flex', padding: 12, marginBottom: 16 }}>
+            <CalendarDays size={28} strokeWidth={1} color="#A3A3A3" />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+            No Exam Cycles Yet
+          </div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--np-n500)', marginBottom: 24 }}>
+            Create an exam cycle to begin managing seating and supervisors.
+          </p>
+          <Link to="/exam-cycles" className="btn btn-primary">
+            Create First Cycle <ArrowRight size={13} strokeWidth={1.5} />
+          </Link>
         </div>
       ) : (
         <>
-          {/* Cycle info strip */}
+          {/* Cycle info bar */}
           {stats?.cycle && (
             <div style={{
-              background: 'var(--color-navy-mid)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 12, padding: '12px 18px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: 24, flexWrap: 'wrap', gap: 12
+              background: '#111111',
+              color: '#F9F9F7',
+              padding: '10px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 10,
+              marginBottom: 24,
             }}>
-              <div className="flex-row">
+              <div className="flex-row" style={{ gap: 12 }}>
                 <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: statusColor(stats.cycle.status),
-                  boxShadow: `0 0 8px ${statusColor(stats.cycle.status)}`
-                }} />
-                <span style={{ fontWeight: 700, fontSize: 15 }}>{stats.cycle.name}</span>
-                <span className={`badge badge-${stats.cycle.status === 'finalised' ? 'success' : stats.cycle.status === 'active' ? 'neutral' : 'neutral'}`}
-                  style={{ textTransform: 'capitalize' }}>
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: '#fff',
+                }}>
+                  {stats.cycle.name}
+                </div>
+                <span className="badge badge-ink" style={{ textTransform: 'capitalize', fontSize: 9 }}>
                   {stats.cycle.status}
                 </span>
               </div>
-              <div className="flex-row" style={{ fontSize: 12, color: 'var(--color-text-muted)', gap: 20 }}>
-                <span>📅 {stats.cycle.start_date} → {stats.cycle.end_date}</span>
-                <Link to={`/exam-cycles`} className="btn btn-ghost btn-sm">Manage</Link>
-                <Link to={`/conflicts/${activeCycleId}`} className="btn btn-warning btn-sm">
-                  <AlertTriangle size={13} /> {s?.openConflicts || 0} Conflicts
+              <div className="flex-row" style={{ gap: 6 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+                  {stats.cycle.start_date} — {stats.cycle.end_date}
+                </span>
+                <Link to={`/conflicts/${activeCycleId}`} className="btn btn-sm" style={{ color: s?.openConflicts > 0 ? '#f87171' : 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                  <AlertTriangle size={11} strokeWidth={1.5} />
+                  {s?.openConflicts || 0} Conflicts
                 </Link>
-                <Link to={`/export/${activeCycleId}`} className="btn btn-success btn-sm">
-                  <FileDown size={13} /> Export PDFs
+                <Link to={`/export/${activeCycleId}`} className="btn btn-sm" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                  <FileDown size={11} strokeWidth={1.5} /> Export
                 </Link>
               </div>
             </div>
@@ -122,73 +150,119 @@ export default function DashboardPage() {
 
           {/* Stats grid */}
           {s && (
-            <div className="grid-4" style={{ marginBottom: 24 }}>
-              <StatCard icon={CalendarDays} value={`${s.finalisedSlots}/${s.totalSlots}`} label="Slots Finalised" color="#3b82f6" subtext="exam slots" />
-              <StatCard icon={Users} value={`${s.seatedStudents}/${s.totalStudents}`} label="Students Seated" color="#10b981" subtext="across all slots" />
-              <StatCard icon={Building2} value={`${s.supervisedRooms}/${s.totalRooms}`} label="Rooms Supervised" color="#f59e0b" subtext="with assigned faculty" />
-              <StatCard icon={AlertTriangle} value={s.openConflicts} label="Open Conflicts" color={s.openConflicts > 0 ? '#ef4444' : '#10b981'} subtext={s.openConflicts > 0 ? 'needs resolution' : 'all clear!'} />
+            <div className="grid-4" style={{ marginBottom: 28 }}>
+              <StatCard icon={CalendarDays} value={`${s.finalisedSlots}/${s.totalSlots}`} label="Slots Finalised" sub="exam sessions" accent="#1d4ed8" />
+              <StatCard icon={Users}        value={`${s.seatedStudents}/${s.totalStudents}`} label="Students Seated" sub="across all slots" accent="#166534" />
+              <StatCard icon={Building2}    value={`${s.supervisedRooms}/${s.totalRooms}`} label="Rooms Covered"  sub="with supervisors" accent="#92400e" />
+              <StatCard icon={AlertTriangle} value={s.openConflicts} label="Open Conflicts" sub={s.openConflicts > 0 ? 'action needed' : 'all clear'} accent={s.openConflicts > 0 ? '#CC0000' : '#166534'} />
             </div>
           )}
 
           {s && (
             <div className="grid-2" style={{ gap: 20 }}>
               {/* Upcoming slots */}
-              <div className="card">
-                <div className="flex-between" style={{ marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700 }}>Upcoming Exam Slots</h3>
-                  <Link to="/exam-cycles" style={{ fontSize: 12, color: 'var(--color-accent)' }}>View all →</Link>
+              <div className="card" style={{ padding: 0 }}>
+                <div style={{
+                  padding: '12px 18px',
+                  borderBottom: '2px solid #111111',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 700 }}>
+                    Upcoming Exam Slots
+                  </span>
+                  <Link to="/exam-cycles" style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: '#CC0000',
+                    textDecoration: 'none',
+                  }}>
+                    View All
+                  </Link>
                 </div>
-                {stats.upcomingSlots.length === 0 ? (
-                  <p className="text-muted" style={{ fontSize: 13 }}>No upcoming slots.</p>
-                ) : (
-                  stats.upcomingSlots.map(slot => (
+                <div style={{ padding: '0 18px' }}>
+                  {stats.upcomingSlots.length === 0 ? (
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--np-n500)', padding: '20px 0' }}>
+                      No upcoming slots scheduled.
+                    </p>
+                  ) : stats.upcomingSlots.map((slot, i) => (
                     <div key={slot.id} style={{
-                      padding: '10px 0', borderBottom: '1px solid var(--color-border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
+                      padding: '12px 0',
+                      borderBottom: i < stats.upcomingSlots.length - 1 ? '1px solid #E5E5E0' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
                     }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                          📅 {slot.date} at {slot.start_time}
+                        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13 }}>
+                          {slot.subject_code} — {slot.subject_name}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 3 }}>
+                          {slot.date} · {slot.start_time}
                         </div>
                       </div>
-                      <div className="flex-row" style={{ gap: 8 }}>
-                        <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm">
-                          <Grid3x3 size={12} /> Seating
-                        </Link>
-                      </div>
+                      <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm">
+                        <Grid3x3 size={11} strokeWidth={1.5} /> Seating
+                      </Link>
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
               </div>
 
               {/* Quick actions */}
-              <div className="card">
-                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Quick Actions</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="card" style={{ padding: 0 }}>
+                <div style={{
+                  padding: '12px 18px',
+                  borderBottom: '2px solid #111111',
+                }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 700 }}>
+                    Quick Actions
+                  </span>
+                </div>
+                <div style={{ padding: '8px 0' }}>
                   {[
-                    { to: '/students', icon: Users, label: 'Manage Students', desc: 'Add, edit or import via CSV' },
-                    { to: '/faculty', icon: UserCheck, label: 'Manage Faculty', desc: 'Assign subjects to faculty' },
-                    { to: '/exam-cycles', icon: CalendarDays, label: 'Exam Slots', desc: 'Create slots & allocate rooms' },
-                    { to: `/conflicts/${activeCycleId}`, icon: AlertTriangle, label: 'Resolve Conflicts', desc: s?.openConflicts > 0 ? `${s.openConflicts} conflict(s) need attention` : 'No conflicts', danger: s?.openConflicts > 0 },
-                    { to: `/export/${activeCycleId}`, icon: FileDown, label: 'Export Documents', desc: 'Download seating charts & duty sheets' },
+                    { to: '/students',             icon: Users,        label: 'Manage Students',   desc: 'Add, edit or import via CSV' },
+                    { to: '/faculty',              icon: UserCheck,    label: 'Manage Faculty',    desc: 'Assign teaching subjects' },
+                    { to: '/exam-cycles',          icon: CalendarDays, label: 'Exam Slots',        desc: 'Create slots & allocate rooms' },
+                    { to: `/conflicts/${activeCycleId}`, icon: AlertTriangle, label: 'Resolve Conflicts', desc: s?.openConflicts > 0 ? `${s.openConflicts} conflict(s) pending` : 'No conflicts', danger: s?.openConflicts > 0 },
+                    { to: `/export/${activeCycleId}`,   icon: FileDown,     label: 'Export Documents',  desc: 'Seating charts, duty sheets, timetable' },
                   ].map(a => (
-                    <Link key={a.to} to={a.to} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 12px', borderRadius: 8,
-                      background: a.danger ? 'rgba(239,68,68,0.07)' : 'var(--color-surface)',
-                      border: `1px solid ${a.danger ? 'rgba(239,68,68,0.2)' : 'var(--color-border)'}`,
-                      textDecoration: 'none', transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(3px)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
+                    <Link
+                      key={a.to}
+                      to={a.to}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: '11px 18px',
+                        borderBottom: '1px solid #E5E5E0',
+                        textDecoration: 'none',
+                        transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F5F5F5'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      <a.icon size={16} color={a.danger ? '#f87171' : 'var(--color-accent)'} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: a.danger ? '#f87171' : 'var(--color-text)' }}>{a.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{a.desc}</div>
+                      <div style={{
+                        border: `1px solid ${a.danger ? '#CC0000' : '#E5E5E0'}`,
+                        padding: 6,
+                        color: a.danger ? '#CC0000' : '#525252',
+                        flexShrink: 0,
+                      }}>
+                        <a.icon size={14} strokeWidth={1.5} />
                       </div>
-                      <ArrowRight size={14} color="var(--color-text-muted)" />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, color: a.danger ? '#CC0000' : '#111111' }}>
+                          {a.label}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#737373', marginTop: 2 }}>
+                          {a.desc}
+                        </div>
+                      </div>
+                      <ArrowRight size={13} strokeWidth={1.5} color="#A3A3A3" />
                     </Link>
                   ))}
                 </div>

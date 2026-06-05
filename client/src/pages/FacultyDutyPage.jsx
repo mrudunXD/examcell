@@ -30,38 +30,35 @@ export default function FacultyDutyPage() {
   const acknowledge = async (dutyId) => {
     try {
       await api.post(`/supervisors/acknowledge/${dutyId}`);
-      toast.success('Duty acknowledged!');
-      setDuties(prev => prev.map(d => d.id === dutyId ? { ...d, acknowledged: 1, acknowledged_at: new Date().toISOString() } : d));
+      toast.success('Duty acknowledged');
+      setDuties(prev => prev.map(d => d.id === dutyId ? { ...d, acknowledged: 1 } : d));
     } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
   };
 
   const downloadDutySheet = async () => {
     try {
-      // Get current user from localStorage
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const res = await api.get(`/export/duty/${user.id}/${selectedCycle}`, { responseType: 'blob' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(res.data);
-      a.download = `my_duty_sheet.pdf`; a.click();
+      a.download = 'my_duty_sheet.pdf'; a.click();
       toast.success('Duty sheet downloaded');
     } catch { toast.error('Download failed'); }
   };
 
   return (
-    <div className="fade-in" style={{ maxWidth: 640, margin: '0 auto' }}>
+    <div className="fade-in" style={{ maxWidth: 600, margin: '0 auto' }}>
       <div className="page-header">
         <div>
-          <h1>My Duty Schedule</h1>
-          <p>{duties.length} assignment(s)</p>
+          <div className="accent-bar" />
+          <h1 className="page-title">My Duties</h1>
+          <p className="page-subtitle">{duties.length} assignment{duties.length !== 1 ? 's' : ''} this cycle</p>
         </div>
-        <div className="flex-row" style={{ gap: 8 }}>
-          <button className="btn btn-ghost btn-sm" onClick={downloadDutySheet}>
-            📄 Download PDF
-          </button>
-        </div>
+        <button className="btn btn-ghost btn-sm" onClick={downloadDutySheet}>
+          <UserCheck size={13} strokeWidth={1.5} /> Download PDF
+        </button>
       </div>
 
-      {/* Cycle selector */}
       {cycles.length > 1 && (
         <div className="form-group" style={{ marginBottom: 20 }}>
           <label className="form-label">Exam Cycle</label>
@@ -71,69 +68,76 @@ export default function FacultyDutyPage() {
         </div>
       )}
 
-      {loading ? <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
-      : duties.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
-          <CalendarDays size={40} color="var(--color-text-muted)" style={{ margin: '0 auto 14px' }} />
-          <h3>No Duties Assigned</h3>
-          <p className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>You have no supervisor duties for this exam cycle.</p>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+      ) : duties.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: 64 }}>
+          <div style={{ border: '1px solid #E5E5E0', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
+            <CalendarDays size={28} strokeWidth={1} color="#A3A3A3" />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Duties Assigned</div>
+          <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 14 }}>
+            You have no supervisor duties assigned for this exam cycle.
+          </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {duties.map(duty => (
-            <div key={duty.id} className="card" style={{
-              borderLeft: `4px solid ${duty.role === 'primary' ? 'var(--color-accent)' : 'var(--color-success)'}`,
-              opacity: duty.acknowledged ? 0.85 : 1
-            }}>
-              <div className="flex-between" style={{ marginBottom: 12 }}>
+        <div style={{ border: '1px solid #111' }}>
+          {duties.map((duty, i) => (
+            <div
+              key={duty.id}
+              style={{
+                borderBottom: i < duties.length - 1 ? '1px solid #E5E5E0' : 'none',
+                borderLeft: `4px solid ${duty.role === 'primary' ? '#111111' : '#A3A3A3'}`,
+                padding: '16px 18px',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div className="flex-row" style={{ gap: 8 }}>
-                  <span className={`badge ${duty.role === 'primary' ? 'badge-fy' : 'badge-sy'}`}>
-                    {duty.role === 'primary' ? '⭐ Primary' : 'Co-Supervisor'}
+                  <span className="badge badge-ink" style={{
+                    background: duty.role === 'primary' ? '#111111' : 'transparent',
+                    color: duty.role === 'primary' ? '#F9F9F7' : '#525252',
+                    borderColor: duty.role === 'primary' ? '#111111' : '#E5E5E0',
+                    fontSize: 9,
+                  }}>
+                    {duty.role === 'primary' ? 'Primary Supervisor' : 'Co-Supervisor'}
                   </span>
-                  {duty.acknowledged && <span className="badge badge-success">✅ Acknowledged</span>}
+                  {duty.acknowledged ? (
+                    <span className="badge badge-success" style={{ fontSize: 9 }}>Acknowledged</span>
+                  ) : null}
                 </div>
                 {!duty.acknowledged && (
                   <button className="btn btn-success btn-sm" onClick={() => acknowledge(duty.id)}>
-                    <CheckCircle size={13} /> Acknowledge
+                    <CheckCircle size={11} strokeWidth={1.5} /> Acknowledge
                   </button>
                 )}
               </div>
 
-              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+              {/* Subject */}
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 700, marginBottom: 14, lineHeight: 1.2 }}>
                 {duty.subject_code} — {duty.subject_name}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="flex-row" style={{ gap: 8, fontSize: 13 }}>
-                  <CalendarDays size={15} color="var(--color-text-muted)" />
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{duty.date}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Date</div>
-                  </div>
-                </div>
-                <div className="flex-row" style={{ gap: 8, fontSize: 13 }}>
-                  <Clock size={15} color="var(--color-text-muted)" />
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{duty.start_time} · {duty.duration_mins} min</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Time</div>
-                  </div>
-                </div>
-                <div className="flex-row" style={{ gap: 8, fontSize: 13 }}>
-                  <MapPin size={15} color="var(--color-text-muted)" />
-                  <div>
-                    <div style={{ fontWeight: 600 }}>Room {duty.room_no}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{duty.block}</div>
-                  </div>
-                </div>
-                {duty.co_supervisor_name && (
-                  <div className="flex-row" style={{ gap: 8, fontSize: 13 }}>
-                    <UserCheck size={15} color="var(--color-text-muted)" />
+              {/* Info grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { icon: CalendarDays, label: 'Date', val: duty.date },
+                  { icon: Clock,        label: 'Time', val: `${duty.start_time} · ${duty.duration_mins} min` },
+                  { icon: MapPin,       label: 'Room', val: `${duty.room_no} — ${duty.block}` },
+                  duty.co_supervisor_name
+                    ? { icon: UserCheck, label: 'Co-Supervisor', val: duty.co_supervisor_name }
+                    : null,
+                ].filter(Boolean).map(({ icon: Icon, label, val }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ border: '1px solid #E5E5E0', padding: 5, flexShrink: 0 }}>
+                      <Icon size={13} strokeWidth={1.5} color="#525252" />
+                    </div>
                     <div>
-                      <div style={{ fontWeight: 600 }}>{duty.co_supervisor_name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Co-supervisor</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--np-n500)' }}>{label}</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, marginTop: 2 }}>{val}</div>
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           ))}
