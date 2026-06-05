@@ -35,70 +35,94 @@ export function generateSeating(students, rooms) {
     orderedStudents = [...students].sort((a, b) => naturalSort(a.roll_no, b.roll_no));
   }
 
-  let studentIdx = 0;
-  const totalStudents = orderedStudents.length;
+  let studentIdx       = 0;
+  const totalStudents  = orderedStudents.length;
 
-  for (const room of rooms) {
+  // ── Determine if rooms have "similar" capacity (within 20% of each other)
+  //    If so, distribute students proportionally rather than sequentially.
+  const maxCap = Math.max(...rooms.map(r => r.capacity));
+  const minCap = Math.min(...rooms.map(r => r.capacity));
+  const similarCapacity = rooms.length > 1 && (minCap / maxCap) >= 0.80;
+
+  // Calculate how many students each room should receive
+  let roomQuotas;
+  if (similarCapacity) {
+    const totalCap = rooms.reduce((s, r) => s + r.capacity, 0);
+    let remaining  = orderedStudents.length;
+    roomQuotas     = rooms.map((r, i) => {
+      if (i === rooms.length - 1) return remaining; // last room gets the rest
+      const share = Math.round((r.capacity / totalCap) * orderedStudents.length);
+      remaining  -= share;
+      return Math.min(share, r.capacity);
+    });
+  } else {
+    // Sequential fill: each room gets as many as it can hold
+    roomQuotas = rooms.map(r => r.capacity);
+  }
+
+  for (let ri = 0; ri < rooms.length; ri++) {
     if (studentIdx >= totalStudents) break;
-
+    const room     = rooms[ri];
+    const quota    = roomQuotas[ri];
     const { id: roomAllocId, bench_rows, bench_cols, capacity } = room;
     const roomAssignments = [];
 
-    if (isMultiBranch) {
-      // Multi-branch: 2 students per bench (left = col 1, right = col 2)
-      // bench_cols here represents number of benches per row
-      // Each physical bench has 2 seats
-      const benchesPerRow = Math.max(1, Math.floor(bench_cols / 2)) || bench_cols;
-      const totalBenches = bench_rows * benchesPerRow;
+    const roomStudents = orderedStudents.slice(studentIdx, studentIdx + quota);
+    let   localIdx     = 0;
 
-      for (let bench = 0; bench < totalBenches && studentIdx < totalStudents; bench++) {
-        const row = Math.floor(bench / benchesPerRow) + 1;
+    if (isMultiBranch) {
+      const benchesPerRow = Math.max(1, Math.floor(bench_cols / 2)) || bench_cols;
+
+      for (let bench = 0; bench < bench_rows * benchesPerRow && localIdx < roomStudents.length; bench++) {
+        const row        = Math.floor(bench / benchesPerRow) + 1;
         const benchInRow = (bench % benchesPerRow) + 1;
 
-        // Left seat (col = benchInRow * 2 - 1)
-        if (studentIdx < totalStudents) {
+        // Left seat
+        if (localIdx < roomStudents.length) {
           const leftCol = benchInRow * 2 - 1;
           if (leftCol <= bench_cols) {
-            roomAssignments.push({ student_id: orderedStudents[studentIdx].id, room_allocation_id: roomAllocId, bench_row: row, bench_col: leftCol });
-            studentIdx++;
+            roomAssignments.push({ student_id: roomStudents[localIdx].id, room_allocation_id: roomAllocId, bench_row: row, bench_col: leftCol });
+            localIdx++;
           }
         }
 
-        // Right seat (col = benchInRow * 2)
-        if (studentIdx < totalStudents) {
+        // Right seat — must be different branch
+        if (localIdx < roomStudents.length) {
           const rightCol = benchInRow * 2;
           if (rightCol <= bench_cols) {
-            // Validate: right-seat student must be from different branch than left-seat student
-            const leftStudent = orderedStudents[studentIdx - 1];
-            const rightStudent = orderedStudents[studentIdx];
-            if (leftStudent.branch === rightStudent.branch && leftStudent.year === rightStudent.year) {
+            const leftS  = roomStudents[localIdx - 1];
+            const rightS = roomStudents[localIdx];
+            if (leftS.branch === rightS.branch && leftS.year === rightS.year) {
               conflicts.push({
                 type: 'BRANCH_MIXING_FAILED',
                 description: `Could not mix branches at Room ${room.room_no}, Row ${row}, Bench ${benchInRow} — numerical imbalance between branch groups.`,
-                affected_entities: `${leftStudent.name} (${leftStudent.branch} ${leftStudent.year}) & ${rightStudent.name} (${rightStudent.branch} ${rightStudent.year})`
+                affected_entities: `${leftS.name} (${leftS.branch} ${leftS.year}) & ${rightS.name} (${rightS.branch} ${rightS.year})`,
               });
             }
-            roomAssignments.push({ student_id: rightStudent.id, room_allocation_id: roomAllocId, bench_row: row, bench_col: rightCol });
-            studentIdx++;
+            roomAssignments.push({ student_id: rightS.id, room_allocation_id: roomAllocId, bench_row: row, bench_col: rightCol });
+            localIdx++;
           }
         }
       }
     } else {
       // Single branch: 1 student per bench position
-      for (let row = 1; row <= bench_rows && studentIdx < totalStudents; row++) {
-        for (let col = 1; col <= bench_cols && studentIdx < totalStudents; col++) {
-          roomAssignments.push({ student_id: orderedStudents[studentIdx].id, room_allocation_id: roomAllocId, bench_row: row, bench_col: col });
-          studentIdx++;
+      outer: for (let row = 1; row <= bench_rows; row++) {
+        for (let col = 1; col <= bench_cols && localIdx < roomStudents.length; col++) {
+          roomAssignments.push({ student_id: roomStudents[localIdx].id, room_allocation_id: roomAllocId, bench_row: row, bench_col: col });
+          localIdx++;
         }
+        if (localIdx >= roomStudents.length) break outer;
       }
     }
 
-    // Check capacity overflow
+    studentIdx += localIdx;
+
+    // Capacity overflow check
     if (roomAssignments.length > capacity) {
       conflicts.push({
         type: 'CAPACITY_OVERFLOW',
-        description: `Room ${room.room_no} has ${roomAssignments.length} students assigned but capacity is ${capacity}.`,
-        suggested_resolution: `Add another room or reduce students in this slot.`
+        description: `Room ${room.room_no} has ${roomAssignments.length} students but capacity is ${capacity}.`,
+        suggested_resolution: 'Add another room or reduce students in this slot.',
       });
     }
 
@@ -111,7 +135,7 @@ export function generateSeating(students, rooms) {
     conflicts.push({
       type: 'INSUFFICIENT_ROOM_CAPACITY',
       description: `${unassigned} student(s) could not be seated — rooms are full.`,
-      suggested_resolution: 'Allocate additional rooms to this exam slot.'
+      suggested_resolution: 'Allocate additional rooms to this exam slot.',
     });
   }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, Plus, Pencil, Trash2, Upload, Download, Search, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Upload, Download, Search, X } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
@@ -273,8 +273,7 @@ export default function StudentsPage() {
         // Grouped view
         <GroupedStudents students={students} isCoord={isCoord}
           onEdit={(s) => { setEditing(s); setModal('edit'); }}
-          onDel={(s) => deleteStudent(s.id, s.name)}
-          collapsed={collapsed} setCollapsed={setCollapsed} />
+          onDel={(s) => deleteStudent(s.id, s.name)} />
       )}
 
       {isCoord && (modal === 'add' || modal === 'edit') && (
@@ -287,7 +286,7 @@ export default function StudentsPage() {
 
 function StudentRow({ s, i, isCoord, onEdit, onDel }) {
   return (
-    <tr key={s.id}>
+    <tr>
       <td style={{ color: 'var(--np-n400)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
       <td style={{ fontWeight: 600 }}>{s.name}</td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{s.prn}</td>
@@ -309,107 +308,174 @@ function StudentRow({ s, i, isCoord, onEdit, onDel }) {
 }
 
 const YEAR_ORDER = ['FY', 'SY', 'TY', 'LY'];
+const YEAR_NAMES = { FY: 'First Year', SY: 'Second Year', TY: 'Third Year', LY: 'Last Year' };
 
-function GroupedStudents({ students, isCoord, onEdit, onDel, collapsed, setCollapsed }) {
-  // Group: Year → Branch → Section → rows
+function GroupedStudents({ students, isCoord, onEdit, onDel }) {
+  const [drillYear,    setDrillYear]    = useState(null);
+  const [drillBranch,  setDrillBranch]  = useState(null);
+  const [drillSection, setDrillSection] = useState(null);
+
+  // Build groups
   const yearGroups = {};
   for (const s of students) {
-    const y = s.year;
-    const b = s.branch;
+    const y   = s.year;
+    const b   = s.branch;
     const sec = s.section || 'All';
-    if (!yearGroups[y]) yearGroups[y] = {};
-    if (!yearGroups[y][b]) yearGroups[y][b] = {};
+    if (!yearGroups[y])        yearGroups[y]        = {};
+    if (!yearGroups[y][b])     yearGroups[y][b]     = {};
     if (!yearGroups[y][b][sec]) yearGroups[y][b][sec] = [];
     yearGroups[y][b][sec].push(s);
   }
 
-  const toggle = (key) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {YEAR_ORDER.filter(y => yearGroups[y]).map(year => {
-        const yKey = `y-${year}`;
-        const yOpen = !collapsed[yKey];
-        const yTotal = Object.values(yearGroups[year]).flatMap(b => Object.values(b).flat()).length;
-        return (
-          <div key={year} style={{ border: '1px solid #111', marginBottom: 10 }}>
-            {/* Year header */}
-            <div
-              onClick={() => toggle(yKey)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
-                background: '#111111', color: '#F9F9F7', cursor: 'pointer' }}
-            >
-              {yOpen ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
-              <span className={`badge badge-${year.toLowerCase()}`} style={{ fontSize: 10, borderColor: 'rgba(255,255,255,0.2)' }}>{year}</span>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>
-                {year === 'FY' ? 'First Year' : year === 'SY' ? 'Second Year' : year === 'TY' ? 'Third Year' : 'Last Year'}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>
-                {yTotal} students · {Object.keys(yearGroups[year]).length} branches
-              </span>
-            </div>
-
-            {yOpen && Object.entries(yearGroups[year]).sort(([a],[b]) => a.localeCompare(b)).map(([branch, secs]) => {
-              const bKey = `b-${year}-${branch}`;
-              const bOpen = !collapsed[bKey];
-              const bTotal = Object.values(secs).flat().length;
-              return (
-                <div key={branch} style={{ borderTop: '1px solid #E5E5E0' }}>
-                  {/* Branch header */}
-                  <div onClick={() => toggle(bKey)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 18px',
-                      background: '#F5F5F5', cursor: 'pointer', borderLeft: '4px solid #111' }}>
-                    {bOpen ? <ChevronDown size={13} strokeWidth={1.5} color="#525252" /> : <ChevronRight size={13} strokeWidth={1.5} color="#525252" />}
-                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13 }}>{branch}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginLeft: 'auto' }}>
-                      {bTotal} students · {Object.keys(secs).length} section(s)
-                    </span>
-                  </div>
-
-                  {bOpen && Object.entries(secs).sort(([a],[b]) => a.localeCompare(b)).map(([section, rows]) => {
-                    const secKey = `s-${year}-${branch}-${section}`;
-                    const secOpen = !collapsed[secKey];
-                    return (
-                      <div key={section}>
-                        {/* Section sub-header */}
-                        <div onClick={() => toggle(secKey)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 28px',
-                            borderTop: '1px solid #E5E5E0', background: '#FAFAF8', cursor: 'pointer' }}>
-                          {secOpen ? <ChevronDown size={11} strokeWidth={1.5} color="#A3A3A3" /> : <ChevronRight size={11} strokeWidth={1.5} color="#A3A3A3" />}
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                            Section {section}
-                          </span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)', marginLeft: 'auto' }}>{rows.length} students</span>
-                        </div>
-                        {secOpen && (
-                          <div className="table-wrap" style={{ margin: 0, border: 'none' }}>
-                            <table style={{ border: 'none' }}>
-                              <thead><tr>
-                                <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
-                                <th>Sem</th>
-                                {isCoord && <th>Actions</th>}
-                              </tr></thead>
-                              <tbody>
-                                {rows.map((s, i) => <StudentRow key={s.id} s={s} i={i} isCoord={isCoord}
-                                  onEdit={() => onEdit(s)} onDel={() => onDel(s)} />)}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
-      {students.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 64, fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)' }}>
-          No students in database yet.
+  // ── Level 3: section table ──────────────────────────────
+  if (drillYear && drillBranch && drillSection) {
+    const rows = yearGroups[drillYear]?.[drillBranch]?.[drillSection] || [];
+    return (
+      <div>
+        <Breadcrumb crumbs={[
+          { label: 'All Years', onClick: () => { setDrillYear(null); setDrillBranch(null); setDrillSection(null); } },
+          { label: `${drillYear} — ${drillBranch}`, onClick: () => setDrillSection(null) },
+          { label: `Section ${drillSection}` },
+        ]} />
+        <div className="table-wrap" style={{ marginTop: 12 }}>
+          <table>
+            <thead><tr>
+              <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
+              <th>Sec</th><th>Sem</th>
+              {isCoord && <th>Actions</th>}
+            </tr></thead>
+            <tbody>
+              {rows.map((s, i) => <StudentRow key={s.id} s={s} i={i} isCoord={isCoord} onEdit={() => onEdit(s)} onDel={() => onDel(s)} />)}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // ── Level 2: branch/section cards ──────────────────────
+  if (drillYear && drillBranch) {
+    const secs = yearGroups[drillYear][drillBranch];
+    return (
+      <div>
+        <Breadcrumb crumbs={[
+          { label: 'All Years', onClick: () => { setDrillYear(null); setDrillBranch(null); } },
+          { label: YEAR_NAMES[drillYear], onClick: () => setDrillBranch(null) },
+          { label: drillBranch },
+        ]} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, marginTop: 12, border: '1px solid #E5E5E0' }}>
+          {Object.entries(secs).sort(([a],[b]) => a.localeCompare(b)).map(([sec, rows]) => (
+            <StatCard key={sec}
+              label={`Section ${sec}`}
+              value={rows.length}
+              sub="students"
+              onClick={() => setDrillSection(sec)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Level 1: branch cards for a year ───────────────────
+  if (drillYear) {
+    const branches = yearGroups[drillYear] || {};
+    return (
+      <div>
+        <Breadcrumb crumbs={[
+          { label: 'All Years', onClick: () => setDrillYear(null) },
+          { label: YEAR_NAMES[drillYear] },
+        ]} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, marginTop: 12, border: '1px solid #E5E5E0' }}>
+          {Object.entries(branches).sort(([a],[b]) => a.localeCompare(b)).map(([branch, secs]) => {
+            const total = Object.values(secs).flat().length;
+            return (
+              <StatCard key={branch}
+                label={branch}
+                value={total}
+                sub={`${Object.keys(secs).length} section(s)`}
+                onClick={() => setDrillBranch(branch)}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Level 0: year cards ────────────────────────────────
+  if (students.length === 0) {
+    return <div style={{ textAlign: 'center', padding: 64, fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)' }}>No students yet.</div>;
+  }
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1, border: '1px solid #E5E5E0' }}>
+        {YEAR_ORDER.filter(y => yearGroups[y]).map(year => {
+          const total    = Object.values(yearGroups[year]).flatMap(b => Object.values(b).flat()).length;
+          const branches = Object.keys(yearGroups[year]).length;
+          return (
+            <StatCard key={year}
+              label={YEAR_NAMES[year]}
+              value={total}
+              sub={`${branches} branch(es)`}
+              accent={year}
+              onClick={() => setDrillYear(year)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Shared minimal components ─────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, onClick, accent }) {
+  const accentColors = { FY: '#1d4ed8', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
+  const ac = accent ? accentColors[accent] || '#111' : '#111';
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: '20px 18px',
+        cursor: onClick ? 'pointer' : 'default',
+        borderRight: '1px solid #E5E5E0',
+        borderBottom: '1px solid #E5E5E0',
+        background: '#FDFDFB',
+        transition: 'background 0.12s',
+        position: 'relative',
+      }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.background = '#F5F5F2'; }}
+      onMouseLeave={e => { if (onClick) e.currentTarget.style.background = '#FDFDFB'; }}
+    >
+      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: ac }} />}
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 900, color: '#111', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, marginTop: 6, color: '#111' }}>{label}</div>
+      {sub && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 3 }}>{sub}</div>}
+      {onClick && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: ac, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>View →</div>}
+    </div>
+  );
+}
+
+function Breadcrumb({ crumbs }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 2, flexWrap: 'wrap' }}>
+      {crumbs.map((c, i) => (
+        <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {i > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n400)', padding: '0 5px' }}>/</span>}
+          <button
+            onClick={c.onClick}
+            disabled={!c.onClick}
+            style={{
+              fontFamily: 'var(--font-mono)', fontSize: 11,
+              color: c.onClick ? 'var(--np-red)' : 'var(--np-n600)',
+              background: 'none', border: 'none', cursor: c.onClick ? 'pointer' : 'default',
+              padding: '4px 0', fontWeight: c.onClick ? 400 : 600,
+              textDecoration: c.onClick ? 'underline' : 'none',
+            }}
+          >{c.label}</button>
+        </span>
+      ))}
     </div>
   );
 }

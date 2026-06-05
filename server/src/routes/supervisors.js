@@ -55,8 +55,24 @@ router.post('/generate/:slotId', requireCoordinator, asyncHandler(async (req, re
     subject_ids: subjectStmt.all(f.id).map(r => r.subject_id)
   }));
 
+  // Build GLOBAL workload from ALL existing supervisor duties (across all cycles)
+  // This ensures truly fair rotation — whoever has done least overall gets picked first
+  const globalWorkload = {};
+  for (const f of faculty) globalWorkload[f.id] = 0;
+  const allDutyCounts = db.prepare(`
+    SELECT sd.faculty_id, COUNT(*) as cnt
+    FROM supervisor_duties sd
+    -- Exclude duties for the current slot (we're re-generating those)
+    JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+    WHERE ra.slot_id != ?
+    GROUP BY sd.faculty_id
+  `).all(req.params.slotId);
+  for (const row of allDutyCounts) {
+    if (globalWorkload[row.faculty_id] !== undefined) globalWorkload[row.faculty_id] = row.cnt;
+  }
+
   const slotWithRooms = [{ ...slot, rooms }];
-  const { duties, conflicts } = assignSupervisors(slotWithRooms, allFaculty);
+  const { duties, conflicts } = assignSupervisors(slotWithRooms, allFaculty, globalWorkload);
 
   // Save
   const saveDuties = db.transaction(() => {

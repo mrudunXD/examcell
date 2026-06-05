@@ -1,86 +1,89 @@
 /**
- * Supervisor Assignment Engine
+ * Supervisor Assignment Engine v2
  *
  * Rules:
  * 1. At least 1 supervisor per room (primary)
  * 2. Co-supervisor added if room has > CO_SUPERVISOR_THRESHOLD students
  * 3. Faculty cannot supervise a subject they personally teach
  * 4. Faculty cannot be in 2 rooms at the same time
- * 5. Workload distributed as evenly as possible
+ * 5. Workload distributed GLOBALLY — caller passes in existing duty counts
+ *    from the DB so the engine knows who has done the most across all slots.
+ *    When workload is tied, candidates are shuffled randomly (no alphabetical bias).
  */
 
 const CO_SUPERVISOR_THRESHOLD = 30;
 
-export function assignSupervisors(slots, allFaculty, existingDuties = []) {
-  const duties = [];
+/**
+ * @param {Array}  slots          - Exam slots to assign, each with .rooms[]
+ * @param {Array}  allFaculty     - All faculty with .subject_ids[]
+ * @param {Object} globalWorkload - { facultyId: dutiesCount } from DB (can be empty {})
+ * @param {Array}  existingDuties - Already-assigned duties for in-progress batch
+ */
+export function assignSupervisors(slots, allFaculty, globalWorkload = {}, existingDuties = []) {
+  const duties    = [];
   const conflicts = [];
 
-  // Build workload tracker: facultyId -> count
+  // Clone the global workload so we don't mutate the caller's object
   const workload = {};
-  for (const f of allFaculty) workload[f.id] = 0;
+  for (const f of allFaculty) {
+    workload[f.id] = globalWorkload[f.id] ?? 0;
+  }
 
-  // Build existing assignment tracker for time-conflict detection
-  // slotTimeKey: date_startTime
-  const facultyTimeMap = {}; // facultyId -> Set of "date_startTime"
+  // Time-conflict tracker: facultyId -> Set<"date_startTime">
+  const facultyTimeMap = {};
   for (const f of allFaculty) facultyTimeMap[f.id] = new Set();
 
-  // Pre-fill with existing duties (from other slots already processed)
+  // Pre-fill from already-processed duties in this batch
   for (const d of existingDuties) {
-    if (facultyTimeMap[d.faculty_id]) {
-      facultyTimeMap[d.faculty_id].add(d.time_key);
-    }
+    if (facultyTimeMap[d.faculty_id]) facultyTimeMap[d.faculty_id].add(d.time_key);
     if (workload[d.faculty_id] !== undefined) workload[d.faculty_id]++;
   }
 
   for (const slot of slots) {
     const slotTimeKey = `${slot.date}_${slot.start_time}`;
-    const subjectId = slot.subject_id;
+    const subjectId   = slot.subject_id;
 
     for (const room of slot.rooms) {
       const studentCount = room.seated_count || 0;
-      const needCo = studentCount > CO_SUPERVISOR_THRESHOLD;
+      const needCo       = studentCount > CO_SUPERVISOR_THRESHOLD;
 
-      // Get eligible faculty for this slot+subject
+      // Eligible faculty for this room+slot
       const eligible = allFaculty.filter(f => {
-        // Must not teach this subject
-        const teachesSubject = f.subject_ids?.includes(subjectId);
-        if (teachesSubject) return false;
-        // Must not already be assigned at same time
-        if (facultyTimeMap[f.id]?.has(slotTimeKey)) return false;
+        if (f.subject_ids?.includes(subjectId)) return false;          // teaches subject
+        if (facultyTimeMap[f.id]?.has(slotTimeKey))  return false;     // already busy
         return true;
       });
 
       if (eligible.length === 0) {
         conflicts.push({
           type: 'NO_SUPERVISOR_AVAILABLE',
-          description: `No eligible supervisor found for Room ${room.room_no} on ${slot.date} at ${slot.start_time} (Subject: ${slot.subject_name}).`,
-          suggested_resolution: 'Add more faculty or check subject teaching assignments.',
-          slot_id: slot.id
+          description: `No eligible supervisor for Room ${room.room_no} on ${slot.date} at ${slot.start_time} — subject: ${slot.subject_name}.`,
+          suggested_resolution: 'Add more faculty or review subject teaching assignments.',
+          slot_id: slot.id,
         });
         continue;
       }
 
-      // Sort by ascending workload for fair distribution
-      eligible.sort((a, b) => (workload[a.id] || 0) - (workload[b.id] || 0));
+      // Sort by workload ASC, then shuffle within tied groups to eliminate bias
+      const sorted = fairSort(eligible, workload);
 
       // Assign primary
-      const primary = eligible[0];
+      const primary = sorted[0];
       duties.push({ id: crypto.randomUUID(), faculty_id: primary.id, room_allocation_id: room.id, role: 'primary' });
       workload[primary.id]++;
       facultyTimeMap[primary.id].add(slotTimeKey);
 
       // Assign co-supervisor if needed
       if (needCo) {
-        const remaining = eligible.filter(f => f.id !== primary.id);
+        const remaining = sorted.filter(f => f.id !== primary.id);
         if (remaining.length === 0) {
           conflicts.push({
             type: 'NO_CO_SUPERVISOR_AVAILABLE',
             description: `Could not assign co-supervisor for Room ${room.room_no} on ${slot.date} (${studentCount} students).`,
             suggested_resolution: 'Add more faculty.',
-            slot_id: slot.id
+            slot_id: slot.id,
           });
         } else {
-          remaining.sort((a, b) => (workload[a.id] || 0) - (workload[b.id] || 0));
           const co = remaining[0];
           duties.push({ id: crypto.randomUUID(), faculty_id: co.id, room_allocation_id: room.id, role: 'co' });
           workload[co.id]++;
@@ -91,4 +94,25 @@ export function assignSupervisors(slots, allFaculty, existingDuties = []) {
   }
 
   return { duties, conflicts, workload };
+}
+
+/**
+ * Sort faculty by ascending workload.
+ * Within each tie-group, SHUFFLE randomly so the same person is never
+ * deterministically chosen first (eliminates alphabetical/insertion-order bias).
+ */
+function fairSort(faculty, workload) {
+  // Find minimum workload among eligible
+  const minLoad = Math.min(...faculty.map(f => workload[f.id] ?? 0));
+  const atMin   = faculty.filter(f => (workload[f.id] ?? 0) === minLoad);
+  const rest    = faculty.filter(f => (workload[f.id] ?? 0) >  minLoad);
+
+  // Shuffle the minimum-load group
+  for (let i = atMin.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [atMin[i], atMin[j]] = [atMin[j], atMin[i]];
+  }
+
+  // Recurse on rest to apply same logic deeper
+  return [...atMin, ...(rest.length > 1 ? fairSort(rest, workload) : rest)];
 }
