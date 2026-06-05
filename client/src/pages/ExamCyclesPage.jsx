@@ -1,24 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store/index.js';
+import { useAuthStore } from '../store/index.js';
 
-const CYCLE_EMPTY = { name: '', start_date: '', end_date: '' };
 const STATUSES = ['draft', 'active', 'finalised', 'archived'];
+const STATUS_ACCENT = { draft: '#A3A3A3', active: '#1d4ed8', finalised: '#166534', archived: '#525252' };
+const TYPE_ACCENT   = { regular: '#166534', backlog: '#CC0000' };
+const MODE_ACCENT   = { offline: '#111111', online: '#1d4ed8' };
 
-const STATUS_ACCENT = {
-  draft: '#A3A3A3',
-  active: '#1d4ed8',
-  finalised: '#166534',
-  archived: '#525252',
-};
-
+// ── Cycle Modal ──────────────────────────────────────────────────────────────
 function CycleModal({ cycle, onClose, onSave }) {
   const [form, setForm] = useState(cycle
-    ? { name: cycle.name, start_date: cycle.start_date, end_date: cycle.end_date, status: cycle.status }
-    : CYCLE_EMPTY
+    ? { name: cycle.name, start_date: cycle.start_date, end_date: cycle.end_date, status: cycle.status, semester_type: cycle.semester_type || 'odd' }
+    : { name: '', start_date: '', end_date: '', semester_type: 'odd' }
   );
   const [saving, setSaving] = useState(false);
 
@@ -51,6 +48,27 @@ function CycleModal({ cycle, onClose, onSave }) {
               <input className="input" type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} required />
             </div>
           </div>
+          {/* Semester Type */}
+          <div className="form-group">
+            <label className="form-label">Semester Type *</label>
+            <div style={{ display: 'flex', gap: 0, border: '1px solid #111' }}>
+              {['odd', 'even'].map(t => (
+                <button key={t} type="button" onClick={() => setForm({ ...form, semester_type: t })}
+                  style={{
+                    flex: 1, padding: '8px 0', border: 'none',
+                    background: form.semester_type === t ? '#111111' : 'transparent',
+                    color: form.semester_type === t ? '#F9F9F7' : '#525252',
+                    fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em',
+                    cursor: 'pointer',
+                  }}>
+                  {t === 'odd' ? 'Odd (Sem 1, 3, 5, 7)' : 'Even (Sem 2, 4, 6, 8)'}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginTop: 4 }}>
+              Only subjects belonging to the selected semester parity can be added as slots.
+            </div>
+          </div>
           {cycle?.id && (
             <div className="form-group">
               <label className="form-label">Status</label>
@@ -71,40 +89,36 @@ function CycleModal({ cycle, onClose, onSave }) {
   );
 }
 
-function SlotModal({ cycleId, slot, onClose, onSave }) {
+// ── Slot Modal ───────────────────────────────────────────────────────────────
+function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
   const [subjects, setSubjects] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
   const [form, setForm] = useState(slot ? {
     subject_id: slot.subject_id, date: slot.date, start_time: slot.start_time,
-    duration_mins: slot.duration_mins,
-    classroom_ids: slot.rooms?.map(r => r.classroom_id) || [],
-    student_ids: [],
-  } : { subject_id: '', date: '', start_time: '', duration_mins: 180, classroom_ids: [], student_ids: [] });
+    duration_mins: slot.duration_mins, classroom_ids: slot.rooms?.map(r => r.classroom_id) || [],
+    exam_type: slot.exam_type || 'regular', exam_mode: slot.exam_mode || 'offline',
+  } : { subject_id: '', date: '', start_time: '10:00', duration_mins: 180, classroom_ids: [], exam_type: 'regular', exam_mode: 'offline' });
   const [saving, setSaving] = useState(false);
+  const [autoCount, setAutoCount] = useState(null);
 
   useEffect(() => {
-    Promise.all([api.get('/subjects'), api.get('/classrooms')]).then(([sr, cr]) => {
-      setSubjects(sr.data); setClassrooms(cr.data);
-    });
-  }, []);
+    Promise.all([
+      api.get(`/exam-cycles/${cycleId}/valid-subjects`),
+      api.get('/classrooms'),
+    ]).then(([sr, cr]) => { setSubjects(sr.data); setClassrooms(cr.data); });
+  }, [cycleId]);
 
+  // Preview student count when subject changes
   useEffect(() => {
-    if (!form.subject_id) { setStudents([]); return; }
+    if (!form.subject_id) { setAutoCount(null); return; }
     const subj = subjects.find(s => s.id === form.subject_id);
     if (!subj) return;
-    setLoadingStudents(true);
-    api.get('/students', { params: { branch: subj.branch, year: subj.year } }).then(r => {
-      setStudents(r.data);
-      setForm(f => ({ ...f, student_ids: r.data.map(s => s.id) }));
-    }).finally(() => setLoadingStudents(false));
+    api.get('/students', { params: { branch: subj.branch, year: subj.year } })
+      .then(r => setAutoCount(r.data.length));
   }, [form.subject_id, subjects]);
 
-  const toggleClassroom = (id) => setForm(f => ({
-    ...f, classroom_ids: f.classroom_ids.includes(id)
-      ? f.classroom_ids.filter(x => x !== id)
-      : [...f.classroom_ids, id]
+  const toggleClassroom = id => setForm(f => ({
+    ...f, classroom_ids: f.classroom_ids.includes(id) ? f.classroom_ids.filter(x => x !== id) : [...f.classroom_ids, id]
   }));
 
   const handleSubmit = async (e) => {
@@ -113,23 +127,104 @@ function SlotModal({ cycleId, slot, onClose, onSave }) {
       slot?.id
         ? await api.put(`/exam-cycles/${cycleId}/slots/${slot.id}`, form)
         : await api.post(`/exam-cycles/${cycleId}/slots`, form);
-      toast.success(slot?.id ? 'Slot updated' : 'Slot created');
+      toast.success(slot?.id ? 'Slot updated' : 'Slot created — students auto-assigned');
       onSave(); onClose();
     } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
     finally { setSaving(false); }
   };
 
+  const groupedSubjects = {};
+  for (const s of subjects) {
+    const k = `Sem ${s.semester} — ${s.year} — ${s.branch}`;
+    if (!groupedSubjects[k]) groupedSubjects[k] = [];
+    groupedSubjects[k].push(s);
+  }
+
+  // Group classrooms by floor
+  const floorMap = {};
+  for (const c of classrooms) {
+    const floor = String(c.room_no)[0] || '?';
+    if (!floorMap[floor]) floorMap[floor] = [];
+    floorMap[floor].push(c);
+  }
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg">
         <h2 className="modal-title">{slot?.id ? 'Edit Exam Slot' : 'New Exam Slot'}</h2>
+        {subjects.length === 0 && (
+          <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+            <AlertTriangle size={13} strokeWidth={1.5} />
+            No subjects found for {cycle?.semester_type}-semester cycle. Add subjects with matching semester numbers first.
+          </div>
+        )}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Exam Type + Mode toggles */}
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label">Exam Type</label>
+              <div style={{ display: 'flex', gap: 0, border: '1px solid #111' }}>
+                {['regular', 'backlog'].map(t => (
+                  <button key={t} type="button" onClick={() => setForm({ ...form, exam_type: t })}
+                    style={{
+                      flex: 1, padding: '7px 0', border: 'none',
+                      background: form.exam_type === t ? TYPE_ACCENT[t] : 'transparent',
+                      color: form.exam_type === t ? '#F9F9F7' : '#525252',
+                      fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase',
+                      letterSpacing: '0.08em', cursor: 'pointer',
+                    }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              {form.exam_type === 'backlog' && (
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#CC0000', marginTop: 3 }}>
+                  Backlog slots must be scheduled before the regular exam date
+                </div>
+              )}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Exam Mode</label>
+              <div style={{ display: 'flex', gap: 0, border: '1px solid #111' }}>
+                {['offline', 'online'].map(m => (
+                  <button key={m} type="button" onClick={() => setForm({ ...form, exam_mode: m })}
+                    style={{
+                      flex: 1, padding: '7px 0', border: 'none',
+                      background: form.exam_mode === m ? MODE_ACCENT[m] : 'transparent',
+                      color: form.exam_mode === m ? '#F9F9F7' : '#525252',
+                      fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase',
+                      letterSpacing: '0.08em', cursor: 'pointer',
+                    }}>
+                    {m === 'online' ? <><Wifi size={10} strokeWidth={1.5} /> Online</> : <><Monitor size={10} strokeWidth={1.5} /> Offline</>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Subject */}
           <div className="form-group">
-            <label className="form-label">Subject *</label>
+            <label className="form-label">Subject *
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginLeft: 6 }}>
+                showing only {cycle?.semester_type}-semester subjects
+              </span>
+            </label>
             <select className="select" value={form.subject_id} onChange={e => setForm({ ...form, subject_id: e.target.value })} required>
               <option value="">Select subject…</option>
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name} ({s.branch}, {s.year})</option>)}
+              {Object.entries(groupedSubjects).map(([group, subs]) => (
+                <optgroup key={group} label={group}>
+                  {subs.map(s => (
+                    <option key={s.id} value={s.id}>{s.code} — {s.name} ({s.abbreviation})</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
+            {autoCount !== null && (
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#166534', marginTop: 4 }}>
+                <Users size={10} strokeWidth={1.5} style={{ display: 'inline', marginRight: 3 }} />
+                {autoCount} students will be auto-assigned from this branch/year
+              </div>
+            )}
           </div>
 
           <div className="grid-3">
@@ -147,45 +242,45 @@ function SlotModal({ cycleId, slot, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Assign Classrooms</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-              {classrooms.map(c => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleClassroom(c.id)}
-                  className="btn btn-sm"
-                  style={{
-                    background: form.classroom_ids.includes(c.id) ? '#111111' : 'transparent',
-                    color: form.classroom_ids.includes(c.id) ? '#F9F9F7' : 'var(--np-n600)',
-                    borderColor: form.classroom_ids.includes(c.id) ? '#111111' : '#E5E5E0',
-                  }}
-                >
-                  {c.room_no} (cap. {c.capacity})
-                </button>
+          {/* Classrooms — only for offline */}
+          {form.exam_mode === 'offline' && (
+            <div className="form-group">
+              <label className="form-label">Assign Classrooms</label>
+              {Object.entries(floorMap).sort().map(([floor, rooms]) => (
+                <div key={floor} style={{ marginBottom: 8 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginBottom: 4 }}>
+                    Floor {floor}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {rooms.map(c => (
+                      <button key={c.id} type="button" onClick={() => toggleClassroom(c.id)} className="btn btn-sm"
+                        style={{
+                          background: form.classroom_ids.includes(c.id) ? '#111111' : 'transparent',
+                          color: form.classroom_ids.includes(c.id) ? '#F9F9F7' : 'var(--np-n600)',
+                          borderColor: form.classroom_ids.includes(c.id) ? '#111111' : '#E5E5E0',
+                        }}>
+                        {c.room_no} (cap. {c.capacity})
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
               {classrooms.length === 0 && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n400)' }}>
-                  No classrooms configured yet
-                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n400)' }}>No classrooms configured yet</span>
               )}
             </div>
-          </div>
-
-          {form.subject_id && (
-            <div className="alert alert-info" style={{ margin: 0 }}>
-              <Users size={13} strokeWidth={1.5} />
-              {loadingStudents
-                ? 'Loading students…'
-                : `${students.length} students auto-selected from subject branch/year`}
+          )}
+          {form.exam_mode === 'online' && (
+            <div className="alert alert-info">
+              <Wifi size={13} strokeWidth={1.5} />
+              Online exam — no room allocation needed. Students will be registered but no physical seating assigned.
             </div>
           )}
 
           <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (slot?.id ? 'Update Slot' : 'Create Slot')}
+              {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (slot?.id ? 'Update Slot' : 'Create & Auto-Assign')}
             </button>
           </div>
         </form>
@@ -194,6 +289,7 @@ function SlotModal({ cycleId, slot, onClose, onSave }) {
   );
 }
 
+// ── Main Page ────────────────────────────────────────────────────────────────
 export default function ExamCyclesPage() {
   const [cycles, setCycles] = useState([]);
   const [slotsMap, setSlotsMap] = useState({});
@@ -203,6 +299,8 @@ export default function ExamCyclesPage() {
   const [editing, setEditing] = useState(null);
   const [slotCycleId, setSlotCycleId] = useState(null);
   const { setActiveCycle } = useAppStore();
+  const { user } = useAuthStore();
+  const isCoord = user?.role === 'coordinator';
 
   const fetchCycles = async () => {
     setLoading(true);
@@ -235,6 +333,12 @@ export default function ExamCyclesPage() {
     toast.success('Slot deleted'); loadSlots(cycleId);
   };
 
+  // Group slots by backlog first then regular
+  const splitSlots = (slots = []) => ({
+    backlog:  slots.filter(s => s.exam_type === 'backlog'),
+    regular:  slots.filter(s => s.exam_type === 'regular'),
+  });
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -243,9 +347,11 @@ export default function ExamCyclesPage() {
           <h1 className="page-title">Exam Cycles</h1>
           <p className="page-subtitle">Periods, slots, and room allocations</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('cycle'); }}>
-          <Plus size={13} strokeWidth={1.5} /> New Cycle
-        </button>
+        {isCoord && (
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('cycle'); }}>
+            <Plus size={13} strokeWidth={1.5} /> New Cycle
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -256,145 +362,164 @@ export default function ExamCyclesPage() {
           <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', marginBottom: 20, fontSize: 14 }}>
             Create your first exam cycle to begin managing exams.
           </p>
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('cycle'); }}>
-            <Plus size={13} strokeWidth={1.5} /> Create First Cycle
-          </button>
+          {isCoord && (
+            <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('cycle'); }}>
+              <Plus size={13} strokeWidth={1.5} /> Create First Cycle
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #111' }}>
-          {cycles.map((cycle, ci) => (
-            <div key={cycle.id} style={{ borderBottom: ci < cycles.length - 1 ? '1px solid #111' : 'none' }}>
-              {/* Cycle header row */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  background: expanded[cycle.id] ? '#F5F5F5' : '#F9F9F7',
-                  borderBottom: expanded[cycle.id] ? '1px solid #E5E5E0' : 'none',
-                  transition: 'background 0.12s',
-                }}
-                onClick={() => toggleExpanded(cycle.id)}
-              >
-                <div style={{ color: 'var(--np-n500)', flexShrink: 0 }}>
-                  {expanded[cycle.id]
-                    ? <ChevronDown size={15} strokeWidth={1.5} />
-                    : <ChevronRight size={15} strokeWidth={1.5} />}
-                </div>
-
-                {/* Status indicator */}
-                <div style={{
-                  width: 6, height: 6, flexShrink: 0,
-                  background: STATUS_ACCENT[cycle.status] || '#A3A3A3',
-                }} />
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>{cycle.name}</span>
-                    <span className="badge" style={{
-                      color: STATUS_ACCENT[cycle.status] || '#A3A3A3',
-                      borderColor: STATUS_ACCENT[cycle.status] || '#A3A3A3',
-                      textTransform: 'capitalize',
-                    }}>{cycle.status}</span>
+          {cycles.map((cycle, ci) => {
+            const { backlog, regular } = splitSlots(slotsMap[cycle.id]);
+            return (
+              <div key={cycle.id} style={{ borderBottom: ci < cycles.length - 1 ? '1px solid #111' : 'none' }}>
+                {/* Cycle header */}
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
+                    background: expanded[cycle.id] ? '#F5F5F5' : '#F9F9F7',
+                    borderBottom: expanded[cycle.id] ? '1px solid #E5E5E0' : 'none',
+                  }}
+                  onClick={() => toggleExpanded(cycle.id)}
+                >
+                  <div style={{ color: 'var(--np-n500)', flexShrink: 0 }}>
+                    {expanded[cycle.id] ? <ChevronDown size={15} strokeWidth={1.5} /> : <ChevronRight size={15} strokeWidth={1.5} />}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-                    {cycle.start_date} — {cycle.end_date}
-                  </div>
-                </div>
-
-                <div className="flex-row" style={{ gap: 4 }} onClick={e => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={() => setActiveCycle(cycle.id)}>
-                    Set Active
-                  </button>
-                  <Link to={`/conflicts/${cycle.id}`} className="btn btn-warning btn-sm" style={{ fontSize: 10 }}>Conflicts</Link>
-                  <Link to={`/export/${cycle.id}`} className="btn btn-success btn-sm" style={{ fontSize: 10 }}>Export</Link>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(cycle); setModal('cycle'); }} aria-label="Edit">
-                    <Pencil size={12} strokeWidth={1.5} />
-                  </button>
-                  <button className="btn btn-danger btn-icon btn-sm" onClick={() => delCycle(cycle.id)} aria-label="Delete">
-                    <Trash2 size={12} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Expanded slots panel */}
-              {expanded[cycle.id] && (
-                <div style={{ padding: '16px 18px', background: '#FDFDFB' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)' }}>
-                      Exam Slots
-                    </span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(null); setModal('slot'); }}>
-                      <Plus size={12} strokeWidth={1.5} /> Add Slot
-                    </button>
-                  </div>
-
-                  {!slotsMap[cycle.id] ? (
-                    <div className="spinner" style={{ margin: '0 auto' }} />
-                  ) : slotsMap[cycle.id].length === 0 ? (
-                    <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 13 }}>
-                      No slots yet. Add an exam slot to allocate rooms and students.
-                    </p>
-                  ) : (
-                    <div style={{ border: '1px solid #E5E5E0' }}>
-                      {slotsMap[cycle.id].map((slot, si) => (
-                        <div
-                          key={slot.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            padding: '10px 14px',
-                            borderBottom: si < slotsMap[cycle.id].length - 1 ? '1px solid #E5E5E0' : 'none',
-                            background: '#F9F9F7',
-                          }}
-                        >
-                          {/* Status dot */}
-                          <div style={{
-                            width: 5, height: 5, flexShrink: 0,
-                            background: STATUS_ACCENT[slot.status] || '#A3A3A3',
-                          }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13 }}>
-                              {slot.subject_code} — {slot.subject_name}
-                            </div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-                              {slot.date} · {slot.start_time} · {slot.duration_mins}min ·{' '}
-                              {slot.rooms?.map(r => r.room_no).join(', ') || 'No rooms'} ·{' '}
-                              {slot.student_count} students
-                            </div>
-                          </div>
-                          <div className="flex-row" style={{ gap: 4 }}>
-                            <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
-                              <Grid3x3 size={11} strokeWidth={1.5} /> Seating
-                            </Link>
-                            <Link to={`/supervisors/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
-                              <UserCog size={11} strokeWidth={1.5} /> Supervisors
-                            </Link>
-                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }} aria-label="Edit">
-                              <Pencil size={11} strokeWidth={1.5} />
-                            </button>
-                            <button className="btn btn-danger btn-icon btn-sm" onClick={() => delSlot(cycle.id, slot.id)} aria-label="Delete">
-                              <Trash2 size={11} strokeWidth={1.5} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                  <div style={{ width: 6, height: 6, flexShrink: 0, background: STATUS_ACCENT[cycle.status] || '#A3A3A3' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>{cycle.name}</span>
+                      <span className="badge" style={{ color: STATUS_ACCENT[cycle.status], borderColor: STATUS_ACCENT[cycle.status], textTransform: 'capitalize' }}>{cycle.status}</span>
+                      <span className="badge" style={{ color: '#525252', borderColor: '#E5E5E0', textTransform: 'capitalize', fontSize: 9 }}>
+                        {cycle.semester_type || 'odd'}-sem
+                      </span>
                     </div>
-                  )}
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
+                      {cycle.start_date} — {cycle.end_date}
+                    </div>
+                  </div>
+                  <div className="flex-row" style={{ gap: 4 }} onClick={e => e.stopPropagation()}>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={() => setActiveCycle(cycle.id)}>Set Active</button>
+                    <Link to={`/conflicts/${cycle.id}`} className="btn btn-warning btn-sm" style={{ fontSize: 10 }}>Conflicts</Link>
+                    <Link to={`/export/${cycle.id}`} className="btn btn-success btn-sm" style={{ fontSize: 10 }}>Export</Link>
+                    {isCoord && <>
+                      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(cycle); setModal('cycle'); }}><Pencil size={12} strokeWidth={1.5} /></button>
+                      <button className="btn btn-danger btn-icon btn-sm" onClick={() => delCycle(cycle.id)}><Trash2 size={12} strokeWidth={1.5} /></button>
+                    </>}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Slots panel */}
+                {expanded[cycle.id] && (
+                  <div style={{ padding: '16px 18px', background: '#FDFDFB' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)' }}>Exam Slots</span>
+                      {isCoord && (
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(null); setModal('slot'); }}>
+                          <Plus size={12} strokeWidth={1.5} /> Add Slot
+                        </button>
+                      )}
+                    </div>
+
+                    {!slotsMap[cycle.id] ? (
+                      <div className="spinner" style={{ margin: '0 auto' }} />
+                    ) : slotsMap[cycle.id].length === 0 ? (
+                      <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 13 }}>No slots yet.</p>
+                    ) : (
+                      <>
+                        {/* Backlog slots first */}
+                        {backlog.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#CC0000', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, borderBottom: '1px solid #fecaca', paddingBottom: 4 }}>
+                              Backlog Exams ({backlog.length})
+                            </div>
+                            <SlotList slots={backlog} cycleId={cycle.id} isCoord={isCoord}
+                              onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
+                              onDel={(slotId) => delSlot(cycle.id, slotId)} />
+                          </div>
+                        )}
+                        {/* Regular slots */}
+                        {regular.length > 0 && (
+                          <div>
+                            {backlog.length > 0 && (
+                              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, borderBottom: '1px solid #bbf7d0', paddingBottom: 4 }}>
+                                Regular Exams ({regular.length})
+                              </div>
+                            )}
+                            <SlotList slots={regular} cycleId={cycle.id} isCoord={isCoord}
+                              onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
+                              onDel={(slotId) => delSlot(cycle.id, slotId)} />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {modal === 'cycle' && <CycleModal cycle={editing} onClose={() => setModal(null)} onSave={fetchCycles} />}
       {modal === 'slot' && slotCycleId && (
-        <SlotModal cycleId={slotCycleId} slot={editing} onClose={() => setModal(null)} onSave={() => loadSlots(slotCycleId)} />
+        <SlotModal
+          cycleId={slotCycleId}
+          cycle={cycles.find(c => c.id === slotCycleId)}
+          slot={editing}
+          onClose={() => setModal(null)}
+          onSave={() => loadSlots(slotCycleId)}
+        />
       )}
+    </div>
+  );
+}
+
+function SlotList({ slots, cycleId, isCoord, onEdit, onDel }) {
+  return (
+    <div style={{ border: '1px solid #E5E5E0' }}>
+      {slots.map((slot, si) => (
+        <div key={slot.id} style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+          borderBottom: si < slots.length - 1 ? '1px solid #E5E5E0' : 'none',
+        }}>
+          {/* Type indicator */}
+          <div style={{ width: 4, height: 32, flexShrink: 0, background: TYPE_ACCENT[slot.exam_type] || '#111' }} />
+          {/* Mode icon */}
+          <div style={{ color: MODE_ACCENT[slot.exam_mode], flexShrink: 0 }}>
+            {slot.exam_mode === 'online' ? <Wifi size={12} strokeWidth={1.5} /> : <Monitor size={12} strokeWidth={1.5} />}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13 }}>
+              {slot.subject_code} — {slot.subject_name}
+              {slot.abbreviation && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginLeft: 6 }}>({slot.abbreviation})</span>
+              )}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
+              {slot.date} · {slot.start_time} · {slot.duration_mins}min ·{' '}
+              {slot.rooms?.map(r => r.room_no).join(', ') || (slot.exam_mode === 'online' ? 'Online' : 'No rooms')} ·{' '}
+              {slot.student_count} students
+              {slot.course_type && <span style={{ marginLeft: 6, color: '#A3A3A3' }}>{slot.course_type}</span>}
+            </div>
+          </div>
+          <div className="flex-row" style={{ gap: 4 }}>
+            {slot.exam_mode === 'offline' && (
+              <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
+                <Grid3x3 size={11} strokeWidth={1.5} /> Seating
+              </Link>
+            )}
+            <Link to={`/supervisors/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
+              <UserCog size={11} strokeWidth={1.5} /> Supervisors
+            </Link>
+            {isCoord && <>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(slot)}><Pencil size={11} strokeWidth={1.5} /></button>
+              <button className="btn btn-danger btn-icon btn-sm" onClick={() => onDel(slot.id)}><Trash2 size={11} strokeWidth={1.5} /></button>
+            </>}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

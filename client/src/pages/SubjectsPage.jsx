@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/index.js';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const EMPTY = { code: '', name: '', branch: '', year: 'FY', semester: 1, abbreviation: '', course_type: '' };
@@ -92,6 +93,8 @@ export default function SubjectsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
+  const { user } = useAuthStore();
+  const isCoord = user?.role === 'coordinator';
 
   const fetch = async () => {
     setLoading(true);
@@ -106,6 +109,18 @@ export default function SubjectsPage() {
     await api.delete(`/subjects/${id}`); toast.success('Deleted'); fetch();
   };
 
+  // Group: Year → Semester → subjects
+  const YEAR_ORDER = ['FY', 'SY', 'TY', 'LY'];
+  const YEAR_NAMES = { FY: 'First Year', SY: 'Second Year', TY: 'Third Year', LY: 'Last Year' };
+  const grouped = {};
+  for (const s of subjects) {
+    const y = s.year;
+    const sem = `Sem ${s.semester}`;
+    if (!grouped[y]) grouped[y] = {};
+    if (!grouped[y][sem]) grouped[y][sem] = [];
+    grouped[y][sem].push(s);
+  }
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -114,48 +129,85 @@ export default function SubjectsPage() {
           <h1 className="page-title">Subjects</h1>
           <p className="page-subtitle">{subjects.length} subjects configured</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
-          <Plus size={13} strokeWidth={1.5} /> Add Subject
-        </button>
+        {isCoord && (
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
+            <Plus size={13} strokeWidth={1.5} /> Add Subject
+          </button>
+        )}
       </div>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr><th>#</th><th>Code</th><th>Abbr.</th><th>Name</th><th>Type</th><th>Branch</th><th>Year</th><th>Sem</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            {loading
-              ? <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
-              : subjects.length === 0
-              ? <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--np-n500)', fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>No subjects yet</td></tr>
-              : subjects.map((s, i) => (
-                <tr key={s.id}>
-                  <td style={{ color: 'var(--np-n400)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--np-red)', fontSize: 12 }}>{s.code}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n600)' }}>{s.abbreviation || '—'}</td>
-                  <td style={{ fontWeight: 600 }}>{s.name}</td>
-                  <td>
-                    {s.course_type && (
-                      <span className="badge badge-neutral" style={{ fontSize: 9 }}>{s.course_type}</span>
-                    )}
-                  </td>
-                  <td>{s.branch}</td>
-                  <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>Sem {s.semester}</td>
-                  <td>
-                    <div className="flex-row" style={{ gap: 4 }}>
-                      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('form'); }} aria-label="Edit"><Pencil size={12} strokeWidth={1.5} /></button>
-                      <button className="btn btn-danger btn-icon btn-sm" onClick={() => del(s.id)} aria-label="Delete"><Trash2 size={12} strokeWidth={1.5} /></button>
-                    </div>
-                  </td>
-                </tr>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+      ) : subjects.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+          <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)' }}>No subjects configured yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {YEAR_ORDER.filter(y => grouped[y]).map(year => (
+            <div key={year} style={{ border: '1px solid #111' }}>
+              {/* Year header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#111111', color: '#F9F9F7' }}>
+                <span className={`badge badge-${year.toLowerCase()}`} style={{ fontSize: 10, borderColor: 'rgba(255,255,255,0.2)' }}>{year}</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 700 }}>{YEAR_NAMES[year]}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>
+                  {Object.values(grouped[year]).flat().length} subjects
+                </span>
+              </div>
+
+              {/* Semester sections */}
+              {Object.entries(grouped[year]).sort(([a],[b]) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1])).map(([sem, subs], si, arr) => (
+                <div key={sem} style={{ borderTop: si > 0 ? '1px solid #E5E5E0' : 'none' }}>
+                  {/* Sem divider */}
+                  <div style={{
+                    padding: '6px 16px', background: '#F5F5F5',
+                    fontFamily: 'var(--font-mono)', fontSize: 9,
+                    textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)',
+                    borderLeft: '3px solid #CC0000',
+                  }}>
+                    {sem} — {subs[0]?.semester % 2 === 1 ? 'Odd Semester' : 'Even Semester'} · {subs.length} subjects
+                  </div>
+
+                  <div className="table-wrap" style={{ margin: 0, border: 'none' }}>
+                    <table>
+                      <thead>
+                        <tr><th>Code</th><th>Abbr.</th><th>Name</th><th>Type</th><th>Branch</th>
+                          {isCoord && <th>Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subs.map(s => (
+                          <tr key={s.id}>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--np-red)', fontSize: 12 }}>{s.code}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n600)' }}>{s.abbreviation || '—'}</td>
+                            <td style={{ fontWeight: 600 }}>{s.name}</td>
+                            <td>
+                              {s.course_type && (
+                                <span className="badge badge-neutral" style={{ fontSize: 9 }}>{s.course_type}</span>
+                              )}
+                            </td>
+                            <td>{s.branch}</td>
+                            {isCoord && (
+                              <td>
+                                <div className="flex-row" style={{ gap: 4 }}>
+                                  <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('form'); }}><Pencil size={12} strokeWidth={1.5} /></button>
+                                  <button className="btn btn-danger btn-icon btn-sm" onClick={() => del(s.id)}><Trash2 size={12} strokeWidth={1.5} /></button>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ))}
-          </tbody>
-        </table>
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {modal === 'form' && <SubjectModal subject={editing} onClose={() => setModal(null)} onSave={fetch} />}
+      {isCoord && modal === 'form' && <SubjectModal subject={editing} onClose={() => setModal(null)} onSave={fetch} />}
     </div>
   );
 }

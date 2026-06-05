@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Play, CheckCircle, Unlock, ArrowLeftRight, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Play, CheckCircle, Unlock, ArrowLeftRight, RefreshCw, Wifi } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
@@ -102,6 +102,7 @@ export default function SeatingPage() {
 
   const { slot, rooms } = data;
   const isApproved = slot.status === 'finalised';
+  const isOnline   = slot.exam_mode === 'online';
   const hasSeating = rooms.some(r => r.assignments.length > 0);
   const currentRoom = rooms.find(r => r.room.id === selectedRoom);
 
@@ -184,7 +185,18 @@ export default function SeatingPage() {
         ))}
       </div>
 
-      {isSwapMode && (
+      {/* Online exam — no seating needed */}
+      {isOnline && (
+        <div style={{ border: '2px solid #1d4ed8', padding: '32px 24px', textAlign: 'center', background: '#eff6ff', marginBottom: 20 }}>
+          <Wifi size={32} strokeWidth={1} color="#1d4ed8" style={{ marginBottom: 12 }} />
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>
+            Online Examination
+          </div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#1e40af' }}>
+            This exam is conducted online. No physical seating arrangement is required.
+          </p>
+        </div>
+      )}
         <div className="alert alert-warning" style={{ marginBottom: 14 }}>
           <ArrowLeftRight size={13} strokeWidth={1.5} />
           {swapSource

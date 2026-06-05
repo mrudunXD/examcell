@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, BookOpen, Check, UserCheck } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/index.js';
 
 const EMPTY = { name: '', email: '', department: '', password: '' };
 
@@ -145,6 +146,8 @@ export default function FacultyPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
+  const { user } = useAuthStore();
+  const isCoord = user?.role === 'coordinator';
 
   const fetch = async () => {
     setLoading(true);
@@ -169,9 +172,11 @@ export default function FacultyPage() {
           <h1 className="page-title">Faculty</h1>
           <p className="page-subtitle">{faculty.length} faculty accounts</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
-          <Plus size={13} strokeWidth={1.5} /> Add Faculty
-        </button>
+        {isCoord && (
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
+            <Plus size={13} strokeWidth={1.5} /> Add Faculty
+          </button>
+        )}
       </div>
 
       <div className="table-wrap">
@@ -207,11 +212,13 @@ export default function FacultyPage() {
                   </td>
                   <td>
                     <div className="flex-row" style={{ gap: 4 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(f); setModal('subjects'); }} title="Assign subjects">
-                        <BookOpen size={11} strokeWidth={1.5} /> Subjects
-                      </button>
-                      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(f); setModal('form'); }} aria-label="Edit"><Pencil size={12} strokeWidth={1.5} /></button>
-                      <button className="btn btn-danger btn-icon btn-sm" onClick={() => del(f.id)} aria-label="Delete"><Trash2 size={12} strokeWidth={1.5} /></button>
+                      {isCoord && (
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(f); setModal('subjects'); }} title="Assign subjects">
+                          <BookOpen size={11} strokeWidth={1.5} /> Subjects
+                        </button>
+                      )}
+                      {isCoord && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(f); setModal('form'); }}><Pencil size={12} strokeWidth={1.5} /></button>}
+                      {isCoord && <button className="btn btn-danger btn-icon btn-sm" onClick={() => del(f.id)}><Trash2 size={12} strokeWidth={1.5} /></button>}
                     </div>
                   </td>
                 </tr>
@@ -220,8 +227,8 @@ export default function FacultyPage() {
         </table>
       </div>
 
-      {modal === 'form' && <FacultyModal faculty={editing} onClose={() => setModal(null)} onSave={fetch} />}
-      {modal === 'subjects' && editing && (
+      {isCoord && modal === 'form' && <FacultyModal faculty={editing} onClose={() => setModal(null)} onSave={fetch} />}
+      {isCoord && modal === 'subjects' && editing && (
         <SubjectAssignModal faculty={editing} allSubjects={subjects} onClose={() => setModal(null)} onSave={fetch} />
       )}
     </div>

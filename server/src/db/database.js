@@ -92,6 +92,7 @@ function createTables() {
       name TEXT NOT NULL,
       start_date TEXT NOT NULL,
       end_date TEXT NOT NULL,
+      semester_type TEXT DEFAULT 'odd' CHECK(semester_type IN ('odd','even')),
       status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'finalised', 'archived')),
       created_by TEXT REFERENCES users(id),
       created_at TEXT DEFAULT (datetime('now')),
@@ -105,6 +106,8 @@ function createTables() {
       date TEXT NOT NULL,
       start_time TEXT NOT NULL,
       duration_mins INTEGER DEFAULT 180,
+      exam_type TEXT DEFAULT 'regular' CHECK(exam_type IN ('regular','backlog')),
+      exam_mode TEXT DEFAULT 'offline' CHECK(exam_mode IN ('offline','online')),
       status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'seating_generated', 'supervisors_assigned', 'finalised')),
       created_at TEXT DEFAULT (datetime('now'))
     );

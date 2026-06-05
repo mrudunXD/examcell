@@ -1,250 +1,308 @@
-import puppeteer from 'puppeteer';
+/**
+ * PDF Generator using pdfkit (pure JS — no browser/Chromium needed)
+ * Replaces Puppeteer-based approach which produced corrupted files on Windows.
+ */
+import PDFDocument from 'pdfkit';
 
-async function renderPDF(html) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdf = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '15mm', right: '12mm', bottom: '15mm', left: '12mm' }
-  });
-  await browser.close();
-  return pdf;
+// ── Constants ───────────────────────────────────────────────────────────────
+const BRAND     = 'MIT World Peace University — Polytechnic';
+const CELL      = 'Examination Cell';
+const NAVY      = '#1e3a5f';
+const LIGHT_BG  = '#f8fafc';
+const BORDER    = '#cbd5e1';
+const RED_MARK  = '#cc0000';
+
+const YEAR_CLR  = { FY: '#1e40af', SY: '#166534', TY: '#92400e', LY: '#9d174d' };
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Render a navy header block and return the Y position after it */
+function header(doc, subtitle) {
+  doc.rect(0, 0, doc.page.width, 54).fill(NAVY);
+  doc.fillColor('white').font('Helvetica-Bold').fontSize(12)
+    .text(BRAND, 30, 12, { lineBreak: false });
+  doc.font('Helvetica').fontSize(9).fillColor('rgba(255,255,255,0.8)')
+    .text(subtitle, 30, 28, { lineBreak: false });
+  doc.text(`${CELL}  ·  Generated: ${new Date().toLocaleString('en-IN')}`, 30, 39, { lineBreak: false });
+  doc.fillColor('#111111');
+  return 66;
 }
 
-const baseStyles = `
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; }
-    .header { background: #1e3a5f; color: white; padding: 12px 16px; margin-bottom: 12px; }
-    .header h1 { font-size: 15px; font-weight: 700; }
-    .header .sub { font-size: 10px; opacity: 0.85; margin-top: 2px; }
-    .meta { display: flex; gap: 24px; margin-bottom: 10px; font-size: 10px; color: #555; }
-    .meta strong { color: #1a1a1a; }
-    table { width: 100%; border-collapse: collapse; font-size: 10px; }
-    th { background: #1e3a5f; color: white; padding: 5px 7px; text-align: left; font-weight: 600; }
-    td { padding: 4px 7px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-    tr:nth-child(even) td { background: #f8fafc; }
-    .badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; }
-    .badge-fy { background: #dbeafe; color: #1e40af; }
-    .badge-sy { background: #dcfce7; color: #166534; }
-    .badge-ty { background: #fef3c7; color: #92400e; }
-    .badge-ly { background: #fce7f3; color: #9d174d; }
-    .footer { margin-top: 12px; font-size: 9px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 6px; display: flex; justify-content: space-between; }
-    .page-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #1e3a5f; }
-    .grid-bench { display: grid; gap: 3px; margin-bottom: 16px; }
-    .bench-row { display: flex; gap: 3px; align-items: center; }
-    .bench-label { width: 28px; font-size: 9px; color: #888; text-align: right; padding-right: 4px; flex-shrink: 0; }
-    .bench-cell { border: 1px solid #d1d5db; padding: 3px 4px; border-radius: 3px; font-size: 8px; min-width: 70px; line-height: 1.3; }
-    .bench-cell.empty { background: #f9fafb; border-style: dashed; }
-    .bench-cell .student-name { font-weight: 600; color: #1a1a1a; }
-    .bench-cell .student-prn { color: #6b7280; font-size: 7px; }
-    .bench-cell .student-roll { color: #3b82f6; font-size: 7px; }
-    .bench-cell .student-branch { font-size: 7px; }
-    .section-title { font-size: 11px; font-weight: 700; color: #1e3a5f; margin: 10px 0 6px; border-bottom: 2px solid #1e3a5f; padding-bottom: 3px; }
-    .warn { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 6px 8px; margin: 8px 0; font-size: 10px; }
-  </style>
-`;
-
-function yearBadge(year) {
-  const cls = { FY: 'badge-fy', SY: 'badge-sy', TY: 'badge-ty', LY: 'badge-ly' }[year] || '';
-  return `<span class="badge ${cls}">${year}</span>`;
+/** Small label + value pair, returns new y */
+function metaRow(doc, y, pairs, x = 30) {
+  const colW = (doc.page.width - 60) / pairs.length;
+  pairs.forEach((p, i) => {
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#555555')
+       .text(p[0].toUpperCase(), x + i * colW, y, { lineBreak: false });
+    doc.font('Helvetica').fontSize(9).fillColor('#111111')
+       .text(p[1] || '—', x + i * colW, y + 10, { lineBreak: false });
+  });
+  return y + 26;
 }
+
+/** Section heading with underline */
+function sectionHead(doc, y, text) {
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(NAVY).text(text, 30, y);
+  doc.moveTo(30, y + 14).lineTo(doc.page.width - 30, y + 14).stroke(NAVY);
+  return y + 20;
+}
+
+/**
+ * Draw a table. cols: [{ header, width, key, align? }]
+ * Returns y after table
+ */
+function table(doc, startY, rows, cols, { rowH = 18, headerBg = NAVY, zebra = true } = {}) {
+  const totalW = cols.reduce((s, c) => s + c.width, 0);
+  const x0 = (doc.page.width - totalW) / 2;
+  let y = startY;
+  const maxY = doc.page.height - 50;
+
+  // Header
+  doc.rect(x0, y, totalW, rowH).fill(headerBg);
+  let cx = x0;
+  cols.forEach(col => {
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('white')
+       .text(col.header, cx + 3, y + 5, { width: col.width - 6, align: col.align || 'left', lineBreak: false });
+    cx += col.width;
+  });
+  y += rowH;
+
+  rows.forEach((row, ri) => {
+    // Page break
+    if (y + rowH > maxY) {
+      doc.addPage();
+      y = header(doc, 'Continued…') + 4;
+      // re-draw header row
+      doc.rect(x0, y, totalW, rowH).fill(headerBg);
+      let cx2 = x0;
+      cols.forEach(col => {
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('white')
+           .text(col.header, cx2 + 3, y + 5, { width: col.width - 6, align: col.align || 'left', lineBreak: false });
+        cx2 += col.width;
+      });
+      y += rowH;
+    }
+
+    if (zebra && ri % 2 === 1) doc.rect(x0, y, totalW, rowH).fill(LIGHT_BG);
+    doc.rect(x0, y, totalW, rowH).stroke(BORDER);
+    cx = x0;
+    cols.forEach(col => {
+      const val = String(row[col.key] ?? '—');
+      doc.font('Helvetica').fontSize(8).fillColor(col.color?.(row) || '#111111')
+         .text(val, cx + 3, y + 5, { width: col.width - 6, align: col.align || 'left', lineBreak: false });
+      cx += col.width;
+    });
+    y += rowH;
+  });
+
+  return y + 4;
+}
+
+/** Convert a PDFDocument to a Buffer */
+function docToBuffer(doc) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    doc.end();
+  });
+}
+
+// ── Exports ──────────────────────────────────────────────────────────────────
 
 export async function generateSeatingPDF({ slot, classroom, assignments }) {
-  // Build bench grid
+  const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+
+  let y = header(doc, `Seating Arrangement — ${slot.cycle_name || slot.subject_code}`);
+
+  y = metaRow(doc, y, [
+    ['Room', `${classroom.room_no} (${classroom.block})`],
+    ['Subject', `${slot.subject_code} — ${slot.subject_name}`],
+    ['Date', slot.date],
+    ['Time', `${slot.start_time}  (${slot.duration_mins} min)`],
+    ['Seated / Cap.', `${assignments.length} / ${classroom.capacity}`],
+  ]);
+
+  y = sectionHead(doc, y, `Bench Layout  (${classroom.bench_rows} rows × ${classroom.bench_cols} columns)`);
+
+  // Build grid
   const grid = {};
   for (const a of assignments) {
     if (!grid[a.bench_row]) grid[a.bench_row] = {};
     grid[a.bench_row][a.bench_col] = a;
   }
 
-  const rows = Array.from({ length: classroom.bench_rows }, (_, i) => i + 1);
-  const cols = Array.from({ length: classroom.bench_cols }, (_, i) => i + 1);
+  const CELL_W = Math.min(88, Math.floor((doc.page.width - 60) / (classroom.bench_cols + 0.5)));
+  const CELL_H = 38;
+  const LABEL_W = 28;
 
-  const gridHtml = rows.map(row => `
-    <div class="bench-row">
-      <div class="bench-label">Row ${row}</div>
-      ${cols.map(col => {
-        const seat = grid[row]?.[col];
-        if (!seat) return `<div class="bench-cell empty">—</div>`;
-        return `
-          <div class="bench-cell">
-            <div class="student-name">${seat.student_name}</div>
-            <div class="student-prn">PRN: ${seat.prn}</div>
-            <div class="student-roll">Roll: ${seat.roll_no}</div>
-            <div class="student-branch">${seat.branch} ${yearBadge(seat.year)}</div>
-          </div>`;
-      }).join('')}
-    </div>
-  `).join('');
+  for (let row = 1; row <= classroom.bench_rows; row++) {
+    // Page break check
+    if (y + CELL_H + 4 > doc.page.height - 50) {
+      doc.addPage();
+      y = header(doc, 'Seating Layout (continued)') + 4;
+    }
 
-  const listHtml = `
-    <div class="section-title">Student List (${assignments.length} students)</div>
-    <table>
-      <thead><tr>
-        <th>Bench Row</th><th>Bench Col</th><th>Name</th><th>PRN</th><th>Roll No</th><th>Branch</th><th>Year</th>
-      </tr></thead>
-      <tbody>
-        ${assignments.map(a => `<tr>
-          <td>${a.bench_row}</td><td>${a.bench_col}</td>
-          <td>${a.student_name}</td><td>${a.prn}</td><td>${a.roll_no}</td>
-          <td>${a.branch}</td><td>${yearBadge(a.year)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
+    // Row label
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#888888')
+       .text(`R${row}`, 30, y + 13, { width: LABEL_W, align: 'right', lineBreak: false });
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyles}</head>
-  <body>
-    <div class="header">
-      <h1>MIT World Peace University — Examination Cell</h1>
-      <div class="sub">Seating Arrangement — ${slot.cycle_name || ''}</div>
-    </div>
-    <div class="meta">
-      <div><strong>Room:</strong> ${classroom.room_no} (${classroom.block})</div>
-      <div><strong>Subject:</strong> ${slot.subject_code} — ${slot.subject_name}</div>
-      <div><strong>Date:</strong> ${slot.date}</div>
-      <div><strong>Time:</strong> ${slot.start_time} (${slot.duration_mins} min)</div>
-      <div><strong>Capacity:</strong> ${classroom.capacity} | <strong>Seated:</strong> ${assignments.length}</div>
-    </div>
-    <div class="section-title">Bench Layout (${classroom.bench_rows} rows × ${classroom.bench_cols} positions)</div>
-    <div class="grid-bench">${gridHtml}</div>
-    ${listHtml}
-    <div class="footer">
-      <span>MIT WPU Examination Cell — Confidential</span>
-      <span>Generated: ${new Date().toLocaleString('en-IN')}</span>
-    </div>
-  </body></html>`;
+    for (let col = 1; col <= classroom.bench_cols; col++) {
+      const seat = grid[row]?.[col];
+      const sx = 30 + LABEL_W + 4 + (col - 1) * (CELL_W + 2);
 
-  return renderPDF(html);
-}
+      if (!seat) {
+        doc.rect(sx, y, CELL_W, CELL_H).fill('#f8fafc').stroke(BORDER);
+        doc.font('Helvetica').fontSize(7).fillColor('#aaaaaa')
+           .text('empty', sx + 2, y + 14, { width: CELL_W - 4, align: 'center', lineBreak: false });
+      } else {
+        doc.rect(sx, y, CELL_W, CELL_H).fill('white').stroke('#94a3b8');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor('#111111')
+           .text(seat.student_name?.substring(0, 18) || '', sx + 2, y + 3, { width: CELL_W - 4, lineBreak: false });
+        doc.font('Helvetica').fontSize(6).fillColor('#555555')
+           .text(`PRN: ${seat.prn}`, sx + 2, y + 13, { width: CELL_W - 4, lineBreak: false });
+        doc.font('Helvetica').fontSize(6).fillColor(RED_MARK)
+           .text(`Roll: ${seat.roll_no}`, sx + 2, y + 21, { width: CELL_W - 4, lineBreak: false });
+        const yc = YEAR_CLR[seat.year] || '#555555';
+        doc.font('Helvetica').fontSize(6).fillColor(yc)
+           .text(`${seat.branch}  ${seat.year}`, sx + 2, y + 29, { width: CELL_W - 4, lineBreak: false });
+      }
+    }
+    y += CELL_H + 3;
+  }
 
-export async function generateDutySheetPDF({ faculty, duties }) {
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyles}</head>
-  <body>
-    <div class="header">
-      <h1>MIT World Peace University — Examination Cell</h1>
-      <div class="sub">Supervisor Duty Sheet</div>
-    </div>
-    <div class="meta">
-      <div><strong>Faculty:</strong> ${faculty.name}</div>
-      <div><strong>Department:</strong> ${faculty.department || '—'}</div>
-      <div><strong>Email:</strong> ${faculty.email}</div>
-    </div>
-    <div class="section-title">Duty Schedule (${duties.length} duty/duties)</div>
-    ${duties.length === 0 ? '<div class="warn">No duties assigned for this cycle.</div>' : ''}
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Time</th><th>Duration</th><th>Room</th><th>Block</th><th>Subject</th><th>Role</th><th>Co-Supervisor</th><th>Status</th>
-      </tr></thead>
-      <tbody>
-        ${duties.map(d => `<tr>
-          <td>${d.date}</td>
-          <td>${d.start_time}</td>
-          <td>${d.duration_mins} min</td>
-          <td><strong>${d.room_no}</strong></td>
-          <td>${d.block}</td>
-          <td>${d.subject_code} — ${d.subject_name}</td>
-          <td><span class="badge ${d.role === 'primary' ? 'badge-fy' : 'badge-sy'}">${d.role}</span></td>
-          <td>${d.co_supervisor_name || '—'}</td>
-          <td>${d.acknowledged ? '✅ Acknowledged' : '⏳ Pending'}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div class="footer">
-      <span>MIT WPU Examination Cell — Confidential</span>
-      <span>Generated: ${new Date().toLocaleString('en-IN')}</span>
-    </div>
-  </body></html>`;
+  y = sectionHead(doc, y + 8, `Student Register  (${assignments.length} students)`);
 
-  return renderPDF(html);
-}
+  y = table(doc, y, assignments.sort((a, b) => a.bench_row - b.bench_row || a.bench_col - b.bench_col), [
+    { header: 'Row', width: 35,  key: 'bench_row',    align: 'center' },
+    { header: 'Col', width: 35,  key: 'bench_col',    align: 'center' },
+    { header: 'Name',    width: 140, key: 'student_name' },
+    { header: 'PRN',     width: 90,  key: 'prn',   color: () => '#555555' },
+    { header: 'Roll No', width: 60,  key: 'roll_no', color: () => RED_MARK },
+    { header: 'Branch',  width: 55,  key: 'branch' },
+    { header: 'Year',    width: 35,  key: 'year',  color: r => YEAR_CLR[r.year] || '#111' },
+    { header: 'Section', width: 45,  key: 'section', color: () => '#555555' },
+  ]);
 
-export async function generateTimetablePDF({ cycle, slots }) {
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyles}</head>
-  <body>
-    <div class="header">
-      <h1>MIT World Peace University — Examination Cell</h1>
-      <div class="sub">Exam Timetable — ${cycle.name}</div>
-    </div>
-    <div class="meta">
-      <div><strong>Cycle:</strong> ${cycle.name}</div>
-      <div><strong>Period:</strong> ${cycle.start_date} to ${cycle.end_date}</div>
-      <div><strong>Status:</strong> ${cycle.status}</div>
-    </div>
-    <div class="section-title">Exam Schedule</div>
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Time</th><th>Duration</th><th>Subject Code</th><th>Subject</th><th>Branch</th><th>Year</th><th>Students</th><th>Rooms</th><th>Status</th>
-      </tr></thead>
-      <tbody>
-        ${slots.map(s => `<tr>
-          <td>${s.date}</td>
-          <td>${s.start_time}</td>
-          <td>${s.duration_mins} min</td>
-          <td>${s.subject_code}</td>
-          <td>${s.subject_name}</td>
-          <td>${s.branch}</td>
-          <td>${yearBadge(s.year)}</td>
-          <td>${s.student_count}</td>
-          <td>${s.room_count}</td>
-          <td>${s.status}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div class="footer">
-      <span>MIT WPU Examination Cell — Confidential</span>
-      <span>Generated: ${new Date().toLocaleString('en-IN')}</span>
-    </div>
-  </body></html>`;
+  // Footer
+  doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
+     .text('MIT WPU Examination Cell — Confidential', 30, doc.page.height - 30, { lineBreak: false })
+     .text(`Room ${classroom.room_no}  ·  ${slot.date}`, doc.page.width - 180, doc.page.height - 30, { lineBreak: false });
 
-  return renderPDF(html);
+  return docToBuffer(doc);
 }
 
 export async function generateAttendancePDF({ slot, classroom, students }) {
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyles}</head>
-  <body>
-    <div class="header">
-      <h1>MIT World Peace University — Examination Cell</h1>
-      <div class="sub">Attendance Sheet</div>
-    </div>
-    <div class="meta">
-      <div><strong>Room:</strong> ${classroom.room_no} (${classroom.block})</div>
-      <div><strong>Subject:</strong> ${slot.subject_code} — ${slot.subject_name}</div>
-      <div><strong>Date:</strong> ${slot.date}</div>
-      <div><strong>Time:</strong> ${slot.start_time}</div>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>PRN</th><th>Roll No</th><th>Student Name</th><th>Branch</th><th>Year</th><th>Bench Row</th><th>Bench Col</th><th>Signature</th>
-      </tr></thead>
-      <tbody>
-        ${students.map((s, i) => `<tr>
-          <td>${i + 1}</td>
-          <td>${s.prn}</td>
-          <td>${s.roll_no}</td>
-          <td>${s.name}</td>
-          <td>${s.branch}</td>
-          <td>${yearBadge(s.year)}</td>
-          <td>${s.bench_row}</td>
-          <td>${s.bench_col}</td>
-          <td style="width:120px;">&nbsp;</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div style="margin-top:16px; font-size:10px;">
-      <strong>Supervisor Signature:</strong> ______________________ &nbsp;&nbsp;
-      <strong>Date:</strong> ______________________
-    </div>
-    <div class="footer">
-      <span>MIT WPU Examination Cell — Confidential</span>
-      <span>Generated: ${new Date().toLocaleString('en-IN')}</span>
-    </div>
-  </body></html>`;
+  const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
 
-  return renderPDF(html);
+  let y = header(doc, `Attendance Sheet — ${slot.subject_code} — ${slot.subject_name}`);
+
+  y = metaRow(doc, y, [
+    ['Room', `${classroom.room_no} (${classroom.block})`],
+    ['Subject', `${slot.subject_code}`],
+    ['Date', slot.date],
+    ['Time', slot.start_time],
+    ['Total Students', students.length],
+  ]);
+
+  y = sectionHead(doc, y, 'Student Attendance');
+
+  y = table(doc, y, students.map((s, i) => ({ ...s, sno: i + 1, signature: '' })), [
+    { header: '#',        width: 28,  key: 'sno',      align: 'center' },
+    { header: 'PRN',      width: 85,  key: 'prn',      color: () => '#555555' },
+    { header: 'Roll No',  width: 60,  key: 'roll_no',  color: () => RED_MARK },
+    { header: 'Name',     width: 155, key: 'name' },
+    { header: 'Branch',   width: 50,  key: 'branch' },
+    { header: 'Year',     width: 30,  key: 'year', color: r => YEAR_CLR[r.year] || '#111' },
+    { header: 'Row',      width: 30,  key: 'bench_row',  align: 'center' },
+    { header: 'Col',      width: 30,  key: 'bench_col',  align: 'center' },
+    { header: 'Signature', width: 72, key: 'signature' },
+  ], { rowH: 20 });
+
+  // Supervisor sign block
+  if (y + 50 > doc.page.height - 40) { doc.addPage(); y = 40; }
+  y += 12;
+  doc.font('Helvetica-Bold').fontSize(9).fillColor('#111111')
+     .text('Supervisor Signature: ____________________________', 30, y)
+     .text('Date: ______________________', 350, y);
+
+  doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
+     .text('MIT WPU Examination Cell — Confidential', 30, doc.page.height - 30, { lineBreak: false });
+
+  return docToBuffer(doc);
+}
+
+export async function generateDutySheetPDF({ faculty, duties }) {
+  const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+
+  let y = header(doc, 'Supervisor Duty Sheet');
+
+  y = metaRow(doc, y, [
+    ['Faculty', faculty.name],
+    ['Department', faculty.department || '—'],
+    ['Email', faculty.email],
+    ['Total Duties', duties.length],
+  ]);
+
+  if (duties.length === 0) {
+    doc.rect(30, y, doc.page.width - 60, 30).fill('#fef3c7');
+    doc.font('Helvetica').fontSize(9).fillColor('#92400e')
+       .text('No duties assigned for this exam cycle.', 36, y + 10);
+    y += 40;
+  } else {
+    y = sectionHead(doc, y, `Duty Schedule — ${duties.length} assignment(s)`);
+    y = table(doc, y, duties, [
+      { header: 'Date',        width: 62,  key: 'date' },
+      { header: 'Time',        width: 50,  key: 'start_time' },
+      { header: 'Duration',    width: 48,  key: 'duration_mins', color: () => '#555' },
+      { header: 'Room',        width: 45,  key: 'room_no' },
+      { header: 'Block',       width: 45,  key: 'block' },
+      { header: 'Subject',     width: 140, key: 'subject_name' },
+      { header: 'Role',        width: 50,  key: 'role',
+        color: r => r.role === 'primary' ? '#1e40af' : '#166534' },
+      { header: 'Status',      width: 60,  key: 'acknowledged',
+        color: r => r.acknowledged ? '#166534' : '#92400e' },
+    ]);
+  }
+
+  doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
+     .text('MIT WPU Examination Cell — Confidential', 30, doc.page.height - 30, { lineBreak: false });
+
+  return docToBuffer(doc);
+}
+
+export async function generateTimetablePDF({ cycle, slots }) {
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 0, bufferPages: true });
+
+  let y = header(doc, `Exam Timetable — ${cycle.name}`);
+
+  y = metaRow(doc, y, [
+    ['Cycle', cycle.name],
+    ['Period', `${cycle.start_date}  →  ${cycle.end_date}`],
+    ['Status', cycle.status],
+    ['Total Slots', slots.length],
+  ]);
+
+  y = sectionHead(doc, y, 'Examination Schedule');
+
+  y = table(doc, y, slots, [
+    { header: 'Date',      width: 70,  key: 'date' },
+    { header: 'Time',      width: 55,  key: 'start_time' },
+    { header: 'Min',       width: 38,  key: 'duration_mins', align: 'center' },
+    { header: 'Code',      width: 60,  key: 'subject_code', color: () => RED_MARK },
+    { header: 'Subject',   width: 170, key: 'subject_name' },
+    { header: 'Branch',    width: 55,  key: 'branch' },
+    { header: 'Year',      width: 38,  key: 'year', color: r => YEAR_CLR[r.year] || '#111' },
+    { header: 'Type',      width: 52,  key: 'exam_type', color: r => r.exam_type === 'backlog' ? RED_MARK : '#111' },
+    { header: 'Mode',      width: 52,  key: 'exam_mode', color: r => r.exam_mode === 'online' ? '#1e40af' : '#111' },
+    { header: 'Students',  width: 55,  key: 'student_count', align: 'center' },
+    { header: 'Rooms',     width: 45,  key: 'room_count', align: 'center' },
+    { header: 'Status',    width: 62,  key: 'status' },
+  ]);
+
+  doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
+     .text('MIT WPU Examination Cell — Confidential', 30, doc.page.height - 30, { lineBreak: false });
+
+  return docToBuffer(doc);
 }

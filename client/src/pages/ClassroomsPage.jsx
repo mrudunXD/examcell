@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/index.js';
 
 const EMPTY = { room_no: '', block: '', capacity: '', bench_rows: '', bench_cols: '' };
 
@@ -76,6 +77,8 @@ export default function ClassroomsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
+  const { user } = useAuthStore();
+  const isCoord = user?.role === 'coordinator';
 
   const fetch = async () => {
     setLoading(true);
@@ -98,9 +101,11 @@ export default function ClassroomsPage() {
           <h1 className="page-title">Classrooms</h1>
           <p className="page-subtitle">{rooms.length} rooms configured</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
-          <Plus size={13} strokeWidth={1.5} /> Add Room
-        </button>
+        {isCoord && (
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
+            <Plus size={13} strokeWidth={1.5} /> Add Room
+          </button>
+        )}
       </div>
 
       {loading
@@ -112,83 +117,104 @@ export default function ClassroomsPage() {
             <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', marginBottom: 20 }}>
               Add classroom configurations to begin seating allocation.
             </p>
-            <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
-              <Plus size={13} strokeWidth={1.5} /> Add First Room
-            </button>
+            {isCoord && (
+              <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
+                <Plus size={13} strokeWidth={1.5} /> Add First Room
+              </button>
+            )}
           </div>
         )
         : (
-          /* Collapsed grid — newspaper column layout */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', border: '1px solid #111' }}>
-            {rooms.map((r, i) => (
+          <FloorGroupedRooms rooms={rooms} isCoord={isCoord}
+            onEdit={(r) => { setEditing(r); setModal('form'); }}
+            onDel={del} />
+        )
+      }
+
+      {isCoord && modal === 'form' && <RoomModal room={editing} onClose={() => setModal(null)} onSave={fetch} />}
+    </div>
+  );
+}
+
+function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
+  // Group by first character/digit of room_no (floor indicator)
+  const floors = {};
+  for (const r of rooms) {
+    const firstChar = String(r.room_no)[0] || '?';
+    // If first char is a digit, it's a floor number; otherwise treat as letter block
+    const floorKey = /\d/.test(firstChar) ? `Floor ${firstChar}` : `Block ${firstChar}`;
+    if (!floors[floorKey]) floors[floorKey] = [];
+    floors[floorKey].push(r);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {Object.entries(floors).sort(([a],[b]) => a.localeCompare(b)).map(([floor, floorRooms]) => (
+        <div key={floor} style={{ border: '1px solid #111' }}>
+          {/* Floor header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px', background: '#111111', color: '#F9F9F7',
+          }}>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 700 }}>{floor}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+              {floorRooms.length} room(s) · {floorRooms.reduce((s, r) => s + (r.capacity || 0), 0)} total seats
+            </span>
+          </div>
+
+          {/* Room cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', border: 'none' }}>
+            {floorRooms.sort((a, b) => String(a.room_no).localeCompare(String(b.room_no))).map((r, i) => (
               <div key={r.id} style={{
-                borderRight: '1px solid #111',
-                borderBottom: '1px solid #111',
-                padding: '18px 16px',
+                borderRight: '1px solid #E5E5E0',
+                borderBottom: '1px solid #E5E5E0',
+                padding: '16px 14px',
               }}>
-                {/* Room number — display type */}
-                <div style={{
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: 28,
-                  fontWeight: 900,
-                  lineHeight: 1,
-                  color: '#111111',
-                  marginBottom: 2,
-                }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, lineHeight: 1, color: '#111111', marginBottom: 2 }}>
                   {r.room_no}
                 </div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 9,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  color: '#737373',
-                  marginBottom: 14,
-                }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#737373', marginBottom: 12 }}>
                   {r.block}
                 </div>
 
-                {/* Stats row */}
-                <div style={{ display: 'flex', gap: 18, marginBottom: 14 }}>
+                <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                   {[
                     { label: 'Capacity', val: r.capacity },
-                    { label: 'Layout', val: `${r.bench_rows}x${r.bench_cols}` },
+                    { label: 'Layout', val: `${r.bench_rows}×${r.bench_cols}` },
                   ].map(({ label, val }) => (
                     <div key={label}>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#A3A3A3' }}>{label}</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: '#111111', marginTop: 2 }}>{val}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#111111', marginTop: 2 }}>{val}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* Mini bench grid */}
+                {/* Mini bench visualization */}
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: `repeat(${Math.min(r.bench_cols, 6)}, 1fr)`,
-                  gap: 2,
-                  marginBottom: 14,
-                  opacity: 0.5,
+                  gap: 2, marginBottom: 12, opacity: 0.4,
                 }}>
-                  {Array.from({ length: Math.min(r.bench_rows * r.bench_cols, 30) }).map((_, j) => (
-                    <div key={j} style={{ height: 5, background: '#111111' }} />
+                  {Array.from({ length: Math.min(r.bench_rows * r.bench_cols, 24) }).map((_, j) => (
+                    <div key={j} style={{ height: 4, background: '#111111' }} />
                   ))}
                 </div>
 
-                <div className="flex-row" style={{ gap: 4 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(r); setModal('form'); }}>
-                    <Pencil size={11} strokeWidth={1.5} /> Edit
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => del(r.id)}>
-                    <Trash2 size={11} strokeWidth={1.5} /> Remove
-                  </button>
-                </div>
+                {isCoord && (
+                  <div className="flex-row" style={{ gap: 4 }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => onEdit(r)}>
+                      <Pencil size={11} strokeWidth={1.5} /> Edit
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => onDel(r.id)}>
+                      <Trash2 size={11} strokeWidth={1.5} /> Remove
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        )
-      }
-
-      {modal === 'form' && <RoomModal room={editing} onClose={() => setModal(null)} onSave={fetch} />}
+        </div>
+      ))}
     </div>
   );
 }

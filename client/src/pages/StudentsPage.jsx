@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, Plus, Pencil, Trash2, Upload, Download, Search, X } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Upload, Download, Search, X, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/index.js';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -98,7 +99,7 @@ function CSVImportModal({ onClose, onDone }) {
   };
 
   const downloadTemplate = () => {
-    const csv = 'name,prn,roll_no,branch,year,semester,scheme\nRahul Sharma,2023010100001,23BCE001,CSE,FY,1,K Scheme\n';
+    const csv = 'name,prn,roll_no,branch,section,year,semester\nRahul Sharma,2023010100001,23BCE001,CSE,A,FY,1\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'students_template.csv'; a.click();
   };
@@ -108,7 +109,7 @@ function CSVImportModal({ onClose, onDone }) {
       <div className="modal">
         <h2 className="modal-title">Import Students — CSV</h2>
         <div className="alert alert-info" style={{ marginBottom: 16 }}>
-          Required columns: <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>name, prn, roll_no, branch, year, semester, scheme</code>
+          Required columns: <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>name, prn, roll_no, branch, section (optional), year, semester</code>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={downloadTemplate} style={{ marginBottom: 16 }}>
           <Download size={13} strokeWidth={1.5} /> Download Template
@@ -170,6 +171,9 @@ export default function StudentsPage() {
   const [filterYear, setFilterYear] = useState('');
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [collapsed, setCollapsed] = useState({});
+  const { user } = useAuthStore();
+  const isCoord = user?.role === 'coordinator';
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -204,14 +208,16 @@ export default function StudentsPage() {
           <h1 className="page-title">Students</h1>
           <p className="page-subtitle">{students.length} students in database</p>
         </div>
-        <div className="flex-row" style={{ gap: 8 }}>
-          <button className="btn btn-ghost" onClick={() => setModal('import')}>
-            <Upload size={13} strokeWidth={1.5} /> Import CSV
-          </button>
-          <button className="btn btn-primary" id="add-student-btn" onClick={() => { setEditing(null); setModal('add'); }}>
-            <Plus size={13} strokeWidth={1.5} /> Add Student
-          </button>
-        </div>
+        {isCoord && (
+          <div className="flex-row" style={{ gap: 8 }}>
+            <button className="btn btn-ghost" onClick={() => setModal('import')}>
+              <Upload size={13} strokeWidth={1.5} /> Import CSV
+            </button>
+            <button className="btn btn-primary" id="add-student-btn" onClick={() => { setEditing(null); setModal('add'); }}>
+              <Plus size={13} strokeWidth={1.5} /> Add Student
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -241,49 +247,169 @@ export default function StudentsPage() {
         )}
       </div>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-                      <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
-              <th>Branch</th><th>Sec</th><th>Year</th><th>Sem</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
-            ) : students.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--np-n500)', fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>No students found</td></tr>
-            ) : students.map((s, i) => (
-              <tr key={s.id}>
-                <td style={{ color: 'var(--np-n400)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
-                <td style={{ fontWeight: 600 }}>{s.name}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{s.prn}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-red)' }}>{s.roll_no}</td>
-                <td>{s.branch}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)' }}>{s.section || '—'}</td>
-                <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>Sem {s.semester}</td>
-                <td>
-                  <div className="flex-row" style={{ gap: 4 }}>
-                    <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('edit'); }} aria-label="Edit">
-                      <Pencil size={12} strokeWidth={1.5} />
-                    </button>
-                    <button className="btn btn-danger btn-icon btn-sm" onClick={() => deleteStudent(s.id, s.name)} aria-label="Delete">
-                      <Trash2 size={12} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Grouped display: Year → Branch → Section */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+      ) : search || filterBranch || filterYear ? (
+        // Flat table when filtering/searching
+        <div className="table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
+              <th>Branch</th><th>Sec</th><th>Year</th><th>Sem</th>
+              {isCoord && <th>Actions</th>}
+            </tr></thead>
+            <tbody>
+              {students.length === 0
+                ? <tr><td colSpan={isCoord ? 9 : 8} style={{ textAlign: 'center', padding: 32, color: 'var(--np-n500)', fontStyle: 'italic' }}>No students found</td></tr>
+                : students.map((s, i) => <StudentRow key={s.id} s={s} i={i} isCoord={isCoord}
+                    onEdit={() => { setEditing(s); setModal('edit'); }}
+                    onDel={() => deleteStudent(s.id, s.name)} />)
+              }
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        // Grouped view
+        <GroupedStudents students={students} isCoord={isCoord}
+          onEdit={(s) => { setEditing(s); setModal('edit'); }}
+          onDel={(s) => deleteStudent(s.id, s.name)}
+          collapsed={collapsed} setCollapsed={setCollapsed} />
+      )}
 
-      {(modal === 'add' || modal === 'edit') && (
+      {isCoord && (modal === 'add' || modal === 'edit') && (
         <StudentModal student={modal === 'edit' ? editing : null} onClose={() => setModal(null)} onSave={fetchStudents} />
       )}
-      {modal === 'import' && <CSVImportModal onClose={() => setModal(null)} onDone={fetchStudents} />}
+      {isCoord && modal === 'import' && <CSVImportModal onClose={() => setModal(null)} onDone={fetchStudents} />}
+    </div>
+  );
+}
+
+function StudentRow({ s, i, isCoord, onEdit, onDel }) {
+  return (
+    <tr key={s.id}>
+      <td style={{ color: 'var(--np-n400)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
+      <td style={{ fontWeight: 600 }}>{s.name}</td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{s.prn}</td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-red)' }}>{s.roll_no}</td>
+      <td>{s.branch}</td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)' }}>{s.section || '—'}</td>
+      <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>Sem {s.semester}</td>
+      {isCoord && (
+        <td>
+          <div className="flex-row" style={{ gap: 4 }}>
+            <button className="btn btn-ghost btn-icon btn-sm" onClick={onEdit}><Pencil size={12} strokeWidth={1.5} /></button>
+            <button className="btn btn-danger btn-icon btn-sm" onClick={onDel}><Trash2 size={12} strokeWidth={1.5} /></button>
+          </div>
+        </td>
+      )}
+    </tr>
+  );
+}
+
+const YEAR_ORDER = ['FY', 'SY', 'TY', 'LY'];
+
+function GroupedStudents({ students, isCoord, onEdit, onDel, collapsed, setCollapsed }) {
+  // Group: Year → Branch → Section → rows
+  const yearGroups = {};
+  for (const s of students) {
+    const y = s.year;
+    const b = s.branch;
+    const sec = s.section || 'All';
+    if (!yearGroups[y]) yearGroups[y] = {};
+    if (!yearGroups[y][b]) yearGroups[y][b] = {};
+    if (!yearGroups[y][b][sec]) yearGroups[y][b][sec] = [];
+    yearGroups[y][b][sec].push(s);
+  }
+
+  const toggle = (key) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {YEAR_ORDER.filter(y => yearGroups[y]).map(year => {
+        const yKey = `y-${year}`;
+        const yOpen = !collapsed[yKey];
+        const yTotal = Object.values(yearGroups[year]).flatMap(b => Object.values(b).flat()).length;
+        return (
+          <div key={year} style={{ border: '1px solid #111', marginBottom: 10 }}>
+            {/* Year header */}
+            <div
+              onClick={() => toggle(yKey)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
+                background: '#111111', color: '#F9F9F7', cursor: 'pointer' }}
+            >
+              {yOpen ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
+              <span className={`badge badge-${year.toLowerCase()}`} style={{ fontSize: 10, borderColor: 'rgba(255,255,255,0.2)' }}>{year}</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>
+                {year === 'FY' ? 'First Year' : year === 'SY' ? 'Second Year' : year === 'TY' ? 'Third Year' : 'Last Year'}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>
+                {yTotal} students · {Object.keys(yearGroups[year]).length} branches
+              </span>
+            </div>
+
+            {yOpen && Object.entries(yearGroups[year]).sort(([a],[b]) => a.localeCompare(b)).map(([branch, secs]) => {
+              const bKey = `b-${year}-${branch}`;
+              const bOpen = !collapsed[bKey];
+              const bTotal = Object.values(secs).flat().length;
+              return (
+                <div key={branch} style={{ borderTop: '1px solid #E5E5E0' }}>
+                  {/* Branch header */}
+                  <div onClick={() => toggle(bKey)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 18px',
+                      background: '#F5F5F5', cursor: 'pointer', borderLeft: '4px solid #111' }}>
+                    {bOpen ? <ChevronDown size={13} strokeWidth={1.5} color="#525252" /> : <ChevronRight size={13} strokeWidth={1.5} color="#525252" />}
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13 }}>{branch}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginLeft: 'auto' }}>
+                      {bTotal} students · {Object.keys(secs).length} section(s)
+                    </span>
+                  </div>
+
+                  {bOpen && Object.entries(secs).sort(([a],[b]) => a.localeCompare(b)).map(([section, rows]) => {
+                    const secKey = `s-${year}-${branch}-${section}`;
+                    const secOpen = !collapsed[secKey];
+                    return (
+                      <div key={section}>
+                        {/* Section sub-header */}
+                        <div onClick={() => toggle(secKey)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 28px',
+                            borderTop: '1px solid #E5E5E0', background: '#FAFAF8', cursor: 'pointer' }}>
+                          {secOpen ? <ChevronDown size={11} strokeWidth={1.5} color="#A3A3A3" /> : <ChevronRight size={11} strokeWidth={1.5} color="#A3A3A3" />}
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Section {section}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)', marginLeft: 'auto' }}>{rows.length} students</span>
+                        </div>
+                        {secOpen && (
+                          <div className="table-wrap" style={{ margin: 0, border: 'none' }}>
+                            <table style={{ border: 'none' }}>
+                              <thead><tr>
+                                <th>#</th><th>Name</th><th>PRN</th><th>Roll No</th>
+                                <th>Sem</th>
+                                {isCoord && <th>Actions</th>}
+                              </tr></thead>
+                              <tbody>
+                                {rows.map((s, i) => <StudentRow key={s.id} s={s} i={i} isCoord={isCoord}
+                                  onEdit={() => onEdit(s)} onDel={() => onDel(s)} />)}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+      {students.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 64, fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)' }}>
+          No students in database yet.
+        </div>
+      )}
     </div>
   );
 }
