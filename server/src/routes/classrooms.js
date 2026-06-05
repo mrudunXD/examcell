@@ -1,0 +1,36 @@
+import { Router } from 'express';
+import { getDb } from '../db/database.js';
+import { authenticate, requireCoordinator } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
+
+const router = Router();
+router.use(authenticate);
+
+router.get('/', asyncHandler(async (req, res) => {
+  const db = getDb();
+  res.json(db.prepare('SELECT * FROM classrooms WHERE is_active=1 ORDER BY block, room_no').all());
+}));
+
+router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const { room_no, block, capacity, bench_rows, bench_cols } = req.body;
+  if (!room_no || !block || !capacity || !bench_rows || !bench_cols) return res.status(400).json({ error: 'All fields required' });
+  const id = crypto.randomUUID();
+  db.prepare('INSERT INTO classrooms (id, room_no, block, capacity, bench_rows, bench_cols) VALUES (?, ?, ?, ?, ?, ?)').run(id, room_no.trim(), block.trim(), parseInt(capacity), parseInt(bench_rows), parseInt(bench_cols));
+  res.status(201).json(db.prepare('SELECT * FROM classrooms WHERE id = ?').get(id));
+}));
+
+router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const { room_no, block, capacity, bench_rows, bench_cols } = req.body;
+  db.prepare('UPDATE classrooms SET room_no=?, block=?, capacity=?, bench_rows=?, bench_cols=? WHERE id=?').run(room_no, block, parseInt(capacity), parseInt(bench_rows), parseInt(bench_cols), req.params.id);
+  res.json(db.prepare('SELECT * FROM classrooms WHERE id = ?').get(req.params.id));
+}));
+
+router.delete('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  db.prepare("UPDATE classrooms SET is_active=0 WHERE id=?").run(req.params.id);
+  res.json({ success: true });
+}));
+
+export default router;
