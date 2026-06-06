@@ -61,13 +61,15 @@ function createTables() {
 
     CREATE TABLE IF NOT EXISTS subjects (
       id TEXT PRIMARY KEY,
-      code TEXT UNIQUE NOT NULL,
+      code TEXT NOT NULL,
       name TEXT NOT NULL,
-      branch TEXT NOT NULL,
+      branch TEXT NOT NULL DEFAULT 'CSE',
       year TEXT NOT NULL CHECK(year IN ('FY', 'SY', 'TY', 'LY')),
       semester INTEGER NOT NULL,
-      scheme TEXT DEFAULT 'K Scheme',
-      created_at TEXT DEFAULT (datetime('now'))
+      abbreviation TEXT,
+      course_type TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(code, branch)
     );
 
     CREATE TABLE IF NOT EXISTS classrooms (
