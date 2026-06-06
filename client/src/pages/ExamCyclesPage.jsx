@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle, Calendar, Loader } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -301,6 +301,24 @@ export default function ExamCyclesPage() {
   const { setActiveCycle } = useAppStore();
   const { user } = useAuthStore();
   const isCoord = user?.role === 'coordinator';
+  const [scheduling, setScheduling] = useState({});
+
+  const autoSchedule = async (cycleId, cycleName) => {
+    if (!confirm(`Auto-schedule all exams for "${cycleName}"?\n\nThis will:\n• Delete existing slots\n• Create one slot per subject (matching semester parity)\n• Auto-assign rooms, seating & supervisors`)) return;
+    setScheduling(prev => ({ ...prev, [cycleId]: true }));
+    try {
+      const { data } = await api.post(`/exam-cycles/${cycleId}/auto-schedule`);
+      toast.success(data.message || 'Auto-scheduled!');
+      if (data.warnings?.length) {
+        data.warnings.slice(0, 3).forEach(w => toast.error(w, { duration: 5000 }));
+      }
+      loadSlots(cycleId);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Auto-schedule failed');
+    } finally {
+      setScheduling(prev => ({ ...prev, [cycleId]: false }));
+    }
+  };
 
   const fetchCycles = async () => {
     setLoading(true);
@@ -425,9 +443,20 @@ export default function ExamCyclesPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)' }}>Exam Slots</span>
                       {isCoord && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(null); setModal('slot'); }}>
-                          <Plus size={12} strokeWidth={1.5} /> Add Slot
-                        </button>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, gap: 4 }}
+                            onClick={() => autoSchedule(cycle.id, cycle.name)}
+                            disabled={scheduling[cycle.id]}
+                          >
+                            {scheduling[cycle.id]
+                              ? <Loader size={11} strokeWidth={1.5} style={{ animation: 'spin 1s linear infinite' }} />
+                              : <Calendar size={11} strokeWidth={1.5} />}
+                            Auto Schedule
+                          </button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(null); setModal('slot'); }}>
+                            <Plus size={12} strokeWidth={1.5} /> Add Slot
+                          </button>
+                        </div>
                       )}
                     </div>
 

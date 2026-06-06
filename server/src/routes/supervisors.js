@@ -105,9 +105,17 @@ router.put('/reassign', requireCoordinator, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
-// GET my duties (faculty view)
+// GET my duties (faculty view) — only visible when cycle is ACTIVE
 router.get('/my-duties/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
+
+  // Faculty can only see duties when cycle is active
+  if (req.user.role === 'faculty') {
+    const cycle = db.prepare('SELECT status FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (cycle.status !== 'active') return res.status(403).json({ error: 'Duties are not visible until the exam cycle is set active.', cycle_status: cycle.status });
+  }
+
   const duties = db.prepare(`
     SELECT sd.id, sd.role, sd.acknowledged, sd.acknowledged_at,
       c.room_no, c.block,
@@ -125,6 +133,7 @@ router.get('/my-duties/:cycleId', asyncHandler(async (req, res) => {
   `).all(req.user.id, req.params.cycleId);
   res.json(duties);
 }));
+
 
 // POST acknowledge duty
 router.post('/acknowledge/:dutyId', asyncHandler(async (req, res) => {

@@ -2,12 +2,28 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { generateSeating } from '../services/seatingEngine.js';
+import { assignSupervisors } from '../services/supervisorEngine.js';
 
 const router = Router();
 router.use(authenticate);
 
 // Semester parity helper
 function semParity(sem) { return sem % 2 === 1 ? 'odd' : 'even'; }
+
+// Date helpers
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+function isSunday(dateStr) { return new Date(dateStr + 'T00:00:00').getDay() === 0; }
+function nextValidDate(dateStr, endDate) {
+  let d = dateStr;
+  while (isSunday(d) && d <= endDate) d = addDays(d, 1);
+  return d;
+}
+
 
 // ── CYCLES ───────────────────────────────────────────────────────────────────
 
@@ -59,7 +75,123 @@ router.post('/:id/activate', requireCoordinator, asyncHandler(async (req, res) =
   res.json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
 }));
 
+// POST /:id/auto-schedule — full automatic scheduling pipeline
+router.post('/:id/auto-schedule', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+
+  const { start_date, end_date, semester_type } = cycle;
+  const parityFilter = semester_type === 'odd' ? 'semester % 2 = 1' : 'semester % 2 = 0';
+
+  // 1. Get eligible subjects (matching semester parity)
+  const subjects = db.prepare(`SELECT * FROM subjects WHERE ${parityFilter} ORDER BY branch, year, semester, code`).all();
+  if (!subjects.length) return res.status(400).json({ error: `No subjects found for ${semester_type} semester cycle.` });
+
+  // 2. Build valid date pool (skip Sundays)
+  const validDates = [];
+  let cur = start_date;
+  while (cur <= end_date) {
+    if (!isSunday(cur)) validDates.push(cur);
+    cur = addDays(cur, 1);
+  }
+  if (!validDates.length) return res.status(400).json({ error: 'No valid exam dates in the cycle range.' });
+
+  // 3. Group subjects by branch+year — one per branch per day
+  const branchQueues = {};
+  for (const s of subjects) {
+    const key = `${s.branch}_${s.year}`;
+    if (!branchQueues[key]) branchQueues[key] = [];
+    branchQueues[key].push(s);
+  }
+
+  // 4. Schedule round-robin: each day assigns one subject per branch queue
+  const scheduled = [];
+  let dateIdx = 0;
+  const branchKeys = Object.keys(branchQueues);
+  while (branchKeys.some(k => branchQueues[k].length > 0)) {
+    if (dateIdx >= validDates.length) dateIdx = validDates.length - 1; // clamp at last valid date
+    for (const key of branchKeys) {
+      if (branchQueues[key].length === 0) continue;
+      scheduled.push({ subject: branchQueues[key].shift(), date: validDates[dateIdx] });
+    }
+    dateIdx++;
+  }
+
+  // 5. Get classrooms (largest first)
+  const classrooms = db.prepare('SELECT * FROM classrooms WHERE is_active=1 ORDER BY capacity DESC').all();
+  function pickRooms(studentCount) {
+    const picked = []; let rem = Math.max(studentCount, 1);
+    for (const c of classrooms) { if (rem <= 0) break; picked.push(c); rem -= c.capacity; }
+    return picked;
+  }
+
+  // 6. Get faculty + global workload
+  const faculty = db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const subjectStmt2 = db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
+  const allFaculty = faculty.map(f => ({ ...f, subject_ids: subjectStmt2.all(f.id).map(r => r.subject_id) }));
+  const globalWorkload = {};
+  for (const f of faculty) globalWorkload[f.id] = 0;
+  const dutyCounts = db.prepare(`
+    SELECT sd.faculty_id, COUNT(*) as cnt FROM supervisor_duties sd
+    JOIN room_allocations ra ON ra.id=sd.room_allocation_id
+    JOIN exam_slots es ON es.id=ra.slot_id
+    WHERE es.cycle_id != ? GROUP BY sd.faculty_id
+  `).all(cycle.id);
+  for (const r of dutyCounts) { if (globalWorkload[r.faculty_id] !== undefined) globalWorkload[r.faculty_id] = r.cnt; }
+
+  // 7. Execute all in one transaction
+  const results = { created: 0, seated: 0, supervisors: 0, warnings: [] };
+  db.transaction(() => {
+    db.prepare('DELETE FROM exam_slots WHERE cycle_id=?').run(cycle.id);
+    const slotStmt     = db.prepare(`INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status) VALUES (?, ?, ?, ?, '09:30', 180, 'regular', 'offline', 'draft')`);
+    const ssStmt       = db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?, ?)');
+    const raStmt       = db.prepare('INSERT OR IGNORE INTO room_allocations (id, slot_id, classroom_id) VALUES (?, ?, ?)');
+    const seatStmt     = db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
+    const dutyStmt     = db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
+    const conflStmt    = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const statusStmt   = db.prepare("UPDATE exam_slots SET status=? WHERE id=?");
+    let batchDuties    = [];
+
+    for (const { subject, date } of scheduled) {
+      const students = db.prepare(`SELECT * FROM students WHERE branch=? AND year=? AND semester=? AND is_active=1`).all(subject.branch, subject.year, subject.semester);
+      const slotId   = crypto.randomUUID();
+      slotStmt.run(slotId, cycle.id, subject.id, date);
+      results.created++;
+      for (const st of students) ssStmt.run(slotId, st.id);
+      if (!students.length || !classrooms.length) {
+        if (!students.length) results.warnings.push(`No students for ${subject.code} (${subject.branch} ${subject.year} Sem${subject.semester})`);
+        if (!classrooms.length) results.warnings.push('No classrooms configured');
+        continue;
+      }
+      // Rooms
+      const rooms = pickRooms(students.length);
+      const roomAllocs = [];
+      for (const c of rooms) {
+        const raId = crypto.randomUUID();
+        raStmt.run(raId, slotId, c.id);
+        roomAllocs.push({ id: raId, classroom_id: c.id, room_no: c.room_no, capacity: c.capacity, bench_rows: c.bench_rows, bench_cols: c.bench_cols });
+      }
+      // Seating
+      const { assignments, conflicts: sc } = generateSeating(students, roomAllocs);
+      for (const a of assignments) seatStmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
+      for (const c of sc) { conflStmt.run(crypto.randomUUID(), slotId, cycle.id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null); results.warnings.push(c.description); }
+      results.seated += assignments.length;
+      // Supervisors
+      const slotRooms = roomAllocs.map(ra => ({ id: ra.id, classroom_id: ra.classroom_id, room_no: ra.room_no, seated_count: assignments.filter(a => a.room_allocation_id === ra.id).length }));
+      const { duties, conflicts: dc } = assignSupervisors([{ id: slotId, subject_id: subject.id, subject_name: subject.name, date, start_time: '09:30', rooms: slotRooms }], allFaculty, globalWorkload, batchDuties);
+      for (const d of duties) { dutyStmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role); globalWorkload[d.faculty_id] = (globalWorkload[d.faculty_id] || 0) + 1; batchDuties.push({ ...d, time_key: `${date}_09:30` }); }
+      for (const c of dc) { conflStmt.run(crypto.randomUUID(), slotId, cycle.id, c.type, c.description, null, c.suggested_resolution || null); results.warnings.push(c.description); }
+      results.supervisors += duties.length;
+      statusStmt.run(duties.length ? 'supervisors_assigned' : (assignments.length ? 'seating_generated' : 'draft'), slotId);
+    }
+  })();
+
+  res.json({ ...results, message: `Auto-schedule complete: ${results.created} slots, ${results.seated} students seated, ${results.supervisors} duties assigned.` });
+}));
+
 // ── SLOTS ────────────────────────────────────────────────────────────────────
+
 
 router.get('/:cycleId/slots', asyncHandler(async (req, res) => {
   const db = getDb();
