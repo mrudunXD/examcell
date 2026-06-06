@@ -185,7 +185,6 @@ export default function SeatingPage() {
         ))}
       </div>
 
-      {/* Online exam — no seating needed */}
       {isOnline && (
         <div style={{ border: '2px solid #1d4ed8', padding: '32px 24px', textAlign: 'center', background: '#eff6ff', marginBottom: 20 }}>
           <Wifi size={32} strokeWidth={1} color="#1d4ed8" style={{ marginBottom: 12 }} />
@@ -197,6 +196,8 @@ export default function SeatingPage() {
           </p>
         </div>
       )}
+
+      {isSwapMode && (
         <div className="alert alert-warning" style={{ marginBottom: 14 }}>
           <ArrowLeftRight size={13} strokeWidth={1.5} />
           {swapSource
@@ -204,6 +205,7 @@ export default function SeatingPage() {
             : 'Click any occupied seat to begin a swap'}
         </div>
       )}
+
 
       {!hasSeating ? (
         <div className="card" style={{ textAlign: 'center', padding: 64 }}>
