@@ -429,16 +429,18 @@ export default function ExamCyclesPage() {
                     </div>
                   </div>
                   <div className="flex-row" style={{ gap: 4 }} onClick={e => e.stopPropagation()}>
-                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={async () => {
-                      try {
-                        await api.post(`/exam-cycles/${cycle.id}/activate`);
-                        setActiveCycle(cycle.id);
-                        toast.success(`"${cycle.name}" set as active cycle`);
-                        fetchCycles();
-                      } catch (err) {
-                        toast.error(err.response?.data?.error || 'Could not activate cycle');
-                      }
-                    }}>Set Active</button>
+                    {cycle.status !== 'active' && (
+                      <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={async () => {
+                        try {
+                          await api.post(`/exam-cycles/${cycle.id}/activate`);
+                          setActiveCycle(cycle.id);
+                          toast.success(`"${cycle.name}" set as active cycle`);
+                          fetchCycles();
+                        } catch (err) {
+                          toast.error(err.response?.data?.error || 'Could not activate cycle');
+                        }
+                      }}>Set Active</button>
+                    )}
                     <Link to={`/calendar/${cycle.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
                       <CalendarDays size={11} strokeWidth={1.5} /> Calendar
                     </Link>
@@ -461,15 +463,6 @@ export default function ExamCyclesPage() {
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)' }}>Exam Slots</span>
                       {isCoord && (
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, gap: 4 }}
-                            onClick={() => autoSchedule(cycle.id, cycle.name)}
-                            disabled={scheduling[cycle.id]}
-                          >
-                            {scheduling[cycle.id]
-                              ? <Loader size={11} strokeWidth={1.5} style={{ animation: 'spin 1s linear infinite' }} />
-                              : <Calendar size={11} strokeWidth={1.5} />}
-                            Auto Schedule
-                          </button>
                           <button className="btn btn-ghost btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(null); setModal('slot'); }}>
                             <Plus size={12} strokeWidth={1.5} /> Add Slot
                           </button>

@@ -3,6 +3,8 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
+import { generateSeating } from '../services/seatingEngine.js';
+import { assignSupervisors } from '../services/supervisorEngine.js';
 
 const router = Router();
 router.use(authenticate);
@@ -231,6 +233,97 @@ router.get('/:cycleId/slots', asyncHandler(async (req, res) => {
   })));
 }));
 
+// Helper function to auto assign seating and supervisors immediately
+function autoAssignSeatingAndSupervisors(slotId, db) {
+  const slot = db.prepare('SELECT * FROM exam_slots WHERE id=?').get(slotId);
+  if (!slot) return;
+
+  // 1. Generate Seating Arrangement
+  const students = db.prepare(`
+    SELECT st.* FROM students st
+    JOIN slot_students ss ON ss.student_id = st.id
+    WHERE ss.slot_id = ?
+  `).all(slotId);
+
+  const rooms = db.prepare(`
+    SELECT ra.id, ra.classroom_id, c.room_no, c.block, c.capacity, c.bench_rows, c.bench_cols
+    FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
+    WHERE ra.slot_id = ?
+    ORDER BY c.room_no
+  `).all(slotId);
+
+  if (!students.length || !rooms.length) return;
+
+  const { assignments, conflicts: seatingConflicts } = generateSeating(students, rooms);
+
+  db.transaction(() => {
+    const raIds = rooms.map(r => r.id);
+    for (const raId of raIds) {
+      db.prepare('DELETE FROM seat_assignments WHERE room_allocation_id=?').run(raId);
+    }
+    db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('CAPACITY_OVERFLOW','BRANCH_MIXING_FAILED','INSUFFICIENT_ROOM_CAPACITY','NO_STUDENTS','NO_ROOMS')").run(slotId);
+
+    const stmt = db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
+    for (const a of assignments) {
+      stmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
+    }
+
+    const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    for (const c of seatingConflicts) {
+      cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
+    }
+
+    db.prepare("UPDATE exam_slots SET status='seating_generated' WHERE id=?").run(slotId);
+  })();
+
+  // 2. Assign Supervisors
+  const updatedRooms = db.prepare(`
+    SELECT ra.id, ra.classroom_id, c.room_no,
+      (SELECT COUNT(*) FROM seat_assignments sa WHERE sa.room_allocation_id = ra.id) as seated_count
+    FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
+    WHERE ra.slot_id = ?
+  `).all(slotId);
+
+  const faculty = db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const subjectStmt = db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
+  const allFaculty = faculty.map(f => ({
+    ...f,
+    subject_ids: subjectStmt.all(f.id).map(r => r.subject_id)
+  }));
+
+  const globalWorkload = {};
+  for (const f of faculty) globalWorkload[f.id] = 0;
+  const allDutyCounts = db.prepare(`
+    SELECT sd.faculty_id, COUNT(*) as cnt
+    FROM supervisor_duties sd
+    JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+    WHERE ra.slot_id != ?
+    GROUP BY sd.faculty_id
+  `).all(slotId);
+  for (const row of allDutyCounts) {
+    if (globalWorkload[row.faculty_id] !== undefined) globalWorkload[row.faculty_id] = row.cnt;
+  }
+
+  const slotWithRooms = [{ ...slot, rooms: updatedRooms }];
+  const { duties, conflicts: supervisorConflicts } = assignSupervisors(slotWithRooms, allFaculty, globalWorkload);
+
+  db.transaction(() => {
+    const raIds = updatedRooms.map(r => r.id);
+    for (const raId of raIds) {
+      db.prepare('DELETE FROM supervisor_duties WHERE room_allocation_id=?').run(raId);
+    }
+    db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('NO_SUPERVISOR_AVAILABLE','NO_CO_SUPERVISOR_AVAILABLE')").run(slotId);
+
+    const stmt = db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
+    for (const d of duties) stmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role);
+
+    const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?)');
+    for (const c of supervisorConflicts) cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.suggested_resolution || null);
+
+    db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=? AND status != 'finalised'").run(slotId);
+  })();
+}
+
 router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const {
@@ -289,6 +382,15 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
     for (const s of autoStudents) ssStmt.run(slotId, s.id);
   })();
 
+  // AUTO ALLOCATE SEATING AND SUPERVISORS IMMEDIATELY FOR OFFLINE EXAMS
+  if (exam_mode === 'offline' && Array.isArray(classroom_ids) && classroom_ids.length) {
+    try {
+      autoAssignSeatingAndSupervisors(slotId, db);
+    } catch (err) {
+      console.error("Auto allocation on slot creation failed:", err);
+    }
+  }
+
   const created = db.prepare(`
     SELECT es.*, s.code AS subject_code, s.name AS subject_name, s.branch, s.year
     FROM exam_slots es JOIN subjects s ON s.id=es.subject_id WHERE es.id=?
@@ -319,6 +421,15 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (re
       for (const cid of classroom_ids) raStmt.run(crypto.randomUUID(), req.params.slotId, cid);
     }
   })();
+
+  // AUTO ALLOCATE SEATING AND SUPERVISORS IMMEDIATELY FOR OFFLINE EXAMS ON UPDATE
+  if (exam_mode === 'offline' && Array.isArray(classroom_ids) && classroom_ids.length) {
+    try {
+      autoAssignSeatingAndSupervisors(req.params.slotId, db);
+    } catch (err) {
+      console.error("Auto allocation on slot update failed:", err);
+    }
+  }
 
   res.json(db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId));
 }));
