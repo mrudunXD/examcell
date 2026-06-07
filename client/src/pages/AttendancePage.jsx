@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, X, Clock, Save, Users, RefreshCw, CheckSquare } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -12,6 +12,9 @@ const STATUS_CONFIG = {
 
 export default function AttendancePage() {
   const { slotId } = useParams();
+  const [searchParams] = useSearchParams();
+  const queryRoomId = searchParams.get('roomAllocationId');
+
   const [slot, setSlot] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -27,7 +30,8 @@ export default function AttendancePage() {
       setSlot(data.slot);
       setRooms(data.rooms || []);
       if (data.rooms?.length > 0 && !selectedRoom) {
-        setSelectedRoom(data.rooms[0].room.id);
+        const matched = data.rooms.find(r => String(r.room.id) === String(queryRoomId));
+        setSelectedRoom(matched ? matched.room.id : data.rooms[0].room.id);
       }
     } catch { toast.error('Failed to load slot'); }
   };
