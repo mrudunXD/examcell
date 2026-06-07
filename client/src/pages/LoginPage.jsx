@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../store/index.js';
+import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 const today = new Date().toLocaleDateString('en-GB', {
@@ -14,6 +15,29 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
+
+  const [cycles, setCycles] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
+  const [kioskCycle, setKioskCycle] = useState('');
+  const [kioskRoom, setKioskRoom] = useState('');
+
+  useEffect(() => {
+    api.get('/public/kiosk-init')
+      .then(res => {
+        setCycles(res.data.cycles || []);
+        setClassrooms(res.data.classrooms || []);
+        if (res.data.cycles?.length > 0) {
+          setKioskCycle(res.data.cycles[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLaunchKiosk = () => {
+    if (!kioskCycle) return;
+    const url = `/kiosk/${kioskCycle}${kioskRoom ? `?classroomId=${kioskRoom}` : ''}`;
+    window.open(url, '_blank');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -205,6 +229,48 @@ export default function LoginPage() {
                 : 'Sign In to ExamCell'}
             </button>
           </form>
+
+          <div style={{ margin: '24px 0 0 0', borderTop: '1px solid #E5E5E0', paddingTop: 20 }}>
+            <div style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 16,
+              fontWeight: 700,
+              color: '#111111',
+              marginBottom: 12,
+            }}>
+              Supervisor Kiosk Mode
+            </div>
+            <div style={{ fontSize: 11, color: '#525252', marginBottom: 12 }}>
+              Launch Kiosk display for smartboards or doors without logging in.
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: 10 }}>Exam Cycle</label>
+                <select className="select" value={kioskCycle} onChange={e => setKioskCycle(e.target.value)} style={{ padding: '6px 8px', fontSize: 11 }}>
+                  <option value="">Select Cycle...</option>
+                  {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: 10 }}>Room (Optional)</label>
+                <select className="select" value={kioskRoom} onChange={e => setKioskRoom(e.target.value)} style={{ padding: '6px 8px', fontSize: 11 }}>
+                  <option value="">All Rooms</option>
+                  {classrooms.map(r => <option key={r.id} value={r.id}>{r.room_no} ({r.block})</option>)}
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleLaunchKiosk}
+              style={{ width: '100%', justifyContent: 'center', fontSize: 12, padding: '8px 12px' }}
+              disabled={!kioskCycle}
+            >
+              Launch Kiosk Display
+            </button>
+          </div>
         </div>
 
         {/* Right column — notice / about */}

@@ -78,7 +78,7 @@ export default function App() {
           <Route path="live-dashboard" element={<ProtectedRoute role="coordinator"><LiveDashboardPage /></ProtectedRoute>} />
           <Route path="heatmap" element={<ProtectedRoute role="coordinator"><HeatmapPage /></ProtectedRoute>} />
         </Route>
-        <Route path="kiosk/:cycleId" element={<ProtectedRoute><KioskPage /></ProtectedRoute>} />
+        <Route path="kiosk/:cycleId" element={<KioskPage />} />
       </Routes>
     </BrowserRouter>
   );

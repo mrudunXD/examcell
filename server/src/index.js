@@ -21,6 +21,7 @@ import searchRouter from './routes/search.js';
 import broadcastRouter from './routes/broadcasts.js';
 import incidentRouter from './routes/incidents.js';
 import analyticsRouter from './routes/analytics.js';
+import publicRouter from './routes/public.js';
 
 import { initDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -45,6 +46,7 @@ app.use('/exports', express.static(path.join(__dirname, '../exports')));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRouter);
 app.use('/api/students', studentRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/classrooms', classroomRoutes);
