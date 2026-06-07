@@ -88,52 +88,85 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
 
   const cd = getCountdown(slot, localNow);
   const isLive = cd.phase === 'live';
+  const isCritical = isLive && cd.diff < 1800; // Under 30 minutes
+
+  // Premium active/upcoming glow configurations
+  const glowShadow = isLive 
+    ? (isCritical 
+        ? '0 25px 60px rgba(239, 68, 68, 0.12), 0 0 40px rgba(239, 68, 68, 0.15)' 
+        : '0 25px 60px rgba(16, 185, 129, 0.12), 0 0 40px rgba(16, 185, 129, 0.15)')
+    : '0 25px 60px rgba(59, 130, 246, 0.1), 0 0 45px rgba(59, 130, 246, 0.08)';
+
+  const cardBorderColor = isLive
+    ? (isCritical ? 'rgba(239, 68, 68, 0.5)' : 'rgba(16, 185, 129, 0.4)')
+    : 'rgba(59, 130, 246, 0.35)';
+
+  const timerColor = isLive 
+    ? (isCritical ? '#f87171' : '#34d399') 
+    : '#60a5fa';
+
+  const textShadowGlow = isLive 
+    ? (isCritical ? '0 0 20px rgba(239, 68, 68, 0.45)' : '0 0 20px rgba(16, 185, 129, 0.45)')
+    : '0 0 20px rgba(59, 130, 246, 0.35)';
 
   return (
     <div style={{ 
-      background: isDark ? 'rgba(15, 22, 42, 0.5)' : '#ffffff', 
-      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
-      borderRadius: '24px',
-      padding: '40px',
+      background: isDark ? 'rgba(11, 19, 38, 0.7)' : '#ffffff', 
+      border: `2px solid ${cardBorderColor}`,
+      borderRadius: '28px',
+      padding: '44px',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
-      boxShadow: isDark ? '0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)' : '0 20px 40px rgba(15, 23, 42, 0.04)',
+      boxShadow: isDark ? glowShadow : '0 20px 40px rgba(0, 0, 0, 0.03)',
       boxSizing: 'border-box',
       height: '100%',
-      backdropFilter: 'blur(10px)',
+      backdropFilter: 'blur(16px)',
+      position: 'relative',
+      overflow: 'hidden',
     }}>
+      {/* Decorative ambient light bar inside card */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: 4,
+        background: isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6',
+        boxShadow: isLive ? (isCritical ? '0 0 10px #ef4444' : '0 0 10px #10b981') : 'none'
+      }} />
+
       {/* Card Header: Status & Quick Room info */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           {/* Status badge */}
           <div style={{
             display: 'flex', 
             alignItems: 'center', 
-            gap: 8,
-            padding: '8px 20px',
-            borderRadius: '30px',
-            background: isLive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-            border: `1px solid ${isLive ? '#10b981' : '#3b82f6'}`,
+            gap: 10,
+            padding: '10px 22px',
+            borderRadius: '40px',
+            background: isLive 
+              ? (isCritical ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)') 
+              : 'rgba(59, 130, 246, 0.08)',
+            border: `1.5px solid ${isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6'}`,
           }}>
             <div style={{
               width: 10, height: 10, borderRadius: '50%',
-              background: isLive ? '#10b981' : '#3b82f6',
+              background: isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6',
               animation: isLive ? 'pulse 2s infinite' : 'none',
             }} />
             <span style={{ 
-              fontSize: '14px', 
-              letterSpacing: '0.05em', 
+              fontSize: '13px', 
+              letterSpacing: '0.1em', 
               textTransform: 'uppercase', 
-              fontWeight: 800,
-              color: isLive ? '#10b981' : '#3b82f6' 
+              fontWeight: 900,
+              color: isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6' 
             }}>
-              {isLive ? 'Exam In Progress' : 'Starting Soon'}
+              {isLive ? (isCritical ? 'CRITICAL TIME' : 'Exam In Progress') : 'Starting Soon'}
             </span>
           </div>
 
           {/* Time indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.55)', fontSize: '16px', fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.55)', fontSize: '16px', fontWeight: 700 }}>
             <Clock size={16} />
             <span>{slot.start_time} ({slot.duration_mins} min)</span>
           </div>
@@ -152,40 +185,42 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 8,
-                  padding: '10px 20px',
-                  borderRadius: '12px',
+                  gap: 10,
+                  padding: '12px 24px',
+                  borderRadius: '16px',
                   background: isCurrentKioskRoom 
                     ? '#f59e0b' 
                     : (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)'),
                   border: isCurrentKioskRoom
-                    ? '1.5px solid #d97706'
-                    : `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
-                  color: isCurrentKioskRoom ? '#000000' : (isDark ? '#ffffff' : '#334155'),
+                    ? '2px solid #d97706'
+                    : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.08)'}`,
+                  color: isCurrentKioskRoom ? '#000000' : (isDark ? '#ffffff' : '#1e293b'),
                   fontSize: '22px',
-                  fontWeight: 800,
+                  fontWeight: 900,
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  boxShadow: isCurrentKioskRoom ? '0 4px 15px rgba(245, 158, 11, 0.3)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isCurrentKioskRoom ? '0 8px 20px rgba(245, 158, 11, 0.3)' : 'none',
+                  fontFamily: "'Outfit', sans-serif",
                 }}
                 title="Click to view seating arrangement"
               >
                 <Grid3x3 size={20} />
                 <span>Room {room.room_no}</span>
                 {room.block && (
-                  <span style={{ fontSize: '14px', opacity: 0.8, fontWeight: 500 }}>
+                  <span style={{ fontSize: '14px', opacity: 0.8, fontWeight: 600 }}>
                     ({room.block})
                   </span>
                 )}
                 {isCurrentKioskRoom && (
                   <span style={{
                     fontSize: '10px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
+                    fontWeight: 950,
+                    padding: '3px 8px',
                     background: '#000',
                     color: '#FFF',
-                    borderRadius: '4px',
-                    marginLeft: 6
+                    borderRadius: '5px',
+                    marginLeft: 6,
+                    letterSpacing: '0.05em'
                   }}>
                     HERE
                   </span>
@@ -197,31 +232,32 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
       </div>
 
       {/* Middle section: Subject Detail */}
-      <div style={{ margin: '12px 0' }}>
-        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 6, fontWeight: 700 }}>
+      <div style={{ margin: '20px 0' }}>
+        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 8, fontWeight: 800 }}>
           {isLive ? 'Active Subject' : 'Next Scheduled'}
         </div>
         <div style={{ 
-          fontSize: '44px', 
-          fontWeight: 800, 
-          lineHeight: 1.2, 
+          fontSize: '48px', 
+          fontWeight: 900, 
+          lineHeight: 1.15, 
           color: isDark ? '#ffffff' : '#0f172a', 
           letterSpacing: '-0.02em',
+          fontFamily: "'Outfit', sans-serif"
         }}>
           {slot.subject_name}
         </div>
-        <div style={{ fontSize: '20px', fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(15,23,42,0.6)', marginTop: 8, letterSpacing: '0.02em' }}>
-          {slot.subject_code} · <span style={{ color: '#D6001C', fontWeight: 800 }}>{slot.branch}</span> · {slot.year} Year
+        <div style={{ fontSize: '20px', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.65)' : 'rgba(15,23,42,0.65)', marginTop: 10, letterSpacing: '0.02em' }}>
+          {slot.subject_code} · <span style={{ color: '#D6001C', fontWeight: 900 }}>{slot.branch}</span> · {slot.year} Year
         </div>
       </div>
 
       {/* Countdown Timers */}
       <div>
-        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 10, fontWeight: 700 }}>
+        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 14, fontWeight: 800 }}>
           {isLive ? 'Time Remaining' : 'Countdown'}
         </div>
         
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           {[
             { v: pad(cd.hh), l: 'HRS' }, 
             { v: pad(cd.mm), l: 'MIN' }, 
@@ -229,20 +265,23 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
           ].map(({ v, l }) => (
             <div key={l} style={{ textAlign: 'center' }}>
               <div style={{
-                fontSize: '64px', 
-                fontWeight: 800, 
-                lineHeight: 1.1, 
+                fontSize: '84px', 
+                fontWeight: 900, 
+                lineHeight: 1, 
                 fontVariantNumeric: 'tabular-nums',
-                color: isLive ? (cd.diff < 1800 ? '#ef4444' : '#10b981') : '#3b82f6',
+                color: timerColor,
+                textShadow: textShadowGlow,
                 letterSpacing: '-0.03em',
-                background: isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.02)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
-                padding: '12px 18px',
-                borderRadius: '14px',
+                background: isDark ? 'rgba(9, 15, 30, 0.85)' : '#f8fafc',
+                border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'}`,
+                padding: '16px 24px',
+                borderRadius: '18px',
+                boxShadow: isDark ? 'inset 0 4px 12px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4)' : 'inset 0 2px 4px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02)',
+                fontFamily: "'Outfit', sans-serif"
               }}>
                 {v}
               </div>
-              <div style={{ fontSize: '10px', letterSpacing: '0.1em', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginTop: 4 }}>
+              <div style={{ fontSize: '11px', letterSpacing: '0.15em', fontWeight: 900, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginTop: 8 }}>
                 {l}
               </div>
             </div>
@@ -250,20 +289,20 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
         </div>
         
         {/* Under 30 minutes alert */}
-        {isLive && cd.diff < 1800 && (
+        {isLive && isCritical && (
           <div style={{ 
-            marginTop: 12, 
+            marginTop: 16, 
             color: '#ef4444', 
             fontSize: '15px', 
             letterSpacing: '0.05em', 
             textTransform: 'uppercase', 
-            fontWeight: 800,
+            fontWeight: 900,
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
+            gap: 8,
             animation: 'pulse 1.5s infinite',
           }}>
-            <AlertTriangle size={16} />
+            <AlertTriangle size={18} />
             <span>Under 30 Minutes Remaining</span>
           </div>
         )}
@@ -274,8 +313,8 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
         display: 'grid', 
         gridTemplateColumns: 'repeat(4, 1fr)', 
         gap: 12,
-        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15, 23, 42, 0.08)'}`, 
-        paddingTop: 20 
+        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.08)'}`, 
+        paddingTop: 24 
       }}>
         {[
           { label: 'Start Time', value: slot.start_time },
@@ -284,10 +323,10 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
           { label: 'Exam Type', value: slot.exam_type?.toUpperCase() },
         ].map(({ label, value }) => (
           <div key={label}>
-            <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 2, fontWeight: 700 }}>
+            <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 4, fontWeight: 800 }}>
               {label}
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: isDark ? '#ffffff' : '#0f172a' }}>
+            <div style={{ fontSize: '17px', fontWeight: 800, color: isDark ? '#ffffff' : '#1e293b' }}>
               {value}
             </div>
           </div>
@@ -317,6 +356,40 @@ export default function KioskPage() {
   // Seating overlay data
   const [seatingData, setSeatingData] = useState(null);
   const [loadingSeating, setLoadingSeating] = useState(false);
+
+  // Request screen wake lock to prevent TV/Smartboard from going to sleep
+  useEffect(() => {
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Screen Wake Lock acquired successfully');
+        }
+      } catch (err) {
+        console.warn('Failed to acquire screen wake lock:', err);
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+          console.log('Screen Wake Lock released');
+        });
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Root updates every 30 seconds to filter active slots and handle carousel re-indexing.
   const [rootTick, setRootTick] = useState(0);
@@ -432,8 +505,8 @@ export default function KioskPage() {
   const isDark = theme === 'dark';
   const colors = {
     bgGradient: isDark 
-      ? 'radial-gradient(at 0% 0%, #0c1424 0px, transparent 50%), radial-gradient(at 100% 0%, #060b13 0px, transparent 50%), radial-gradient(at 50% 100%, #10192b 0px, transparent 50%), #04070c'
-      : 'radial-gradient(at 0% 0%, #eef2f7 0px, transparent 50%), radial-gradient(at 100% 0%, #f1f5f9 0px, transparent 50%), radial-gradient(at 50% 100%, #e2e8f0 0px, transparent 50%), #fafbfc',
+      ? 'radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%), radial-gradient(circle at 90% 10%, rgba(214, 0, 28, 0.12) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(79, 70, 229, 0.15) 0%, transparent 45%), #05080e'
+      : 'radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 10%, rgba(214, 0, 28, 0.06) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(79, 70, 229, 0.08) 0%, transparent 45%), #f5f7fa',
     text: isDark ? '#f8fafc' : '#0f172a',
     textMuted: isDark ? 'rgba(248, 250, 252, 0.7)' : 'rgba(15, 23, 42, 0.75)',
     textDim: isDark ? 'rgba(248, 250, 252, 0.45)' : 'rgba(15, 23, 42, 0.55)',
@@ -818,7 +891,7 @@ export default function KioskPage() {
         >
           {broadcasts.length
             ? broadcasts[broadcastIdx]?.message
-            : 'Hall tickets and official identity cards are mandatory. Carry no digital devices inside.'}
+            : 'Welcome to MIT World Peace University Examination Lobby'}
         </div>
         
         <div style={{ fontSize: '13px', color: colors.textDim, flexShrink: 0, letterSpacing: '0.05em', fontWeight: 700 }}>

@@ -26,6 +26,67 @@ export function initDb() {
   db.pragma('foreign_keys = ON');
 
   createTables();
+
+  // Run schema migration upgrades if tables exist but lack ON DELETE SET NULL
+  try {
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='attendance'").get();
+    if (tableInfo && !tableInfo.sql.includes('ON DELETE SET NULL')) {
+      console.log('🔄 Upgrading attendance table schema to support ON DELETE SET NULL...');
+      db.transaction(() => {
+        db.prepare('ALTER TABLE attendance RENAME TO attendance_old').run();
+        db.prepare(`
+          CREATE TABLE attendance (
+            id TEXT PRIMARY KEY,
+            slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
+            student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+            room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'absent' CHECK(status IN ('present','absent','late')),
+            marked_by TEXT REFERENCES users(id),
+            marked_at TEXT DEFAULT (datetime('now')),
+            notes TEXT,
+            UNIQUE(slot_id, student_id)
+          )
+        `).run();
+        db.prepare('INSERT OR IGNORE INTO attendance SELECT * FROM attendance_old').run();
+        db.prepare('DROP TABLE attendance_old').run();
+        console.log('✅ attendance table upgraded successfully.');
+      })();
+    }
+  } catch (err) {
+    console.error('Failed to migrate attendance table:', err);
+  }
+
+  try {
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='incidents'").get();
+    if (tableInfo && !tableInfo.sql.includes('ON DELETE SET NULL')) {
+      console.log('🔄 Upgrading incidents table schema to support ON DELETE SET NULL...');
+      db.transaction(() => {
+        db.prepare('ALTER TABLE incidents RENAME TO incidents_old').run();
+        db.prepare(`
+          CREATE TABLE incidents (
+            id TEXT PRIMARY KEY,
+            slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
+            room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
+            reported_by TEXT REFERENCES users(id),
+            type TEXT NOT NULL CHECK(type IN ('malpractice','disturbance','technical','medical','other')),
+            description TEXT NOT NULL,
+            student_prn TEXT,
+            action_taken TEXT,
+            severity TEXT DEFAULT 'low' CHECK(severity IN ('low','medium','high')),
+            status TEXT DEFAULT 'open' CHECK(status IN ('open','resolved','escalated')),
+            created_at TEXT DEFAULT (datetime('now')),
+            resolved_at TEXT
+          )
+        `).run();
+        db.prepare('INSERT OR IGNORE INTO incidents SELECT * FROM incidents_old').run();
+        db.prepare('DROP TABLE incidents_old').run();
+        console.log('✅ incidents table upgraded successfully.');
+      })();
+    }
+  } catch (err) {
+    console.error('Failed to migrate incidents table:', err);
+  }
+
   seedInitialData();
 
   console.log('✅ Database initialized:', DB_PATH);
@@ -181,7 +242,7 @@ function createTables() {
       id TEXT PRIMARY KEY,
       slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
       student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      room_allocation_id TEXT REFERENCES room_allocations(id),
+      room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
       status TEXT NOT NULL DEFAULT 'absent' CHECK(status IN ('present','absent','late')),
       marked_by TEXT REFERENCES users(id),
       marked_at TEXT DEFAULT (datetime('now')),
@@ -217,7 +278,7 @@ function createTables() {
     CREATE TABLE IF NOT EXISTS incidents (
       id TEXT PRIMARY KEY,
       slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
-      room_allocation_id TEXT REFERENCES room_allocations(id),
+      room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
       reported_by TEXT REFERENCES users(id),
       type TEXT NOT NULL CHECK(type IN ('malpractice','disturbance','technical','medical','other')),
       description TEXT NOT NULL,
