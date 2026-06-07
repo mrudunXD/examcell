@@ -159,7 +159,7 @@ function DutyCalendar({ duties, onSelectDuty }) {
   };
 
   return (
-    <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+    <div className="duty-calendar-card card" style={{ padding: 24, marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <button className="btn btn-ghost btn-sm" onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
           <ChevronLeft size={16} />
@@ -172,7 +172,7 @@ function DutyCalendar({ duties, onSelectDuty }) {
         </button>
       </div>
 
-      <div style={{
+      <div className="duty-calendar-weekdays" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(7, 1fr)',
         gap: 8,
@@ -187,9 +187,9 @@ function DutyCalendar({ duties, onSelectDuty }) {
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+      <div className="duty-calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
         {daysArray.map((day, idx) => {
-          if (!day) return <div key={`empty-${idx}`} style={{ height: 48 }} />;
+          if (!day) return <div key={`empty-${idx}`} className="duty-calendar-cell empty" style={{ height: 48 }} />;
           const dayDuties = getDutiesForDay(day);
           const isToday = new Date().toDateString() === day.toDateString();
           const hasDuties = dayDuties.length > 0;
@@ -215,7 +215,7 @@ function DutyCalendar({ duties, onSelectDuty }) {
                 cursor: hasDuties ? 'pointer' : 'default',
                 transition: 'all 0.2s',
               }}
-              className={hasDuties ? 'calendar-day-duty' : ''}
+              className={`duty-calendar-cell ${hasDuties ? 'calendar-day-duty' : ''}`}
             >
               <span style={{ fontSize: 13, fontWeight: hasDuties ? 800 : 500, color: hasDuties ? '#111' : 'inherit' }}>
                 {day.getDate()}
@@ -335,16 +335,9 @@ export default function FacultyDutyPage() {
     <div className="fade-in" style={{ maxWidth: 850, margin: '0 auto', paddingBottom: 48 }}>
       
       {/* Profile & Workload Header Summary Card */}
-      <div className="card" style={{ 
-        padding: '24px 32px', 
-        marginBottom: 28, 
-        background: '#fcfcf9', 
-        border: '1.5px solid #111',
-        borderRadius: 16,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.03)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div className="faculty-profile-card card">
+        <div className="faculty-profile-meta">
+          <div className="faculty-profile-details" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ 
               width: 52, height: 52, borderRadius: '50%', background: '#111', 
               display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' 
@@ -369,14 +362,7 @@ export default function FacultyDutyPage() {
         </div>
 
         {/* Stats grid section */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', 
-          gap: 16, 
-          marginTop: 24,
-          borderTop: '1px solid #E5E5E0',
-          paddingTop: 20
-        }}>
+        <div className="faculty-stats-grid">
           {[
             { label: 'Assigned Duties', val: duties.length, color: '#111' },
             { label: 'Pending Ack', val: pendingAckCount, color: pendingAckCount > 0 ? '#d97706' : '#16a34a' },
@@ -400,9 +386,9 @@ export default function FacultyDutyPage() {
       </div>
 
       {/* Selector and Tab row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div className="faculty-tab-nav-row">
         {/* Navigation Tabs */}
-        <div className="flex-row" style={{ gap: 6, background: '#F4F4F0', padding: 4, borderRadius: 8 }}>
+        <div className="faculty-tabs-list flex-row">
           {[
             { id: 'duties', label: 'My Duties', badge: pendingAckCount },
             { id: 'broadcasts', label: 'Announcements', badge: unreadBroadcastCount },
@@ -446,7 +432,7 @@ export default function FacultyDutyPage() {
 
         {/* Cycle selector (Only relevant for duties tab) */}
         {activeTab === 'duties' && cycles.length > 0 && (
-          <div className="flex-row" style={{ gap: 10 }}>
+          <div className="faculty-selectors flex-row">
             <select 
               className="select" 
               value={selectedCycle} 
@@ -498,22 +484,15 @@ export default function FacultyDutyPage() {
               }}
             />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="faculty-duties-list">
               {duties.map((duty) => (
                 <div
                   key={duty.id}
-                  style={{
-                    border: '1.5px solid #E5E5E0',
-                    borderLeft: `5px solid ${duty.role === 'primary' ? '#111111' : '#c2c2bc'}`,
-                    padding: '24px 28px',
-                    background: '#fff',
-                    borderRadius: 12,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-                  }}
+                  className={`faculty-duty-card ${duty.role === 'primary' ? 'primary' : 'co'}`}
                 >
                   {/* Duty Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <div className="flex-row" style={{ gap: 8 }}>
+                  <div className="faculty-duty-card-header">
+                    <div className="faculty-duty-badges flex-row">
                       <span className="badge badge-ink" style={{
                         background: duty.role === 'primary' ? '#111111' : 'transparent',
                         color: duty.role === 'primary' ? '#F9F9F7' : '#525252',
@@ -531,7 +510,7 @@ export default function FacultyDutyPage() {
                       )}
                     </div>
                     
-                    <div className="flex-row" style={{ gap: 8 }}>
+                    <div className="faculty-duty-actions flex-row">
                       {!duty.acknowledged && (
                         <button className="btn btn-success btn-sm" onClick={() => acknowledge(duty.id)}>
                           <CheckCircle size={12} strokeWidth={1.5} /> Acknowledge
@@ -559,7 +538,7 @@ export default function FacultyDutyPage() {
                   </div>
 
                   {/* Specifications grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                  <div className="faculty-specs-grid">
                     {[
                       { icon: CalendarDays, label: 'Date', val: duty.date },
                       { icon: Clock,        label: 'Duration', val: `${duty.start_time} · ${duty.duration_mins} mins` },
@@ -712,6 +691,161 @@ export default function FacultyDutyPage() {
           onReported={fetchIncidents}
         />
       )}
+
+      <style>{`
+        .faculty-profile-card {
+          padding: 24px 32px;
+          margin-bottom: 28px;
+          background: #fcfcf9;
+          border: 1.5px solid #111;
+          border-radius: 16px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+        }
+        .faculty-profile-meta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+        .faculty-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+          gap: 16px;
+          margin-top: 24px;
+          border-top: 1px solid #E5E5E0;
+          padding-top: 20px;
+        }
+        .faculty-tab-nav-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .faculty-tabs-list {
+          gap: 6px;
+          background: #F4F4F0;
+          padding: 4px;
+          border-radius: 8px;
+        }
+        .faculty-duties-list {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .faculty-duty-card {
+          border: 1.5px solid #E5E5E0;
+          padding: 24px 28px;
+          background: #fff;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .faculty-duty-card.primary {
+          border-left: 5px solid #111111;
+        }
+        .faculty-duty-card.co {
+          border-left: 5px solid #c2c2bc;
+        }
+        .faculty-duty-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          gap: 12px;
+        }
+        .faculty-duty-badges {
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .faculty-duty-actions {
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .faculty-specs-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+          .faculty-profile-card {
+            padding: 16px 20px;
+            margin-bottom: 20px;
+          }
+          .faculty-profile-meta {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .faculty-tab-nav-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .faculty-selectors {
+            width: 100%;
+            justify-content: space-between;
+          }
+          .faculty-selectors select {
+            flex: 1;
+            max-width: none !important;
+          }
+          .faculty-duty-card {
+            padding: 16px 20px;
+          }
+          .faculty-duty-card-header {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .faculty-duty-actions {
+            width: 100%;
+            justify-content: flex-start;
+          }
+          .faculty-specs-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .faculty-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+          .faculty-tabs-list {
+            width: 100%;
+            justify-content: space-between;
+          }
+          .faculty-tabs-list button {
+            flex: 1;
+            font-size: 11px !important;
+            padding: 8px 10px !important;
+            justify-content: center;
+          }
+          .faculty-duty-actions {
+            justify-content: stretch;
+          }
+          .faculty-duty-actions button, .faculty-duty-actions a {
+            flex: 1;
+            justify-content: center;
+            font-size: 10px !important;
+            padding: 6px 10px !important;
+          }
+          .duty-calendar-card {
+            padding: 16px !important;
+          }
+          .duty-calendar-grid {
+            gap: 4px !important;
+          }
+          .duty-calendar-cell {
+            height: 38px !important;
+          }
+          .duty-calendar-cell span {
+            font-size: 11px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

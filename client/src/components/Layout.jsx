@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
-  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight
+  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
@@ -231,6 +231,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -247,99 +248,255 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="app-shell">
-      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <nav className="sidebar">
-        {/* Publication flag */}
-        <div className="sidebar-flag">
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <GraduationCap
-              size={18}
-              color="rgba(255,255,255,0.7)"
-              style={{ marginTop: 2, flexShrink: 0 }}
-              strokeWidth={1.5}
-            />
-            <div>
-              <div className="sidebar-flag-title">ExamCell</div>
-              <div className="sidebar-flag-sub">MIT WPU · Exam Cell</div>
-            </div>
+    <div className="app-shell" style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
+      {/* Mobile Top Header (hidden on desktop via css) */}
+      <header className="mobile-header" style={{
+        display: 'none',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 20px',
+        background: '#111',
+        color: '#fff',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 40,
+        height: '56px',
+        boxSizing: 'border-box',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <GraduationCap size={20} strokeWidth={1.5} color="rgba(255,255,255,0.9)" />
+          <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.05em' }}>ExamCell</span>
+        </div>
+        <button 
+          onClick={() => setMobileMenuOpen(prev => !prev)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#fff',
+            cursor: 'pointer',
+            padding: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </header>
+
+      {/* Mobile Drawer menu content overlay */}
+      {mobileMenuOpen && (
+        <div className="mobile-drawer-overlay" style={{
+          position: 'fixed',
+          top: '56px',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(17, 17, 17, 0.98)',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '24px',
+          boxSizing: 'border-box',
+          animation: 'slideInMenu 0.2s ease-out',
+        }}>
+          {/* User badge */}
+          <div style={{ paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: 20 }}>
+            <div style={{ fontWeight: 800, fontSize: 18, color: '#fff' }}>{user?.name}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginTop: 4, fontWeight: 700, letterSpacing: '0.05em' }}>{user?.role}</div>
+          </div>
+          
+          {/* Links list */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
+            {navItems.map((item, i) =>
+              item.section ? (
+                <div key={i} style={{ 
+                  fontSize: 10, 
+                  fontWeight: 900, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.08em', 
+                  color: 'rgba(255,255,255,0.35)', 
+                  marginTop: 16,
+                  marginBottom: 6 
+                }}>{item.section}</div>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  style={({ isActive }) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
+                    background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    fontSize: 14,
+                  })}
+                  onClick={(e) => {
+                    setMobileMenuOpen(false);
+                    if (item.to === '/search') {
+                      e.preventDefault();
+                      setSearchOpen(true);
+                    }
+                  }}
+                >
+                  <item.icon size={16} strokeWidth={1.5} />
+                  <span>{item.label}</span>
+                </NavLink>
+              )
+            )}
+          </div>
+          
+          {/* Sign Out */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, marginTop: 16 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#fff',
+                padding: '12px',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleLogout();
+              }}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
+      )}
 
-        {/* User info */}
-        <div className="sidebar-user">
-          <div className="sidebar-user-name">{user?.name}</div>
-          <div className="sidebar-user-role">{user?.role}</div>
-        </div>
+      {/* Main shell grid */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* ── Sidebar ───────────────────────────────────────────────────────── */}
+        <nav className="sidebar">
+          {/* Publication flag */}
+          <div className="sidebar-flag">
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <GraduationCap
+                size={18}
+                color="rgba(255,255,255,0.7)"
+                style={{ marginTop: 2, flexShrink: 0 }}
+                strokeWidth={1.5}
+              />
+              <div>
+                <div className="sidebar-flag-title">ExamCell</div>
+                <div className="sidebar-flag-sub">MIT WPU · Exam Cell</div>
+              </div>
+            </div>
+          </div>
 
-        {/* Navigation */}
-        <div className="sidebar-nav">
-          {navItems.map((item, i) =>
-            item.section ? (
-              <div key={i} className="nav-section-label">{item.section}</div>
-            ) : (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-                onClick={(e) => {
-                  if (item.to === '/search') {
-                    e.preventDefault();
-                    setSearchOpen(true);
-                  }
-                }}
-              >
-                <item.icon size={13} strokeWidth={1.5} />
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.shortcut && (
-                  <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 8,
-                    opacity: 0.45, letterSpacing: '0.05em',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    padding: '1px 4px', borderRadius: 2,
-                  }}>
-                    {item.shortcut}
-                  </span>
-                )}
-              </NavLink>
-            )
-          )}
-        </div>
+          {/* User info */}
+          <div className="sidebar-user">
+            <div className="sidebar-user-name">{user?.name}</div>
+            <div className="sidebar-user-role">{user?.role}</div>
+          </div>
 
-        {/* Logout */}
-        <div className="sidebar-footer">
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{
-              width: '100%',
-              justifyContent: 'flex-start',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.45)',
-            }}
-            onClick={handleLogout}
-          >
-            <LogOut size={12} strokeWidth={1.5} />
-            Sign Out
-          </button>
-        </div>
-      </nav>
+          {/* Navigation */}
+          <div className="sidebar-nav">
+            {navItems.map((item, i) =>
+              item.section ? (
+                <div key={i} className="nav-section-label">{item.section}</div>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                  onClick={(e) => {
+                    if (item.to === '/search') {
+                      e.preventDefault();
+                      setSearchOpen(true);
+                    }
+                  }}
+                >
+                  <item.icon size={13} strokeWidth={1.5} />
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.shortcut && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 8,
+                      opacity: 0.45, letterSpacing: '0.05em',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      padding: '1px 4px', borderRadius: 2,
+                    }}>
+                      {item.shortcut}
+                    </span>
+                  )}
+                </NavLink>
+              )
+            )}
+          </div>
 
-      {/* ── Main area ─────────────────────────────────────────────────────── */}
-      <div className="main-content">
-        {/* Edition strip */}
-        <div className="edition-strip">
-          <span>MIT WPU Examination Cell · Internal System</span>
-          <span>Vol. 1 · {today} · Pune Edition</span>
-        </div>
+          {/* Logout */}
+          <div className="sidebar-footer">
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.45)',
+              }}
+              onClick={handleLogout}
+            >
+              <LogOut size={12} strokeWidth={1.5} />
+              Sign Out
+            </button>
+          </div>
+        </nav>
 
-        <div className="main-inner">
-          <Outlet />
+        {/* ── Main area ─────────────────────────────────────────────────────── */}
+        <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Edition strip */}
+          <div className="edition-strip">
+            <span>MIT WPU Examination Cell · Internal System</span>
+            <span>Vol. 1 · {today} · Pune Edition</span>
+          </div>
+
+          <div className="main-inner" style={{ flex: 1, overflowY: 'auto' }}>
+            <Outlet />
+          </div>
         </div>
       </div>
+      
       {searchOpen && (
         <GlobalSearchModal onClose={() => setSearchOpen(false)} />
       )}
+
+      {/* Mobile-specific styling injections */}
+      <style>{`
+        @media (max-width: 768px) {
+          .sidebar { 
+            display: none !important; 
+          }
+          .mobile-header { 
+            display: flex !important; 
+          }
+          .edition-strip { 
+            display: none !important; 
+          }
+          .main-inner { 
+            padding: 16px 12px !important; 
+          }
+          .app-shell {
+            flex-direction: column !important;
+          }
+        }
+        @keyframes slideInMenu {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

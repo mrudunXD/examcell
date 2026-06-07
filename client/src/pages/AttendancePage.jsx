@@ -116,7 +116,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Summary bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0, border: '1px solid #111', marginBottom: 24 }}>
+      <div className="attendance-summary-bar">
         {[
           { label: 'Total',    value: summary.total,    color: '#111' },
           { label: 'Present',  value: summary.present,  color: '#166534' },
@@ -124,35 +124,31 @@ export default function AttendancePage() {
           { label: 'Late',     value: summary.late,     color: '#92400e' },
           { label: 'Unmarked', value: summary.unmarked, color: '#A3A3A3' },
         ].map((item, i) => (
-          <div key={item.label} style={{ padding: '12px 16px', borderRight: i < 4 ? '1px solid #E5E5E0' : 'none', textAlign: 'center' }}>
+          <div key={item.label} className="attendance-summary-item">
             <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontFamily: 'var(--font-mono)' }}>{item.value}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)', marginTop: 2 }}>{item.label}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20 }}>
+      <div className="attendance-main-layout">
         {/* Room selector */}
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
             Rooms
           </div>
-          {rooms.map(item => (
-            <button
-              key={item.room.id}
-              onClick={() => setSelectedRoom(item.room.id)}
-              style={{
-                display: 'block', width: '100%', padding: '10px 14px', marginBottom: 4,
-                border: `2px solid ${selectedRoom === item.room.id ? '#111' : '#E5E5E0'}`,
-                background: selectedRoom === item.room.id ? '#111' : 'transparent',
-                color: selectedRoom === item.room.id ? '#F9F9F7' : '#111',
-                textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 11,
-              }}
-            >
-              {item.room.room_no}
-              <div style={{ fontSize: 9, opacity: 0.65, marginTop: 2 }}>{item.assignments?.length || 0} students</div>
-            </button>
-          ))}
+          <div className="attendance-rooms-container">
+            {rooms.map(item => (
+              <button
+                key={item.room.id}
+                onClick={() => setSelectedRoom(item.room.id)}
+                className={`attendance-room-btn ${selectedRoom === item.room.id ? 'active' : ''}`}
+              >
+                {item.room.room_no}
+                <div className="btn-subtext" style={{ fontSize: 9, opacity: 0.65, marginTop: 2 }}>{item.assignments?.length || 0} students</div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Student list */}
@@ -182,54 +178,57 @@ export default function AttendancePage() {
                 const status = student.attendance_status || null;
                 const isDirty = dirty[student.student_id];
                 return (
-                  <div key={student.student_id} style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                  <div key={student.student_id} className={`attendance-student-row ${isDirty ? 'dirty' : ''}`} style={{
                     borderBottom: i < records.length - 1 ? '1px solid #E5E5E0' : 'none',
-                    background: isDirty ? '#FFFBF0' : 'transparent',
                   }}>
-                    {/* Seat position */}
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)', width: 36, textAlign: 'center', flexShrink: 0 }}>
-                      R{student.bench_row}<br/>C{student.bench_col}
-                    </div>
-                    {/* Student info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 12 }}>{student.name}</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginTop: 1 }}>
-                        {student.prn} · {student.roll_no} · {student.branch} {student.year}
+                    <div className="attendance-student-header">
+                      {/* Seat position */}
+                      <div className="attendance-student-seat">
+                        R{student.bench_row}<br/>C{student.bench_col}
+                      </div>
+                      {/* Student info */}
+                      <div className="attendance-student-info">
+                        <div style={{ fontWeight: 600, fontSize: 12 }}>{student.name}</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginTop: 1 }}>
+                          {student.prn} · {student.roll_no} · {student.branch} {student.year}
+                        </div>
                       </div>
                     </div>
-                    {/* Status buttons */}
-                    <div className="flex-row" style={{ gap: 4, flexShrink: 0 }}>
-                      {['present', 'late', 'absent'].map(s => {
-                        const cfg = STATUS_CONFIG[s];
-                        const Icon = cfg.icon;
-                        const isActive = status === s;
-                        return (
-                          <button
-                            key={s}
-                            onClick={() => markStatus(student.student_id, s)}
-                            title={cfg.label}
-                            style={{
-                              padding: '5px 10px', border: `1px solid ${isActive ? cfg.color : '#E5E5E0'}`,
-                              background: isActive ? cfg.bg : 'transparent',
-                              color: isActive ? cfg.color : '#A3A3A3',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-                              fontFamily: 'var(--font-mono)', fontSize: 9,
-                              transition: 'all 0.1s',
-                            }}
-                          >
-                            <Icon size={10} strokeWidth={2} />
-                            {cfg.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {/* Last marked by */}
-                    {student.marked_by_name && (
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)', flexShrink: 0 }}>
-                        by {student.marked_by_name}
+                    
+                    {/* Status actions */}
+                    <div className="attendance-student-actions">
+                      <div className="attendance-status-container">
+                        {['present', 'late', 'absent'].map(s => {
+                          const cfg = STATUS_CONFIG[s];
+                          const Icon = cfg.icon;
+                          const isActive = status === s;
+                          return (
+                            <button
+                              key={s}
+                              onClick={() => markStatus(student.student_id, s)}
+                              title={cfg.label}
+                              style={{
+                                padding: '5px 10px', border: `1px solid ${isActive ? cfg.color : '#E5E5E0'}`,
+                                background: isActive ? cfg.bg : 'transparent',
+                                color: isActive ? cfg.color : '#A3A3A3',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                                fontFamily: 'var(--font-mono)', fontSize: 9,
+                                transition: 'all 0.1s',
+                              }}
+                            >
+                              <Icon size={10} strokeWidth={2} />
+                              {cfg.label}
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
+                      {/* Last marked by */}
+                      {student.marked_by_name && (
+                        <div className="attendance-marked-by">
+                          by {student.marked_by_name}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -237,6 +236,177 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
+
+      <style>{`
+        .attendance-summary-bar {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 0;
+          border: 1px solid #111;
+          margin-bottom: 24px;
+        }
+        .attendance-summary-item {
+          padding: 12px 16px;
+          border-right: 1px solid #E5E5E0;
+          text-align: center;
+        }
+        .attendance-summary-item:last-child {
+          border-right: none;
+        }
+
+        .attendance-main-layout {
+          display: grid;
+          grid-template-columns: 200px 1fr;
+          gap: 20px;
+        }
+        .attendance-rooms-container {
+          display: flex;
+          flex-direction: column;
+        }
+        .attendance-room-btn {
+          display: block;
+          width: 100%;
+          padding: 10px 14px;
+          margin-bottom: 4px;
+          border: 2px solid #E5E5E0;
+          background: transparent;
+          color: #111;
+          text-align: left;
+          cursor: pointer;
+          font-family: var(--font-mono);
+          font-size: 11px;
+        }
+        .attendance-room-btn.active {
+          border-color: #111;
+          background: #111;
+          color: #F9F9F7;
+        }
+
+        .attendance-student-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 10px 14px;
+          background: transparent;
+        }
+        .attendance-student-row.dirty {
+          background: #FFFBF0;
+        }
+        .attendance-student-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 0;
+        }
+        .attendance-student-seat {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--np-n400);
+          width: 36px;
+          text-align: center;
+          flex-shrink: 0;
+        }
+        .attendance-student-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .attendance-student-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+        }
+        .attendance-status-container {
+          display: flex;
+          gap: 4px;
+        }
+        .attendance-marked-by {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--np-n400);
+          flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+          .attendance-summary-bar {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .attendance-summary-item {
+            padding: 8px 12px;
+          }
+          .attendance-summary-item:nth-child(3) {
+            border-right: none;
+          }
+          .attendance-summary-item:nth-child(4) {
+            border-bottom: none;
+          }
+          .attendance-summary-item:nth-child(5) {
+            border-right: none;
+            border-bottom: none;
+          }
+
+          .attendance-main-layout {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .attendance-rooms-container {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+          }
+          .attendance-room-btn {
+            width: auto;
+            margin-bottom: 0;
+            padding: 8px 12px;
+          }
+
+          .attendance-student-row {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 12px;
+            gap: 10px;
+          }
+          .attendance-student-header {
+            width: 100%;
+          }
+          .attendance-student-actions {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            border-top: 1px dashed #E5E5E0;
+            padding-top: 8px;
+          }
+          .attendance-status-container {
+            flex: 1;
+          }
+          .attendance-status-container button {
+            flex: 1;
+            justify-content: center;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .attendance-summary-bar {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .attendance-summary-item {
+            border-right: 1px solid #E5E5E0;
+            border-bottom: 1px solid #E5E5E0;
+          }
+          .attendance-summary-item:nth-child(even) {
+            border-right: none;
+          }
+          .attendance-summary-item:nth-child(5) {
+            grid-column: span 2;
+            border-right: none;
+            border-bottom: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
