@@ -53,8 +53,14 @@ router.get('/seating/:roomAllocationId', requireCoordinator, asyncHandler(async 
 router.get('/duty/:facultyId/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
   // Faculty can only download their own duty sheet
-  if (req.user.role === 'faculty' && req.user.id !== req.params.facultyId) {
-    return res.status(403).json({ error: 'Access denied' });
+  if (req.user.role === 'faculty') {
+    if (req.user.id !== req.params.facultyId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const cycle = db.prepare('SELECT status FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+    if (!cycle || cycle.status !== 'active') {
+      return res.status(403).json({ error: 'Duties are not visible until the exam cycle is set active.' });
+    }
   }
 
   const faculty = db.prepare("SELECT id, name, email, department FROM users WHERE id=?").get(req.params.facultyId);
@@ -137,6 +143,90 @@ router.get('/attendance/:roomAllocationId', requireCoordinator, asyncHandler(asy
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="attendance_${classroom.room_no}_${slot.date}.pdf"`);
+  res.send(pdfBuffer);
+}));
+
+// GET door notice — PRN-only seating map for classroom door
+router.get('/door-notice/:roomAllocationId', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const ra = db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
+  if (!ra) return res.status(404).json({ error: 'Room allocation not found' });
+
+  const slot = db.prepare(`
+    SELECT es.*, s.name as subject_name, s.code as subject_code, s.branch, s.year
+    FROM exam_slots es JOIN subjects s ON s.id=es.subject_id WHERE es.id=?
+  `).get(ra.slot_id);
+  const classroom = db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
+
+  const assignments = db.prepare(`
+    SELECT sa.bench_row, sa.bench_col, st.prn, st.roll_no, st.branch, st.year
+    FROM seat_assignments sa
+    JOIN students st ON st.id=sa.student_id
+    WHERE sa.room_allocation_id=?
+    ORDER BY sa.bench_row, sa.bench_col
+  `).all(req.params.roomAllocationId);
+
+  // Generate PDF with PDFKit — PRN only grid
+  const PDFDocument = (await import('pdfkit')).default;
+  const pdfBuffer = await new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 0 });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    // Navy header
+    doc.rect(0, 0, doc.page.width, 60).fill('#1e3a5f');
+    doc.fillColor('white').font('Helvetica-Bold').fontSize(14)
+       .text('SEATING ARRANGEMENT', 0, 10, { align: 'center', width: doc.page.width });
+    doc.font('Helvetica').fontSize(10).fillColor('rgba(255,255,255,0.8)')
+       .text(`Room ${classroom.room_no} (${classroom.block || ''}) · ${slot.subject_code} — ${slot.subject_name}`, 0, 28, { align: 'center', width: doc.page.width });
+    doc.fillColor('rgba(255,255,255,0.7)').fontSize(9)
+       .text(`Date: ${slot.date}  ·  Time: ${slot.start_time}  ·  ${slot.branch} ${slot.year}`, 0, 44, { align: 'center', width: doc.page.width });
+
+    // Build grid
+    const grid = {};
+    for (const a of assignments) {
+      if (!grid[a.bench_row]) grid[a.bench_row] = {};
+      grid[a.bench_row][a.bench_col] = a;
+    }
+
+    const cols = classroom.bench_cols || 4;
+    const rows = classroom.bench_rows || 8;
+    const cellW = Math.floor((doc.page.width - 40) / cols);
+    const cellH = Math.floor((doc.page.height - 100) / rows);
+    let y = 70;
+
+    for (let r = 1; r <= rows; r++) {
+      let x = 20;
+      for (let c = 1; c <= cols; c++) {
+        const seat = grid[r]?.[c];
+        doc.rect(x, y, cellW - 2, cellH - 2).fill(seat ? '#f8fafc' : '#e2e8f0').stroke('#94a3b8');
+        if (seat) {
+          doc.font('Helvetica-Bold').fontSize(11).fillColor('#1e3a5f')
+             .text(seat.prn, x + 2, y + (cellH - 22) / 2, { width: cellW - 6, align: 'center', lineBreak: false });
+          doc.font('Helvetica').fontSize(7).fillColor('#64748b')
+             .text(`${seat.branch} ${seat.year}`, x + 2, y + (cellH - 22) / 2 + 13, { width: cellW - 6, align: 'center', lineBreak: false });
+        } else {
+          doc.font('Helvetica').fontSize(8).fillColor('#94a3b8')
+             .text('—', x, y + cellH / 2 - 6, { width: cellW, align: 'center', lineBreak: false });
+        }
+        // Row/col labels
+        doc.font('Helvetica').fontSize(6).fillColor('#94a3b8')
+           .text(`R${r}C${c}`, x + 2, y + 2, { lineBreak: false });
+        x += cellW;
+      }
+      y += cellH;
+    }
+
+    doc.font('Helvetica').fontSize(7).fillColor('#94a3b8')
+       .text('MIT WPU Examination Cell — Post on classroom door before exam', 20, doc.page.height - 20, { lineBreak: false });
+
+    doc.end();
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="door_${classroom.room_no}_${slot.date}.pdf"`);
   res.send(pdfBuffer);
 }));
 

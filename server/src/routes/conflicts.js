@@ -43,54 +43,89 @@ router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
   // Clear old auto-detected conflicts for this cycle
-  db.prepare("DELETE FROM conflicts WHERE cycle_id=? AND type IN ('FACULTY_CLASH','STUDENT_CLASH','ROOM_OVERFLOW')").run(req.params.cycleId);
+  db.prepare("DELETE FROM conflicts WHERE cycle_id=? AND type IN ('FACULTY_CLASH','STUDENT_CLASH','ROOM_OVERFLOW')")
+    .run(req.params.cycleId);
 
-  const conflStmt = db.prepare(`INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?,?,?,?,?,?,?)`);
+  // Prepare ALL statements OUTSIDE the transaction (better-sqlite3 requirement)
+  const conflStmt = db.prepare(
+    `INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution)
+     VALUES (?,?,?,?,?,?,?)`
+  );
+
+  const facultyClashStmt = db.prepare(`
+    SELECT sd.faculty_id, es.date, es.start_time, u.name as faculty_name,
+      GROUP_CONCAT(c.room_no, ', ') as rooms, MIN(es.id) as slot_id
+    FROM supervisor_duties sd
+    JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+    JOIN exam_slots es ON es.id = ra.slot_id
+    JOIN classrooms c ON c.id = ra.classroom_id
+    JOIN users u ON u.id = sd.faculty_id
+    WHERE es.cycle_id = ?
+    GROUP BY sd.faculty_id, es.date, es.start_time
+    HAVING COUNT(DISTINCT ra.id) > 1
+  `);
+
+  const overflowStmt = db.prepare(`
+    SELECT ra.id as ra_id, c.room_no, c.capacity,
+      COUNT(sa.id) as seated, es.id as slot_id, es.date
+    FROM room_allocations ra
+    JOIN classrooms c ON c.id = ra.classroom_id
+    JOIN exam_slots es ON es.id = ra.slot_id
+    LEFT JOIN seat_assignments sa ON sa.room_allocation_id = ra.id
+    WHERE es.cycle_id = ?
+    GROUP BY ra.id
+    HAVING seated > c.capacity
+  `);
+
+  const studentClashStmt = db.prepare(`
+    SELECT ss.student_id, s.name as student_name, s.prn as student_prn,
+      es.date, es.start_time, MIN(es.id) as slot_id,
+      GROUP_CONCAT(sub.code) as subjects
+    FROM slot_students ss
+    JOIN exam_slots es ON es.id = ss.slot_id
+    JOIN students s ON s.id = ss.student_id
+    JOIN subjects sub ON sub.id = es.subject_id
+    WHERE es.cycle_id = ?
+    GROUP BY ss.student_id, es.date, es.start_time
+    HAVING COUNT(DISTINCT es.id) > 1
+  `);
+
+  const facultyClashes = facultyClashStmt.all(req.params.cycleId);
+  const overflows = overflowStmt.all(req.params.cycleId);
+  const studentClashes = studentClashStmt.all(req.params.cycleId);
+
   let detected = 0;
-
-  db.transaction(() => {
-    // 1. Faculty assigned to 2 rooms at same date+time
-    const facultyClashes = db.prepare(`
-      SELECT sd.faculty_id, es.date, es.start_time, u.name as faculty_name,
-        GROUP_CONCAT(c.room_no, ', ') as rooms, es.id as slot_id
-      FROM supervisor_duties sd
-      JOIN room_allocations ra ON ra.id=sd.room_allocation_id
-      JOIN exam_slots es ON es.id=ra.slot_id
-      JOIN classrooms c ON c.id=ra.classroom_id
-      JOIN users u ON u.id=sd.faculty_id
-      WHERE es.cycle_id=?
-      GROUP BY sd.faculty_id, es.date, es.start_time
-      HAVING COUNT(*) > 1
-    `).all(req.params.cycleId);
-
+  const insertAll = db.transaction(() => {
     for (const clash of facultyClashes) {
-      conflStmt.run(crypto.randomUUID(), clash.slot_id, req.params.cycleId, 'FACULTY_CLASH',
+      conflStmt.run(
+        crypto.randomUUID(), clash.slot_id, req.params.cycleId, 'FACULTY_CLASH',
         `${clash.faculty_name} is assigned to multiple rooms (${clash.rooms}) on ${clash.date} at ${clash.start_time}`,
-        clash.faculty_name, 'Reassign one room to a different faculty member');
+        clash.faculty_name, 'Reassign one room to a different faculty member'
+      );
       detected++;
     }
-
-    // 2. Room capacity overflow
-    const overflows = db.prepare(`
-      SELECT ra.id as ra_id, c.room_no, c.capacity, COUNT(sa.id) as seated, es.id as slot_id, es.date
-      FROM room_allocations ra
-      JOIN classrooms c ON c.id=ra.classroom_id
-      JOIN exam_slots es ON es.id=ra.slot_id
-      LEFT JOIN seat_assignments sa ON sa.room_allocation_id=ra.id
-      WHERE es.cycle_id=?
-      GROUP BY ra.id
-      HAVING seated > capacity
-    `).all(req.params.cycleId);
-
     for (const ov of overflows) {
-      conflStmt.run(crypto.randomUUID(), ov.slot_id, req.params.cycleId, 'ROOM_OVERFLOW',
+      conflStmt.run(
+        crypto.randomUUID(), ov.slot_id, req.params.cycleId, 'ROOM_OVERFLOW',
         `Room ${ov.room_no} has ${ov.seated} students but capacity is ${ov.capacity} on ${ov.date}`,
-        `Room ${ov.room_no}`, 'Add another room or reduce students');
+        `Room ${ov.room_no}`, 'Add another room or reduce student count'
+      );
       detected++;
     }
-  })();
+    for (const sc of studentClashes) {
+      conflStmt.run(
+        crypto.randomUUID(), sc.slot_id, req.params.cycleId, 'STUDENT_CLASH',
+        `Student ${sc.student_name} (${sc.student_prn}) is scheduled for multiple exams (${sc.subjects}) on ${sc.date} at ${sc.start_time}`,
+        `${sc.student_name} (${sc.student_prn})`,
+        'Reschedule one of the exams or assign a different slot'
+      );
+      detected++;
+    }
+  });
 
+  insertAll();
   res.json({ detected, message: `Detected ${detected} conflict(s)` });
 }));
 
 export default router;
+

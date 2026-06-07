@@ -1,8 +1,117 @@
 import { useState, useEffect } from 'react';
-import { CalendarDays, MapPin, Clock, CheckCircle, UserCheck } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, CheckCircle, UserCheck, AlertTriangle } from 'lucide-react';
 import api from '../lib/api.js';
 import { useAppStore } from '../store/index.js';
 import toast from 'react-hot-toast';
+
+function IncidentModal({ duty, onClose }) {
+  const [type, setType] = useState('malpractice');
+  const [severity, setSeverity] = useState('low');
+  const [description, setDescription] = useState('');
+  const [studentPrn, setStudentPrn] = useState('');
+  const [actionTaken, setActionTaken] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post('/incidents', {
+        slot_id: duty.slot_id,
+        room_allocation_id: duty.room_allocation_id,
+        type,
+        description,
+        student_prn: studentPrn.trim() || null,
+        action_taken: actionTaken.trim() || null,
+        severity,
+      });
+      toast.success('Incident reported successfully');
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to report incident');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626' }}>
+          <AlertTriangle size={20} /> Report Exam Incident
+        </h2>
+        <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+          Room: {duty.room_no} | {duty.subject_code} — {duty.subject_name}
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label">Incident Type *</label>
+              <select className="select" value={type} onChange={e => setType(e.target.value)}>
+                <option value="malpractice">Malpractice / Cheating</option>
+                <option value="disturbance">Disturbance / Noise</option>
+                <option value="technical">Technical Issue</option>
+                <option value="medical">Medical Emergency</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Severity *</label>
+              <select className="select" value={severity} onChange={e => setSeverity(e.target.value)}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Student PRN (Optional)</label>
+            <input 
+              className="input" 
+              placeholder="e.g. 1032210123" 
+              value={studentPrn} 
+              onChange={e => setStudentPrn(e.target.value)} 
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Description / Details *</label>
+            <textarea 
+              className="input" 
+              style={{ minHeight: 80, resize: 'vertical' }}
+              placeholder="Provide exact details of the incident..." 
+              value={description} 
+              onChange={e => setDescription(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Action Taken (Optional)</label>
+            <input 
+              className="input" 
+              placeholder="e.g. Confiscated paper, moved seat, warned" 
+              value={actionTaken} 
+              onChange={e => setActionTaken(e.target.value)} 
+            />
+          </div>
+
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button type="submit" className="btn btn-danger" disabled={submitting}>
+              {submitting ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : 'Report Incident'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function FacultyDutyPage() {
   const { activeCycleId } = useAppStore();
@@ -10,6 +119,7 @@ export default function FacultyDutyPage() {
   const [cycles, setCycles] = useState([]);
   const [selectedCycle, setSelectedCycle] = useState(activeCycleId || '');
   const [loading, setLoading] = useState(false);
+  const [reportingDuty, setReportingDuty] = useState(null);
 
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
@@ -106,11 +216,16 @@ export default function FacultyDutyPage() {
                     <span className="badge badge-success" style={{ fontSize: 9 }}>Acknowledged</span>
                   ) : null}
                 </div>
-                {!duty.acknowledged && (
-                  <button className="btn btn-success btn-sm" onClick={() => acknowledge(duty.id)}>
-                    <CheckCircle size={11} strokeWidth={1.5} /> Acknowledge
+                <div className="flex-row" style={{ gap: 8 }}>
+                  {!duty.acknowledged && (
+                    <button className="btn btn-success btn-sm" onClick={() => acknowledge(duty.id)}>
+                      <CheckCircle size={11} strokeWidth={1.5} /> Acknowledge
+                    </button>
+                  )}
+                  <button className="btn btn-danger btn-sm" onClick={() => setReportingDuty(duty)}>
+                    Report Incident
                   </button>
-                )}
+                </div>
               </div>
 
               {/* Subject */}
@@ -142,6 +257,9 @@ export default function FacultyDutyPage() {
             </div>
           ))}
         </div>
+      )}
+      {reportingDuty && (
+        <IncidentModal duty={reportingDuty} onClose={() => setReportingDuty(null)} />
       )}
     </div>
   );

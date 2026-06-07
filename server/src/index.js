@@ -18,6 +18,9 @@ import dashboardRoutes from './routes/dashboard.js';
 import auditRoutes from './routes/audit.js';
 import attendanceRouter from './routes/attendance.js';
 import searchRouter from './routes/search.js';
+import broadcastRouter from './routes/broadcasts.js';
+import incidentRouter from './routes/incidents.js';
+import analyticsRouter from './routes/analytics.js';
 
 import { initDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -55,6 +58,9 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/attendance', attendanceRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/broadcasts', broadcastRouter);
+app.use('/api/incidents', incidentRouter);
+app.use('/api/analytics', analyticsRouter);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 

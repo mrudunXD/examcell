@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { auditLog } from '../middleware/auditLog.js';
 
 const router = Router();
 router.use(authenticate);
@@ -11,7 +12,7 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(db.prepare('SELECT * FROM subjects ORDER BY semester, code').all());
 }));
 
-router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req, data) => data?.id, (req, data) => `Created subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
   if (!code || !name || !branch || !year || !semester)
@@ -24,7 +25,7 @@ router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(id));
 }));
 
-router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (req) => req.params.id, (req, data) => `Updated subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
   db.prepare(`
@@ -34,7 +35,7 @@ router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
   res.json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id));
 }));
 
-router.delete('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+router.delete('/:id', requireCoordinator, auditLog('DELETE_SUBJECT', 'subjects', (req) => req.params.id, (req) => `Deleted subject ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM subjects WHERE id=?').run(req.params.id);
   res.json({ success: true });

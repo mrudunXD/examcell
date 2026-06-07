@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { auditLog } from '../middleware/auditLog.js';
 
 const router = Router();
 router.use(authenticate);
@@ -13,7 +14,10 @@ function semParity(sem) { return sem % 2 === 1 ? 'odd' : 'even'; }
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 function isSunday(dateStr) { return new Date(dateStr + 'T00:00:00').getDay() === 0; }
 function nextValidDate(dateStr, endDate) {
@@ -30,7 +34,7 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(db.prepare('SELECT * FROM exam_cycles ORDER BY created_at DESC').all());
 }));
 
-router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/', requireCoordinator, auditLog('CREATE_CYCLE', 'exam_cycles', (req, data) => data?.id, (req, data) => `Created cycle ${data?.name}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, start_date, end_date, semester_type } = req.body;
   if (!name || !start_date || !end_date) return res.status(400).json({ error: 'name, start_date, end_date required' });
@@ -41,7 +45,7 @@ router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(id));
 }));
 
-router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Updated cycle ${data?.name} (status: ${data?.status})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, start_date, end_date, status, semester_type } = req.body;
   db.prepare("UPDATE exam_cycles SET name=?,start_date=?,end_date=?,status=?,semester_type=?,updated_at=datetime('now') WHERE id=?")
@@ -49,14 +53,14 @@ router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
   res.json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
 }));
 
-router.delete('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+router.delete('/:id', requireCoordinator, auditLog('DELETE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => `Deleted cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM exam_cycles WHERE id=?').run(req.params.id);
   res.json({ success: true });
 }));
 
 // POST /:id/activate — make this cycle "active", demote others to "draft"
-router.post('/:id/activate', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/:id/activate', requireCoordinator, auditLog('ACTIVATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Activated cycle ${data?.name}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
@@ -74,7 +78,7 @@ router.post('/:id/activate', requireCoordinator, asyncHandler(async (req, res) =
 }));
 
 // POST /:id/duplicate — clone a cycle with all its draft slots, dates shifted +6 months
-router.post('/:id/duplicate', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/:id/duplicate', requireCoordinator, auditLog('DUPLICATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Duplicated cycle ID: ${req.params.id} to new copy ID: ${data?.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const src = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!src) return res.status(404).json({ error: 'Cycle not found' });
@@ -82,34 +86,43 @@ router.post('/:id/duplicate', requireCoordinator, asyncHandler(async (req, res) 
   function shiftDate(d, months) {
     const dt = new Date(d + 'T00:00:00');
     dt.setMonth(dt.getMonth() + months);
-    return dt.toISOString().split('T')[0];
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   }
 
   const newId = crypto.randomUUID();
   const newStart = shiftDate(src.start_date, 6);
-  const newEnd = shiftDate(src.end_date, 6);
+  const newEnd   = shiftDate(src.end_date, 6);
+
+  // Prepare OUTSIDE transaction
+  const insertCycle = db.prepare(
+    `INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, status, created_by)
+     VALUES (?,?,?,?,?,  'draft',?)`
+  );
+  const insertSlot = db.prepare(
+    `INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
+     VALUES (?,?,?,?,?,?,?,?,'draft')`
+  );
+  const slots = db.prepare("SELECT * FROM exam_slots WHERE cycle_id=? AND status='draft'").all(src.id);
 
   db.transaction(() => {
-    db.prepare(`INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, status, created_by)
-      VALUES (?,?,?,?,'odd','draft',?)`)
-      .run(newId, src.name + ' (Copy)', newStart, newEnd, req.user.id);
-
-    // Copy all slots, shifting dates by 6 months
-    const slots = db.prepare("SELECT * FROM exam_slots WHERE cycle_id=? AND status='draft'").all(src.id);
-    const slotStmt = db.prepare(`INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
-      VALUES (?,?,?,?,?,?,?,?,'draft')`);
-
+    insertCycle.run(newId, src.name + ' (Copy)', newStart, newEnd, src.semester_type || 'odd', req.user.id);
     for (const s of slots) {
-      slotStmt.run(crypto.randomUUID(), newId, s.subject_id, shiftDate(s.date, 6),
-        s.start_time, s.duration_mins, s.exam_type, s.exam_mode);
+      insertSlot.run(
+        crypto.randomUUID(), newId, s.subject_id,
+        shiftDate(s.date, 6), s.start_time, s.duration_mins, s.exam_type, s.exam_mode
+      );
     }
   })();
 
   res.status(201).json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(newId));
 }));
 
+
 // POST /:id/auto-schedule — full automatic scheduling pipeline
-router.post('/:id/auto-schedule', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Auto-scheduled ${data?.created || 0} exam slots for cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });

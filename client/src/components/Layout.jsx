@@ -4,13 +4,14 @@ import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search, Calendar,
-  ClipboardCheck, Copy
+  ClipboardCheck, Copy, Radio, BarChart3
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 
 const coordinatorNav = [
   { section: 'Overview' },
   { to: '/',          icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/live-dashboard', icon: Radio,       label: 'Live Dashboard' },
   { section: 'Master Data' },
   { to: '/students',  icon: Users,      label: 'Students' },
   { to: '/subjects',  icon: BookOpen,   label: 'Subjects' },
@@ -18,6 +19,7 @@ const coordinatorNav = [
   { to: '/faculty',   icon: UserCheck,  label: 'Faculty' },
   { section: 'Exam Management' },
   { to: '/exam-cycles', icon: CalendarDays, label: 'Exam Cycles' },
+  { to: '/heatmap',     icon: BarChart3,    label: 'Faculty Heatmap' },
   { section: 'System' },
   { to: '/search',    icon: Search,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },

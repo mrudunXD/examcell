@@ -18,6 +18,9 @@ import AuditPage from './pages/AuditPage.jsx';
 import SearchPage from './pages/SearchPage.jsx';
 import CalendarPage from './pages/CalendarPage.jsx';
 import AttendancePage from './pages/AttendancePage.jsx';
+import LiveDashboardPage from './pages/LiveDashboardPage.jsx';
+import HeatmapPage from './pages/HeatmapPage.jsx';
+import KioskPage from './pages/KioskPage.jsx';
 
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
@@ -72,7 +75,10 @@ export default function App() {
           <Route path="audit"   element={<ProtectedRoute role="coordinator"><AuditPage /></ProtectedRoute>} />
           <Route path="search"  element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="my-duties" element={<ProtectedRoute><FacultyDutyPage /></ProtectedRoute>} />
+          <Route path="live-dashboard" element={<ProtectedRoute role="coordinator"><LiveDashboardPage /></ProtectedRoute>} />
+          <Route path="heatmap" element={<ProtectedRoute role="coordinator"><HeatmapPage /></ProtectedRoute>} />
         </Route>
+        <Route path="kiosk/:cycleId" element={<ProtectedRoute><KioskPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

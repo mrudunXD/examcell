@@ -27,7 +27,7 @@ export default function AttendancePage() {
       setSlot(data.slot);
       setRooms(data.rooms || []);
       if (data.rooms?.length > 0 && !selectedRoom) {
-        setSelectedRoom(data.rooms[0].id);
+        setSelectedRoom(data.rooms[0].room.id);
       }
     } catch { toast.error('Failed to load slot'); }
   };
@@ -133,20 +133,20 @@ export default function AttendancePage() {
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
             Rooms
           </div>
-          {rooms.map(room => (
+          {rooms.map(item => (
             <button
-              key={room.id}
-              onClick={() => setSelectedRoom(room.id)}
+              key={item.room.id}
+              onClick={() => setSelectedRoom(item.room.id)}
               style={{
                 display: 'block', width: '100%', padding: '10px 14px', marginBottom: 4,
-                border: `2px solid ${selectedRoom === room.id ? '#111' : '#E5E5E0'}`,
-                background: selectedRoom === room.id ? '#111' : 'transparent',
-                color: selectedRoom === room.id ? '#F9F9F7' : '#111',
+                border: `2px solid ${selectedRoom === item.room.id ? '#111' : '#E5E5E0'}`,
+                background: selectedRoom === item.room.id ? '#111' : 'transparent',
+                color: selectedRoom === item.room.id ? '#F9F9F7' : '#111',
                 textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 11,
               }}
             >
-              {room.room_no}
-              <div style={{ fontSize: 9, opacity: 0.65, marginTop: 2 }}>{room.seated_count || 0} students</div>
+              {item.room.room_no}
+              <div style={{ fontSize: 9, opacity: 0.65, marginTop: 2 }}>{item.assignments?.length || 0} students</div>
             </button>
           ))}
         </div>

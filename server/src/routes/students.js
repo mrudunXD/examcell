@@ -4,6 +4,7 @@ import Papa from 'papaparse';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { auditLog } from '../middleware/auditLog.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -28,7 +29,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/students
-router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req, data) => data?.id, (req, data) => `Created student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
   if (!name || !prn || !roll_no || !branch || !year || !semester)
@@ -42,7 +43,7 @@ router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
 }));
 
 // PUT /api/students/:id
-router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (req) => req.params.id, (req, data) => `Updated student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
   db.prepare(`
@@ -54,14 +55,14 @@ router.put('/:id', requireCoordinator, asyncHandler(async (req, res) => {
 }));
 
 // DELETE /api/students/:id  (soft delete)
-router.delete('/:id', requireCoordinator, asyncHandler(async (req, res) => {
+router.delete('/:id', requireCoordinator, auditLog('DELETE_STUDENT', 'students', (req) => req.params.id, (req) => `Soft-deleted student ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   db.prepare("UPDATE students SET is_active=0 WHERE id=?").run(req.params.id);
   res.json({ success: true });
 }));
 
 // POST /api/students/import (CSV)
-router.post('/import', requireCoordinator, upload.single('file'), asyncHandler(async (req, res) => {
+router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPORT_STUDENTS', 'students', null, (req, data) => `Imported ${data?.inserted || 0} students from CSV (failed: ${data?.failed?.length || 0})`), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const csv = req.file.buffer.toString('utf-8');

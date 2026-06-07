@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { auditLog } from '../middleware/auditLog.js';
 import { generateSeating } from '../services/seatingEngine.js';
 
 const router = Router();
@@ -40,7 +41,7 @@ router.get('/:slotId', asyncHandler(async (req, res) => {
 }));
 
 // POST generate seating for a slot
-router.post('/generate/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SEATING', 'seating', (req) => req.params.slotId, (req, data) => `Generated seating for ${data?.assigned || 0} students for slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
   const db = getDb();
 
   const slot = db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
@@ -98,15 +99,30 @@ router.post('/generate/:slotId', requireCoordinator, asyncHandler(async (req, re
 }));
 
 // PUT override a single seat
-router.put('/override', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/override', requireCoordinator, auditLog('OVERRIDE_SEATING', 'seating', (req) => req.body.assignment_id, (req) => `Moved seating assignment ${req.body.assignment_id} to Row ${req.body.bench_row}, Col ${req.body.bench_col}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { assignment_id, bench_row, bench_col } = req.body;
+
+  const assignment = db.prepare("SELECT * FROM seat_assignments WHERE id=?").get(assignment_id);
+  if (!assignment) return res.status(404).json({ error: 'Seating assignment not found' });
+
+  const occupied = db.prepare(`
+    SELECT s.name
+    FROM seat_assignments sa
+    JOIN students s ON s.id = sa.student_id
+    WHERE sa.room_allocation_id = ? AND sa.bench_row = ? AND sa.bench_col = ? AND sa.id != ?
+  `).get(assignment.room_allocation_id, bench_row, bench_col, assignment_id);
+
+  if (occupied) {
+    return res.status(400).json({ error: `Seat Row ${bench_row}, Col ${bench_col} is already occupied by ${occupied.name}.` });
+  }
+
   db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, updated_at=datetime('now') WHERE id=?").run(bench_row, bench_col, assignment_id);
   res.json({ success: true });
 }));
 
 // PUT swap two students' seats
-router.put('/swap', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/swap', requireCoordinator, auditLog('SWAP_SEATING', 'seating', (req) => req.body.assignment_id_1, (req) => `Swapped seating assignments ${req.body.assignment_id_1} and ${req.body.assignment_id_2}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { assignment_id_1, assignment_id_2 } = req.body;
 
@@ -117,15 +133,15 @@ router.put('/swap', requireCoordinator, asyncHandler(async (req, res) => {
   const swap = db.transaction(() => {
     // Use temporary position to avoid unique constraint
     db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=?").run(a1.id);
-    db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=? WHERE id=?").run(a1.bench_row, a1.bench_col, a2.id);
-    db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=? WHERE id=?").run(a2.bench_row, a2.bench_col, a1.id);
+    db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id);
+    db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
   });
   swap();
   res.json({ success: true });
 }));
 
 // POST approve/finalise seating for a slot
-router.post('/approve/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/approve/:slotId', requireCoordinator, auditLog('APPROVE_SEATING', 'seating', (req) => req.params.slotId, (req) => `Approved and finalized seating plan for slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
   const db = getDb();
 
   // Check for open conflicts
@@ -140,7 +156,7 @@ router.post('/approve/:slotId', requireCoordinator, asyncHandler(async (req, res
 }));
 
 // POST unlock seating (reopen for editing)
-router.post('/unlock/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/unlock/:slotId', requireCoordinator, auditLog('UNLOCK_SEATING', 'seating', (req) => req.params.slotId, (req) => `Unlocked seating plan for slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
   const db = getDb();
   db.prepare('UPDATE seat_assignments SET is_approved=0 WHERE room_allocation_id IN (SELECT id FROM room_allocations WHERE slot_id=?)').run(req.params.slotId);
   db.prepare("UPDATE exam_slots SET status='seating_generated' WHERE id=?").run(req.params.slotId);

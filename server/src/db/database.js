@@ -22,6 +22,7 @@ export function initDb() {
 
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
+  db.pragma('busy_timeout = 5000');
   db.pragma('foreign_keys = ON');
 
   createTables();
@@ -196,6 +197,40 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
     CREATE INDEX IF NOT EXISTS idx_attendance_slot ON attendance(slot_id);
     CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
+
+    CREATE TABLE IF NOT EXISTS broadcasts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      sent_by TEXT REFERENCES users(id),
+      priority TEXT DEFAULT 'normal' CHECK(priority IN ('normal','urgent','critical')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS broadcast_reads (
+      broadcast_id TEXT REFERENCES broadcasts(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      read_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (broadcast_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS incidents (
+      id TEXT PRIMARY KEY,
+      slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
+      room_allocation_id TEXT REFERENCES room_allocations(id),
+      reported_by TEXT REFERENCES users(id),
+      type TEXT NOT NULL CHECK(type IN ('malpractice','disturbance','technical','medical','other')),
+      description TEXT NOT NULL,
+      student_prn TEXT,
+      action_taken TEXT,
+      severity TEXT DEFAULT 'low' CHECK(severity IN ('low','medium','high')),
+      status TEXT DEFAULT 'open' CHECK(status IN ('open','resolved','escalated')),
+      created_at TEXT DEFAULT (datetime('now')),
+      resolved_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_incidents_slot ON incidents(slot_id);
+    CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at);
   `);
 }
 

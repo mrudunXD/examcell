@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { auditLog } from '../middleware/auditLog.js';
 import { assignSupervisors } from '../services/supervisorEngine.js';
 
 const router = Router();
@@ -28,7 +29,7 @@ router.get('/:slotId', asyncHandler(async (req, res) => {
 }));
 
 // POST generate supervisors for a slot
-router.post('/generate/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
+router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVISORS', 'supervisors', (req) => req.params.slotId, (req, data) => `Generated ${data?.assigned || 0} supervisor assignments for slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
   const db = getDb();
 
   const slot = db.prepare(`
@@ -98,9 +99,40 @@ router.post('/generate/:slotId', requireCoordinator, asyncHandler(async (req, re
 }));
 
 // PUT reassign supervisor
-router.put('/reassign', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/reassign', requireCoordinator, auditLog('REASSIGN_SUPERVISOR', 'supervisors', (req) => req.body.duty_id, (req) => `Reassigned duty ID: ${req.body.duty_id} to faculty ID: ${req.body.new_faculty_id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { duty_id, new_faculty_id } = req.body;
+
+  // 1. Verify faculty exists, is active
+  const faculty = db.prepare("SELECT * FROM users WHERE id=? AND role='faculty' AND is_active=1").get(new_faculty_id);
+  if (!faculty) return res.status(400).json({ error: 'Selected user is not an active faculty member' });
+
+  // 2. Get slot details for the duty
+  const slot = db.prepare(`
+    SELECT es.*, s.name as subject_name, ra.id as room_allocation_id
+    FROM supervisor_duties sd
+    JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+    JOIN exam_slots es ON es.id = ra.slot_id
+    JOIN subjects s ON s.id = es.subject_id
+    WHERE sd.id = ?
+  `).get(duty_id);
+  if (!slot) return res.status(404).json({ error: 'Duty assignment not found' });
+
+  // 3. Check if faculty teaches the subject
+  const teaches = db.prepare('SELECT 1 FROM faculty_subjects WHERE faculty_id=? AND subject_id=?').get(new_faculty_id, slot.subject_id);
+  if (teaches) return res.status(400).json({ error: `${faculty.name} teaches the subject (${slot.subject_name}) and cannot supervise it.` });
+
+  // 4. Check if faculty is already busy in another room at this slot time
+  const busy = db.prepare(`
+    SELECT c.room_no
+    FROM supervisor_duties sd
+    JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+    JOIN classrooms c ON c.id = ra.classroom_id
+    JOIN exam_slots es ON es.id = ra.slot_id
+    WHERE sd.faculty_id = ? AND es.date = ? AND es.start_time = ? AND sd.id != ?
+  `).get(new_faculty_id, slot.date, slot.start_time, duty_id);
+  if (busy) return res.status(400).json({ error: `${faculty.name} is already assigned to Room ${busy.room_no} at this slot (${slot.date} ${slot.start_time}).` });
+
   db.prepare('UPDATE supervisor_duties SET faculty_id=? WHERE id=?').run(new_faculty_id, duty_id);
   res.json({ success: true });
 }));
@@ -117,7 +149,7 @@ router.get('/my-duties/:cycleId', asyncHandler(async (req, res) => {
   }
 
   const duties = db.prepare(`
-    SELECT sd.id, sd.role, sd.acknowledged, sd.acknowledged_at,
+    SELECT sd.id, sd.role, sd.acknowledged, sd.acknowledged_at, sd.room_allocation_id, ra.slot_id,
       c.room_no, c.block,
       es.date, es.start_time, es.duration_mins,
       s.name as subject_name, s.code as subject_code,
@@ -136,7 +168,7 @@ router.get('/my-duties/:cycleId', asyncHandler(async (req, res) => {
 
 
 // POST acknowledge duty
-router.post('/acknowledge/:dutyId', asyncHandler(async (req, res) => {
+router.post('/acknowledge/:dutyId', auditLog('ACKNOWLEDGE_DUTY', 'supervisors', (req) => req.params.dutyId, (req) => `Faculty acknowledged duty ID: ${req.params.dutyId}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const duty = db.prepare('SELECT * FROM supervisor_duties WHERE id=?').get(req.params.dutyId);
   if (!duty) return res.status(404).json({ error: 'Duty not found' });

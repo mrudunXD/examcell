@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, BookOpen, Building2, UserCheck, CalendarDays,
-  AlertTriangle, Grid3x3, FileDown, RefreshCw, ArrowRight
+  AlertTriangle, Grid3x3, FileDown, RefreshCw, ArrowRight,
+  Radio, ExternalLink, Bell
 } from 'lucide-react';
 import api from '../lib/api.js';
 import { useAppStore } from '../store/index.js';
@@ -32,11 +33,94 @@ function StatCard({ icon: Icon, value, label, sub, accent }) {
   );
 }
 
+function BroadcastComposerModal({ onClose }) {
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [priority, setPriority] = useState('normal');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !message.trim()) {
+      toast.error('Title and message are required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post('/broadcasts', {
+        title: title.trim(),
+        message: message.trim(),
+        priority,
+      });
+      toast.success('Broadcast sent successfully');
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send broadcast');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Bell size={20} /> Compose Coordinator Broadcast
+        </h2>
+        <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+          This announcement will be displayed immediately on the smartboard kiosks and faculty dashboards.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label">Title *</label>
+            <input 
+              className="input" 
+              placeholder="e.g. Schedule Change or Urgent Notice" 
+              value={title} 
+              onChange={e => setTitle(e.target.value)} 
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Priority *</label>
+            <select className="select" value={priority} onChange={e => setPriority(e.target.value)}>
+              <option value="normal">Normal</option>
+              <option value="urgent">Urgent</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Announcement Message *</label>
+            <textarea 
+              className="input" 
+              style={{ minHeight: 100, resize: 'vertical' }}
+              placeholder="Write the message details here..." 
+              value={message} 
+              onChange={e => setMessage(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : 'Send Announcement'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { activeCycleId, setActiveCycle } = useAppStore();
   const [cycles, setCycles] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
 
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
@@ -142,6 +226,23 @@ export default function DashboardPage() {
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
                   {stats.cycle.start_date} — {stats.cycle.end_date}
                 </span>
+                <Link to="/live-dashboard" className="btn btn-sm" style={{ color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                  <Radio size={11} strokeWidth={1.5} /> Live Dashboard
+                </Link>
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => window.open(`/kiosk/${activeCycleId}`, '_blank')}
+                  style={{ gap: 4 }}
+                >
+                  <ExternalLink size={11} strokeWidth={1.5} /> Kiosk Mode
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setBroadcastOpen(true)}
+                  style={{ color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)', gap: 4 }}
+                >
+                  <Bell size={11} strokeWidth={1.5} /> Broadcast
+                </button>
                 <Link to={`/conflicts/${activeCycleId}`} className="btn btn-sm" style={{ color: s?.openConflicts > 0 ? '#f87171' : 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.15)' }}>
                   <AlertTriangle size={11} strokeWidth={1.5} />
                   {s?.openConflicts || 0} Conflicts
@@ -270,11 +371,47 @@ export default function DashboardPage() {
                       <ArrowRight size={13} strokeWidth={1.5} color="#A3A3A3" />
                     </Link>
                   ))}
+                  {/* Broadcast compose trigger in quick actions */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 14,
+                      padding: '11px 18px',
+                      borderBottom: '1px solid #E5E5E0',
+                      cursor: 'pointer',
+                      transition: 'background 0.12s',
+                    }}
+                    onClick={() => setBroadcastOpen(true)}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F5F5F5'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{
+                      border: '1px solid #E5E5E0',
+                      padding: 6,
+                      color: '#525252',
+                      flexShrink: 0,
+                    }}>
+                      <Bell size={14} strokeWidth={1.5} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, color: '#111111' }}>
+                        Send Broadcast Notice
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#737373', marginTop: 2 }}>
+                        Announce notices to smartboard & faculty
+                      </div>
+                    </div>
+                    <ArrowRight size={13} strokeWidth={1.5} color="#A3A3A3" />
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </>
+      )}
+      {broadcastOpen && (
+        <BroadcastComposerModal onClose={() => setBroadcastOpen(false)} />
       )}
     </div>
   );
