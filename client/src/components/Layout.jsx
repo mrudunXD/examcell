@@ -1,8 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
-  ClipboardList, LogOut, GraduationCap
+  ClipboardList, LogOut, GraduationCap, Search, Calendar,
+  ClipboardCheck, Copy
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 
@@ -17,11 +19,13 @@ const coordinatorNav = [
   { section: 'Exam Management' },
   { to: '/exam-cycles', icon: CalendarDays, label: 'Exam Cycles' },
   { section: 'System' },
+  { to: '/search',    icon: Search,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
 ];
 
 const facultyNav = [
   { to: '/my-duties', icon: CalendarDays, label: 'My Duties', end: true },
+  { to: '/search',    icon: Search, label: 'Search', shortcut: '⌃K' },
 ];
 
 // Inline date for the edition strip
@@ -33,6 +37,18 @@ export default function Layout() {
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
 
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  // Global Ctrl+K shortcut → Search
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        navigate('/search');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [navigate]);
 
   return (
     <div className="app-shell">
@@ -73,7 +89,17 @@ export default function Layout() {
                 className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
               >
                 <item.icon size={13} strokeWidth={1.5} />
-                {item.label}
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.shortcut && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 8,
+                    opacity: 0.45, letterSpacing: '0.05em',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    padding: '1px 4px', borderRadius: 2,
+                  }}>
+                    {item.shortcut}
+                  </span>
+                )}
               </NavLink>
             )
           )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle, Calendar, Loader } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle, Calendar, Loader, Copy, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -345,6 +345,17 @@ export default function ExamCyclesPage() {
     await api.delete(`/exam-cycles/${id}`); toast.success('Deleted'); fetchCycles();
   };
 
+  const dupCycle = async (id, name) => {
+    if (!confirm(`Duplicate "${name}"?\n\nThis will create a copy with all draft slots shifted +6 months.`)) return;
+    try {
+      await api.post(`/exam-cycles/${id}/duplicate`);
+      toast.success('Cycle duplicated');
+      fetchCycles();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to duplicate');
+    }
+  };
+
   const delSlot = async (cycleId, slotId) => {
     if (!confirm('Delete this exam slot?')) return;
     await api.delete(`/exam-cycles/${cycleId}/slots/${slotId}`);
@@ -428,9 +439,15 @@ export default function ExamCyclesPage() {
                         toast.error(err.response?.data?.error || 'Could not activate cycle');
                       }
                     }}>Set Active</button>
+                    <Link to={`/calendar/${cycle.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
+                      <CalendarDays size={11} strokeWidth={1.5} /> Calendar
+                    </Link>
                     <Link to={`/conflicts/${cycle.id}`} className="btn btn-warning btn-sm" style={{ fontSize: 10 }}>Conflicts</Link>
                     <Link to={`/export/${cycle.id}`} className="btn btn-success btn-sm" style={{ fontSize: 10 }}>Export</Link>
                     {isCoord && <>
+                      <button className="btn btn-ghost btn-sm btn-sm" style={{ fontSize: 10 }} onClick={() => dupCycle(cycle.id, cycle.name)}>
+                        <Copy size={11} strokeWidth={1.5} /> Duplicate
+                      </button>
                       <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(cycle); setModal('cycle'); }}><Pencil size={12} strokeWidth={1.5} /></button>
                       <button className="btn btn-danger btn-icon btn-sm" onClick={() => delCycle(cycle.id)}><Trash2 size={12} strokeWidth={1.5} /></button>
                     </>}
@@ -551,10 +568,14 @@ function SlotList({ slots, cycleId, isCoord, onEdit, onDel }) {
             <Link to={`/supervisors/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
               <UserCog size={11} strokeWidth={1.5} /> Supervisors
             </Link>
+            <Link to={`/attendance/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
+              <Users size={11} strokeWidth={1.5} /> Attendance
+            </Link>
             {isCoord && <>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(slot)}><Pencil size={11} strokeWidth={1.5} /></button>
               <button className="btn btn-danger btn-icon btn-sm" onClick={() => onDel(slot.id)}><Trash2 size={11} strokeWidth={1.5} /></button>
             </>}
+
           </div>
         </div>
       ))}

@@ -73,6 +73,41 @@ router.post('/:id/activate', requireCoordinator, asyncHandler(async (req, res) =
   res.json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
 }));
 
+// POST /:id/duplicate — clone a cycle with all its draft slots, dates shifted +6 months
+router.post('/:id/duplicate', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const src = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  if (!src) return res.status(404).json({ error: 'Cycle not found' });
+
+  function shiftDate(d, months) {
+    const dt = new Date(d + 'T00:00:00');
+    dt.setMonth(dt.getMonth() + months);
+    return dt.toISOString().split('T')[0];
+  }
+
+  const newId = crypto.randomUUID();
+  const newStart = shiftDate(src.start_date, 6);
+  const newEnd = shiftDate(src.end_date, 6);
+
+  db.transaction(() => {
+    db.prepare(`INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, status, created_by)
+      VALUES (?,?,?,?,'odd','draft',?)`)
+      .run(newId, src.name + ' (Copy)', newStart, newEnd, req.user.id);
+
+    // Copy all slots, shifting dates by 6 months
+    const slots = db.prepare("SELECT * FROM exam_slots WHERE cycle_id=? AND status='draft'").all(src.id);
+    const slotStmt = db.prepare(`INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
+      VALUES (?,?,?,?,?,?,?,?,'draft')`);
+
+    for (const s of slots) {
+      slotStmt.run(crypto.randomUUID(), newId, s.subject_id, shiftDate(s.date, 6),
+        s.start_time, s.duration_mins, s.exam_type, s.exam_mode);
+    }
+  })();
+
+  res.status(201).json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(newId));
+}));
+
 // POST /:id/auto-schedule — full automatic scheduling pipeline
 router.post('/:id/auto-schedule', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();

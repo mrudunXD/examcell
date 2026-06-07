@@ -15,6 +15,9 @@ import ConflictsPage from './pages/ConflictsPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import FacultyDutyPage from './pages/FacultyDutyPage.jsx';
 import AuditPage from './pages/AuditPage.jsx';
+import SearchPage from './pages/SearchPage.jsx';
+import CalendarPage from './pages/CalendarPage.jsx';
+import AttendancePage from './pages/AttendancePage.jsx';
 
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
@@ -54,17 +57,20 @@ export default function App() {
               ? <Navigate to="/my-duties" replace />
               : <DashboardPage />
           } />
-          <Route path="dashboard" element={<ProtectedRoute role="coordinator"><DashboardPage /></ProtectedRoute>} />
-          <Route path="students" element={<ProtectedRoute role="coordinator"><StudentsPage /></ProtectedRoute>} />
-          <Route path="subjects" element={<ProtectedRoute role="coordinator"><SubjectsPage /></ProtectedRoute>} />
-          <Route path="classrooms" element={<ProtectedRoute role="coordinator"><ClassroomsPage /></ProtectedRoute>} />
-          <Route path="faculty" element={<ProtectedRoute role="coordinator"><FacultyPage /></ProtectedRoute>} />
+          <Route path="dashboard"   element={<ProtectedRoute role="coordinator"><DashboardPage /></ProtectedRoute>} />
+          <Route path="students"    element={<ProtectedRoute role="coordinator"><StudentsPage /></ProtectedRoute>} />
+          <Route path="subjects"    element={<ProtectedRoute role="coordinator"><SubjectsPage /></ProtectedRoute>} />
+          <Route path="classrooms"  element={<ProtectedRoute role="coordinator"><ClassroomsPage /></ProtectedRoute>} />
+          <Route path="faculty"     element={<ProtectedRoute role="coordinator"><FacultyPage /></ProtectedRoute>} />
           <Route path="exam-cycles" element={<ProtectedRoute role="coordinator"><ExamCyclesPage /></ProtectedRoute>} />
-          <Route path="seating/:slotId" element={<ProtectedRoute role="coordinator"><SeatingPage /></ProtectedRoute>} />
+          <Route path="seating/:slotId"     element={<ProtectedRoute role="coordinator"><SeatingPage /></ProtectedRoute>} />
           <Route path="supervisors/:slotId" element={<ProtectedRoute role="coordinator"><SupervisorsPage /></ProtectedRoute>} />
-          <Route path="conflicts/:cycleId" element={<ProtectedRoute role="coordinator"><ConflictsPage /></ProtectedRoute>} />
-          <Route path="export/:cycleId" element={<ProtectedRoute role="coordinator"><ExportPage /></ProtectedRoute>} />
-          <Route path="audit" element={<ProtectedRoute role="coordinator"><AuditPage /></ProtectedRoute>} />
+          <Route path="attendance/:slotId"  element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
+          <Route path="conflicts/:cycleId"  element={<ProtectedRoute role="coordinator"><ConflictsPage /></ProtectedRoute>} />
+          <Route path="calendar/:cycleId"   element={<ProtectedRoute role="coordinator"><CalendarPage /></ProtectedRoute>} />
+          <Route path="export/:cycleId"     element={<ProtectedRoute role="coordinator"><ExportPage /></ProtectedRoute>} />
+          <Route path="audit"   element={<ProtectedRoute role="coordinator"><AuditPage /></ProtectedRoute>} />
+          <Route path="search"  element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="my-duties" element={<ProtectedRoute><FacultyDutyPage /></ProtectedRoute>} />
         </Route>
       </Routes>

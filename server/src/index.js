@@ -16,6 +16,8 @@ import conflictRoutes from './routes/conflicts.js';
 import exportRoutes from './routes/export.js';
 import dashboardRoutes from './routes/dashboard.js';
 import auditRoutes from './routes/audit.js';
+import attendanceRouter from './routes/attendance.js';
+import searchRouter from './routes/search.js';
 
 import { initDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -51,6 +53,8 @@ app.use('/api/conflicts', conflictRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/attendance', attendanceRouter);
+app.use('/api/search', searchRouter);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 

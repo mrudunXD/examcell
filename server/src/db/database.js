@@ -176,12 +176,26 @@ function createTables() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS attendance (
+      id TEXT PRIMARY KEY,
+      slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
+      student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      room_allocation_id TEXT REFERENCES room_allocations(id),
+      status TEXT NOT NULL DEFAULT 'absent' CHECK(status IN ('present','absent','late')),
+      marked_by TEXT REFERENCES users(id),
+      marked_at TEXT DEFAULT (datetime('now')),
+      notes TEXT,
+      UNIQUE(slot_id, student_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
     CREATE INDEX IF NOT EXISTS idx_students_year ON students(year);
     CREATE INDEX IF NOT EXISTS idx_exam_slots_cycle ON exam_slots(cycle_id);
     CREATE INDEX IF NOT EXISTS idx_seat_assignments_room ON seat_assignments(room_allocation_id);
     CREATE INDEX IF NOT EXISTS idx_supervisor_duties_faculty ON supervisor_duties(faculty_id);
     CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+    CREATE INDEX IF NOT EXISTS idx_attendance_slot ON attendance(slot_id);
+    CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
   `);
 }
 

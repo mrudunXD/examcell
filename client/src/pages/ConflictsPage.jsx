@@ -1,27 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, X, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, X, RefreshCw, AlertTriangle, Zap, ShieldAlert, Info } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+
+const TYPE_META = {
+  FACULTY_CLASH:   { label: 'Faculty Clash',   color: '#CC0000', bg: '#FFF5F5', icon: ShieldAlert },
+  ROOM_OVERFLOW:   { label: 'Room Overflow',   color: '#92400e', bg: '#FFFBEB', icon: AlertTriangle },
+  STUDENT_CLASH:   { label: 'Student Clash',   color: '#7c3aed', bg: '#F5F3FF', icon: AlertTriangle },
+  BRANCH_MIXING_FAILED: { label: 'Branch Mix', color: '#0e7490', bg: '#F0F9FF', icon: Info },
+  INSUFFICIENT_ROOM_CAPACITY: { label: 'Room Capacity', color: '#92400e', bg: '#FFFBEB', icon: ShieldAlert },
+  NO_STUDENTS:     { label: 'No Students',     color: '#525252', bg: '#FAFAFA', icon: Info },
+  NO_ROOMS:        { label: 'No Rooms',        color: '#525252', bg: '#FAFAFA', icon: Info },
+};
+
+function getMeta(type) {
+  return TYPE_META[type] || { label: type.replace(/_/g, ' '), color: '#525252', bg: '#FAFAFA', icon: Info };
+}
 
 export default function ConflictsPage() {
   const { cycleId } = useParams();
   const [conflicts, setConflicts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [detecting, setDetecting] = useState(false);
 
-  const fetch = async () => {
+  const fetchConflicts = useCallback(async () => {
     setLoading(true);
     try { const { data } = await api.get(`/conflicts/${cycleId}`); setConflicts(data); }
     catch { toast.error('Failed to load conflicts'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { fetch(); }, [cycleId]);
+  }, [cycleId]);
 
-  const resolve = async (id) => { await api.post(`/conflicts/${id}/resolve`); toast.success('Marked as resolved'); fetch(); };
-  const ignore  = async (id) => { await api.post(`/conflicts/${id}/ignore`);  toast('Conflict ignored'); fetch(); };
+  useEffect(() => { fetchConflicts(); }, [fetchConflicts]);
+
+  const runDetection = async () => {
+    setDetecting(true);
+    try {
+      const { data } = await api.post(`/conflicts/detect/${cycleId}`);
+      toast.success(data.message || 'Detection complete');
+      fetchConflicts();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Detection failed');
+    } finally { setDetecting(false); }
+  };
+
+  const resolve = async (id) => {
+    await api.post(`/conflicts/${id}/resolve`);
+    toast.success('Marked as resolved');
+    fetchConflicts();
+  };
+  const ignore = async (id) => {
+    await api.post(`/conflicts/${id}/ignore`);
+    toast('Conflict ignored');
+    fetchConflicts();
+  };
 
   const open     = conflicts.filter(c => c.status === 'open');
   const resolved = conflicts.filter(c => c.status !== 'open');
+
+  const groupedOpen = {};
+  for (const c of open) {
+    const meta = getMeta(c.type);
+    if (!groupedOpen[c.type]) groupedOpen[c.type] = { meta, items: [] };
+    groupedOpen[c.type].items.push(c);
+  }
 
   return (
     <div className="fade-in">
@@ -34,11 +76,39 @@ export default function ConflictsPage() {
           </div>
           <div className="accent-bar" />
           <h1 className="page-title">Conflict Detection</h1>
-          <p className="page-subtitle">{open.length} open · {resolved.length} resolved</p>
+          <p className="page-subtitle">
+            {open.length > 0 ? (
+              <span style={{ color: '#CC0000' }}>{open.length} open conflict{open.length > 1 ? 's' : ''}</span>
+            ) : (
+              <span style={{ color: '#166534' }}>No open conflicts</span>
+            )}
+            {resolved.length > 0 && <> · {resolved.length} resolved</>}
+          </p>
         </div>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={fetch} aria-label="Refresh">
-          <RefreshCw size={13} strokeWidth={1.5} />
-        </button>
+        <div className="flex-row" style={{ gap: 8 }}>
+          <button
+            className="btn btn-primary"
+            onClick={runDetection}
+            disabled={detecting}
+          >
+            {detecting
+              ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} />
+              : <Zap size={13} strokeWidth={1.5} />
+            }
+            Run Detection
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={fetchConflicts} disabled={loading}>
+            <RefreshCw size={12} strokeWidth={1.5} />
+          </button>
+        </div>
+      </div>
+
+      {/* Info banner */}
+      <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '10px 14px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <Info size={13} strokeWidth={1.5} color="#0e7490" style={{ marginTop: 1, flexShrink: 0 }} />
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#0e7490', lineHeight: 1.6 }}>
+          Click "Run Detection" to scan all slots in this cycle for faculty clashes, room overflow, and student conflicts. Exports are blocked while open conflicts exist.
+        </span>
       </div>
 
       {loading ? (
@@ -50,52 +120,46 @@ export default function ConflictsPage() {
           </div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, color: '#166534', marginBottom: 8 }}>All Clear</div>
           <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 14 }}>
-            No conflicts detected in this exam cycle. Safe to export.
+            No conflicts found. Run Detection to scan for issues, or this cycle is conflict-free.
           </p>
         </div>
       ) : (
         <>
-          {open.length > 0 && (
-            <div style={{ marginBottom: 28 }}>
-              {/* Section header */}
-              <div style={{
-                background: '#111111',
-                color: '#F9F9F7',
-                padding: '8px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                marginBottom: 0,
-              }}>
-                <AlertTriangle size={13} strokeWidth={1.5} color="#fca5a5" />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  {open.length} Open Conflict{open.length > 1 ? 's' : ''} — Must Resolve Before Export
-                </span>
-              </div>
-              <div style={{ border: '1px solid #111', borderTop: 'none' }}>
-                {open.map((c, i) => (
-                  <div
-                    key={c.id}
-                    className="conflict-item"
-                    style={{
-                      border: 'none',
-                      borderBottom: i < open.length - 1 ? '1px solid #fecaca' : 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          {/* Open conflicts — grouped by type */}
+          {Object.values(groupedOpen).map(({ meta, items }) => {
+            const Icon = meta.icon;
+            return (
+              <div key={items[0].type} style={{ marginBottom: 24 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px',
+                  background: meta.color, color: '#FFF', marginBottom: 0,
+                }}>
+                  <Icon size={13} strokeWidth={1.5} />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    {meta.label} — {items.length} issue{items.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div style={{ border: `1px solid ${meta.color}`, borderTop: 'none' }}>
+                  {items.map((c, i) => (
+                    <div key={c.id} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px',
+                      background: meta.bg, borderBottom: i < items.length - 1 ? `1px solid ${meta.color}33` : 'none',
+                    }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--np-red)', fontWeight: 600, marginBottom: 4 }}>
-                          {c.type.replace(/_/g, ' ')}
-                        </div>
-                        {c.date && (
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginBottom: 6 }}>
-                            {c.date} · {c.start_time} — {c.subject_name}
+                        {(c.date || c.subject_name) && (
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: meta.color, marginBottom: 4, opacity: 0.75 }}>
+                            {c.date} {c.start_time && `· ${c.start_time}`} {c.subject_name && `· ${c.subject_name}`}
                           </div>
                         )}
-                        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#7f1d1d', marginBottom: 4 }}>{c.description}</p>
+                        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#111', marginBottom: c.suggested_resolution ? 4 : 0 }}>{c.description}</p>
                         {c.suggested_resolution && (
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#92400e' }}>
-                            Suggested: {c.suggested_resolution}
+                            ↳ {c.suggested_resolution}
+                          </div>
+                        )}
+                        {c.affected_entities && (
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 4 }}>
+                            Affected: {c.affected_entities}
                           </div>
                         )}
                       </div>
@@ -108,32 +172,32 @@ export default function ConflictsPage() {
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })}
 
+          {/* Resolved */}
           {resolved.length > 0 && (
-            <div>
+            <div style={{ marginTop: 16 }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
                 Resolved / Ignored ({resolved.length})
               </div>
-              {resolved.map((c, i) => (
-                <div key={c.id} className="conflict-item resolved" style={{ marginBottom: 4 }}>
-                  <div className="flex-row" style={{ gap: 10 }}>
-                    <div style={{
-                      border: '1px solid #166534',
-                      color: '#166534',
-                      padding: 4,
-                    }}>
-                      {c.status === 'resolved' ? <CheckCircle size={12} strokeWidth={1.5} /> : <X size={12} strokeWidth={1.5} />}
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--np-n500)' }}>{c.type.replace(/_/g, ' ')}</div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--np-n600)' }}>{c.description}</div>
-                    </div>
+              {resolved.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 4, border: '1px solid #E5E5E0', opacity: 0.7 }}>
+                  <div style={{ color: c.status === 'resolved' ? '#166534' : '#A3A3A3' }}>
+                    {c.status === 'resolved' ? <CheckCircle size={12} strokeWidth={1.5} /> : <X size={12} strokeWidth={1.5} />}
                   </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', textTransform: 'uppercase', marginRight: 8 }}>
+                      {c.type.replace(/_/g, ' ')}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 12 }}>{c.description}</span>
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)', textTransform: 'uppercase' }}>
+                    {c.status}
+                  </span>
                 </div>
               ))}
             </div>
