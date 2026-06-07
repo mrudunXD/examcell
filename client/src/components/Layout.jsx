@@ -1,12 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
-  ClipboardList, LogOut, GraduationCap, Search, Calendar,
-  ClipboardCheck, Copy, Radio, BarChart3
+  ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
+  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
+import api from '../lib/api.js';
+import { ICONS, LABELS, getResultLink, getResultSub } from '../pages/SearchPage.jsx';
 
 const coordinatorNav = [
   { section: 'Overview' },
@@ -21,36 +23,228 @@ const coordinatorNav = [
   { to: '/exam-cycles', icon: CalendarDays, label: 'Exam Cycles' },
   { to: '/heatmap',     icon: BarChart3,    label: 'Faculty Heatmap' },
   { section: 'System' },
-  { to: '/search',    icon: Search,        label: 'Search', shortcut: '⌃K' },
+  { to: '/search',    icon: SearchIcon,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
 ];
 
 const facultyNav = [
   { to: '/my-duties', icon: CalendarDays, label: 'My Duties', end: true },
-  { to: '/search',    icon: Search, label: 'Search', shortcut: '⌃K' },
+  { to: '/search',    icon: SearchIcon, label: 'Search', shortcut: '⌃K' },
 ];
 
 // Inline date for the edition strip
 const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+function GlobalSearchModal({ onClose }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState({ students: [], subjects: [], faculty: [], cycles: [] });
+  const [loading, setLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const inputRef = useRef(null);
+  const navigate = useNavigate();
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const search = async (q) => {
+    if (q.trim().length < 2) {
+      setResults({ students: [], subjects: [], faculty: [], cycles: [] });
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/search?q=${encodeURIComponent(q)}`);
+      setResults(data);
+      setActiveIdx(-1);
+    } catch {
+      setResults({ students: [], subjects: [], faculty: [], cycles: [] });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(q), 220);
+  };
+
+  const totalResults = Object.values(results).reduce((s, arr) => s + arr.length, 0);
+
+  const flatResults = [];
+  for (const type of ['students', 'subjects', 'faculty', 'cycles']) {
+    for (const item of results[type]) {
+      flatResults.push({ type, item });
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => Math.min(i + 1, flatResults.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      const { type, item } = flatResults[activeIdx];
+      navigate(getResultLink(type, item));
+      onClose();
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  const selectItem = (type, item) => {
+    navigate(getResultLink(type, item));
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
+      <div className="modal modal-lg" style={{ padding: 0, overflow: 'hidden', maxWidth: 640, background: '#F9F9F7', border: '3px solid #111111' }}>
+        <div style={{ position: 'relative', borderBottom: '2px solid #111111', background: '#FFFFFF' }}>
+          <SearchIcon
+            size={18} strokeWidth={1.5}
+            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#525252', pointerEvents: 'none' }}
+          />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Search students, subjects, faculty, exam cycles..."
+            style={{
+              width: '100%', padding: '18px 48px 18px 50px',
+              border: 'none', outline: 'none',
+              fontFamily: 'var(--font-sans)', fontSize: 16,
+              background: 'transparent', color: '#111',
+              boxSizing: 'border-box',
+            }}
+          />
+          {query && (
+            <button
+              onClick={() => { setQuery(''); setResults({ students: [], subjects: [], faculty: [], cycles: [] }); inputRef.current?.focus(); }}
+              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#525252', display: 'flex', alignItems: 'center', padding: 4 }}
+            >
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
+
+        <div style={{ maxHeight: 400, overflowY: 'auto', padding: 16 }}>
+          {!query && (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--np-n500)' }}>
+              <SearchIcon size={24} strokeWidth={1.5} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontStyle: 'italic' }}>
+                Start typing to search across ExamCell records
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, marginTop: 4, opacity: 0.5 }}>
+                Type student PRN, subject code, or supervisor name
+              </div>
+            </div>
+          )}
+
+          {query.length >= 2 && !loading && totalResults === 0 && (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--np-n500)', fontFamily: 'var(--font-body)', fontStyle: 'italic', fontSize: 13 }}>
+              No results match "{query}"
+            </div>
+          )}
+
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <div className="spinner" style={{ margin: '0 auto', width: 20, height: 20 }} />
+            </div>
+          )}
+
+          {query.length >= 2 && !loading && ['students', 'subjects', 'faculty', 'cycles'].map(type => {
+            const items = results[type];
+            if (!items.length) return null;
+            const Icon = ICONS[type];
+
+            return (
+              <div key={type} style={{ marginBottom: 20 }}>
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase',
+                  letterSpacing: '0.1em', color: 'var(--np-n500)',
+                  borderBottom: '1px solid #E5E5E0', paddingBottom: 4, marginBottom: 8,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <Icon size={10} strokeWidth={1.5} />
+                  {LABELS[type]}
+                </div>
+                <div style={{ border: '1px solid #E5E5E0', background: '#FFFFFF' }}>
+                  {items.map((item, i) => {
+                    const globalIdx = flatResults.findIndex(r => r.type === type && r.item.id === item.id);
+                    const isActive = activeIdx === globalIdx;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => selectItem(type, item)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                          padding: '10px 14px', border: 'none', textAlign: 'left', cursor: 'pointer',
+                          background: isActive ? '#111' : 'transparent',
+                          color: isActive ? '#F9F9F7' : '#111',
+                          borderBottom: i < items.length - 1 ? '1px solid #E5E5E0' : 'none',
+                          transition: 'background 0.05s',
+                        }}
+                      >
+                        <Icon size={12} strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.5 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, opacity: isActive ? 0.7 : 0.5, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {getResultSub(type, item)}
+                          </div>
+                        </div>
+                        <ArrowRight size={10} strokeWidth={1.5} style={{ opacity: 0.3 }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {query.length >= 2 && (
+          <div style={{
+            background: '#FFFFFF', borderTop: '1px solid #E5E5E0',
+            padding: '8px 16px', display: 'flex', justifyContent: 'space-between',
+            fontFamily: 'var(--font-mono)', fontSize: 8, color: '#A3A3A3',
+            textTransform: 'uppercase', letterSpacing: '0.08em'
+          }}>
+            <span>Total Results: {totalResults}</span>
+            <span>↑↓ Navigate · Enter Select · Esc Close</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  // Global Ctrl+K shortcut → Search
+  // Global Ctrl+K shortcut → Search Modal
   useEffect(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        navigate('/search');
+        setSearchOpen(true);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -89,6 +283,12 @@ export default function Layout() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                onClick={(e) => {
+                  if (item.to === '/search') {
+                    e.preventDefault();
+                    setSearchOpen(true);
+                  }
+                }}
               >
                 <item.icon size={13} strokeWidth={1.5} />
                 <span style={{ flex: 1 }}>{item.label}</span>
@@ -137,6 +337,9 @@ export default function Layout() {
           <Outlet />
         </div>
       </div>
+      {searchOpen && (
+        <GlobalSearchModal onClose={() => setSearchOpen(false)} />
+      )}
     </div>
   );
 }

@@ -4,10 +4,55 @@ import { ArrowLeft, Play, CheckCircle, Unlock, ArrowLeftRight, RefreshCw, Wifi }
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
-function BenchSeat({ seat, onSwapSelect, swapSource, isSwapMode }) {
+function BenchSeat({ 
+  seat, 
+  row, 
+  col, 
+  onSwapSelect, 
+  swapSource, 
+  isSwapMode, 
+  isApproved,
+  onDragStart, 
+  onDragOver, 
+  onDrop,
+  onDragEnd,
+  isDraggedOver
+}) {
+  const handleDragStartLocal = (e) => {
+    if (isApproved || !seat) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", seat.id);
+    onDragStart(seat);
+  };
+
+  const handleDragOverLocal = (e) => {
+    if (isApproved) return;
+    e.preventDefault();
+    onDragOver(row, col);
+  };
+
+  const handleDropLocal = (e) => {
+    if (isApproved) return;
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData("text/plain");
+    onDrop(draggedId, row, col, seat);
+  };
+
   if (!seat) {
     return (
-      <div className="bench-seat empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div 
+        className="bench-seat empty" 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          background: isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : 'transparent',
+          border: isDraggedOver ? '2px dashed #166534' : '1px solid #E5E5E0',
+          transition: 'all 0.15s'
+        }}
+        onDragOver={handleDragOverLocal}
+        onDrop={handleDropLocal}
+      >
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)' }}>empty</span>
       </div>
     );
@@ -17,10 +62,18 @@ function BenchSeat({ seat, onSwapSelect, swapSource, isSwapMode }) {
   return (
     <div
       className="bench-seat"
+      draggable={!isApproved}
+      onDragStart={handleDragStartLocal}
+      onDragOver={handleDragOverLocal}
+      onDrop={handleDropLocal}
+      onDragEnd={onDragEnd}
       style={{
-        background: isSource ? '#111111' : 'var(--np-bg)',
-        borderColor: isSource ? '#111111' : '#E5E5E0',
-        cursor: isSwapMode ? 'pointer' : 'default',
+        background: isSource ? '#111111' : isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : 'var(--np-bg)',
+        borderColor: isSource ? '#111111' : isDraggedOver ? '#166534' : '#E5E5E0',
+        borderStyle: isDraggedOver ? 'dashed' : 'solid',
+        borderWidth: isDraggedOver ? '2px' : '1px',
+        cursor: isApproved ? 'default' : 'grab',
+        transition: 'all 0.15s'
       }}
       onClick={() => isSwapMode && onSwapSelect(seat)}
       title={`${seat.student_name} · ${seat.prn} · ${seat.roll_no} · ${seat.branch} ${seat.year}`}
@@ -45,6 +98,50 @@ export default function SeatingPage() {
   const [isSwapMode, setIsSwapMode] = useState(false);
   const [swapSource, setSwapSource] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [draggedSeat, setDraggedSeat] = useState(null);
+  const [dragOverCell, setDragOverCell] = useState(null); // { row, col }
+
+  const handleDragStart = (seat) => {
+    setDraggedSeat(seat);
+  };
+
+  const handleDragOver = (row, col) => {
+    setDragOverCell({ row, col });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSeat(null);
+    setDragOverCell(null);
+  };
+
+  const handleDrop = async (draggedId, targetRow, targetCol, targetSeat) => {
+    setDragOverCell(null);
+    setDraggedSeat(null);
+    if (!draggedId) return;
+
+    if (targetSeat) {
+      if (draggedId === targetSeat.id) return;
+      try {
+        await api.put('/seating/swap', { assignment_id_1: draggedId, assignment_id_2: targetSeat.id });
+        toast.success('Seats swapped successfully');
+        fetchSeating();
+      } catch (err) {
+        toast.error(err.response?.data?.error || 'Failed to swap seats');
+      }
+    } else {
+      try {
+        await api.put('/seating/override', { 
+          assignment_id: draggedId, 
+          bench_row: targetRow, 
+          bench_col: targetCol 
+        });
+        toast.success('Student moved successfully');
+        fetchSeating();
+      } catch (err) {
+        toast.error(err.response?.data?.error || 'Failed to move student');
+      }
+    }
+  };
 
   const fetchSeating = async () => {
     setLoading(true);
@@ -258,6 +355,7 @@ export default function SeatingPage() {
                     </div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
                       {currentRoom.room.block} · {currentRoom.room.bench_rows} rows x {currentRoom.room.bench_cols} cols · capacity {currentRoom.room.capacity}
+                      {!isApproved && <span style={{ marginLeft: 8, color: '#166534', fontWeight: 600 }}>— 💡 Drag and drop seats to rearrange visually</span>}
                     </div>
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textAlign: 'right' }}>
@@ -285,15 +383,28 @@ export default function SeatingPage() {
                   {Array.from({ length: rows }, (_, rowIdx) => (
                     <div key={rowIdx} className="bench-row-grid">
                       <div className="bench-row-label">R{rowIdx + 1}</div>
-                      {Array.from({ length: cols }, (_, colIdx) => (
-                        <BenchSeat
-                          key={colIdx}
-                          seat={grid[rowIdx + 1]?.[colIdx + 1] || null}
-                          onSwapSelect={handleSwapSelect}
-                          swapSource={swapSource}
-                          isSwapMode={isSwapMode}
-                        />
-                      ))}
+                      {Array.from({ length: cols }, (_, colIdx) => {
+                        const row = rowIdx + 1;
+                        const col = colIdx + 1;
+                        const isDraggedOver = dragOverCell?.row === row && dragOverCell?.col === col;
+                        return (
+                          <BenchSeat
+                            key={colIdx}
+                            seat={grid[row]?.[col] || null}
+                            row={row}
+                            col={col}
+                            onSwapSelect={handleSwapSelect}
+                            swapSource={swapSource}
+                            isSwapMode={isSwapMode}
+                            isApproved={isApproved}
+                            onDragStart={handleDragStart}
+                            onDragOver={handleDragOver}
+                            onDrop={handleDrop}
+                            onDragEnd={handleDragEnd}
+                            isDraggedOver={isDraggedOver}
+                          />
+                        );
+                      })}
                     </div>
                   ))}
                 </div>

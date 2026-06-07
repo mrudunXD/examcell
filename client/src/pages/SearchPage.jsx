@@ -3,21 +3,21 @@ import { Search, X, Users, BookOpen, UserCheck, CalendarDays, ArrowRight } from 
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 
-const ICONS = {
+export const ICONS = {
   students: Users,
   subjects: BookOpen,
   faculty: UserCheck,
   cycles: CalendarDays,
 };
 
-const LABELS = {
+export const LABELS = {
   students: 'Students',
   subjects: 'Subjects',
   faculty: 'Faculty',
   cycles: 'Exam Cycles',
 };
 
-function getResultLink(type, item) {
+export function getResultLink(type, item) {
   if (type === 'cycles') return `/exam-cycles`;
   if (type === 'students') return `/students`;
   if (type === 'subjects') return `/subjects`;
@@ -25,7 +25,7 @@ function getResultLink(type, item) {
   return '/';
 }
 
-function getResultSub(type, item) {
+export function getResultSub(type, item) {
   if (type === 'students') return `${item.prn} · ${item.branch} ${item.year} Sem ${item.semester}`;
   if (type === 'subjects') return `${item.code} · ${item.branch} ${item.year} Sem ${item.semester}`;
   if (type === 'faculty') return item.email;

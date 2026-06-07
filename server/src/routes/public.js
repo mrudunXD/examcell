@@ -52,15 +52,14 @@ router.get('/kiosk/:cycleId', asyncHandler(async (req, res) => {
 
   const slots = db.prepare(query).all(...params);
 
-  // For each slot, get allocated room numbers
+  // For each slot, get allocated room info with IDs
   const roomStmt = db.prepare(`
-    SELECT c.room_no FROM room_allocations ra
+    SELECT ra.id as room_allocation_id, ra.classroom_id, c.room_no, c.block FROM room_allocations ra
     JOIN classrooms c ON c.id = ra.classroom_id
     WHERE ra.slot_id = ?
   `);
   for (const s of slots) {
-    const rooms = roomStmt.all(s.id);
-    s.rooms = rooms.map(r => r.room_no).join(', ');
+    s.rooms = roomStmt.all(s.id);
   }
 
   // Get broadcasts (urgent/critical)
@@ -72,6 +71,24 @@ router.get('/kiosk/:cycleId', asyncHandler(async (req, res) => {
   `).all();
 
   res.json({ cycle, slots, broadcasts });
+}));
+
+// GET seat assignments for visual mapping in Kiosk Mode
+router.get('/seating/:roomAllocationId', asyncHandler(async (req, res) => {
+  const db = getDb();
+  const ra = db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
+  if (!ra) return res.status(404).json({ error: 'Room allocation not found' });
+
+  const classroom = db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
+  const assignments = db.prepare(`
+    SELECT sa.bench_row, sa.bench_col, st.prn, st.roll_no, st.branch, st.year
+    FROM seat_assignments sa
+    JOIN students st ON st.id = sa.student_id
+    WHERE sa.room_allocation_id = ?
+    ORDER BY sa.bench_row, sa.bench_col
+  `).all(req.params.roomAllocationId);
+
+  res.json({ classroom, assignments });
 }));
 
 export default router;
