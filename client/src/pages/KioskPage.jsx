@@ -18,6 +18,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
+// Determine the current phase of an exam slot
 function getPhase(slot, now) {
   const [h, m] = (slot.start_time || '09:30').split(':').map(Number);
   const start = new Date(now.getTime()); start.setHours(h, m, 0, 0);
@@ -27,6 +28,7 @@ function getPhase(slot, now) {
   return 'done';
 }
 
+// Compute hours, minutes, seconds remaining
 function getCountdown(slot, now) {
   const [h, m] = (slot.start_time || '09:30').split(':').map(Number);
   const start = new Date(now.getTime()); start.setHours(h, m, 0, 0);
@@ -40,52 +42,309 @@ function getCountdown(slot, now) {
   return { diff, hh, mm, ss, phase };
 }
 
+// ISOLATED COMPONENT: Renders only the top bar clock. Updates every 1s without triggering parent re-render.
+function TopBarClock({ isDark }) {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ 
+        fontSize: '56px', 
+        fontWeight: 800, 
+        letterSpacing: '-0.03em', 
+        lineHeight: 1, 
+        fontVariantNumeric: 'tabular-nums',
+        color: isDark ? '#ffffff' : '#0f172a' 
+      }}>
+        {pad(time.getHours())}:{pad(time.getMinutes())}
+        <span style={{ fontSize: '26px', opacity: 0.5, marginLeft: 6, fontWeight: 500 }}>{pad(time.getSeconds())}</span>
+      </div>
+      <div style={{ 
+        fontSize: '13px', 
+        color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(15, 23, 42, 0.55)', 
+        letterSpacing: '0.12em', 
+        marginTop: 6, 
+        fontWeight: 700 
+      }}>
+        {DAYS[time.getDay()].toUpperCase()}, {time.getDate()} {MONTHS[time.getMonth()].toUpperCase()} {time.getFullYear()}
+      </div>
+    </div>
+  );
+}
+
+// ISOLATED COMPONENT: Renders slot details & updates its local countdown timer every 1s.
+function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
+  const [localNow, setLocalNow] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setLocalNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const cd = getCountdown(slot, localNow);
+  const isLive = cd.phase === 'live';
+
+  return (
+    <div style={{ 
+      background: isDark ? 'rgba(15, 22, 42, 0.5)' : '#ffffff', 
+      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
+      borderRadius: '24px',
+      padding: '40px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      boxShadow: isDark ? '0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)' : '0 20px 40px rgba(15, 23, 42, 0.04)',
+      boxSizing: 'border-box',
+      height: '100%',
+      backdropFilter: 'blur(10px)',
+    }}>
+      {/* Card Header: Status & Quick Room info */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          {/* Status badge */}
+          <div style={{
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 8,
+            padding: '8px 20px',
+            borderRadius: '30px',
+            background: isLive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+            border: `1px solid ${isLive ? '#10b981' : '#3b82f6'}`,
+          }}>
+            <div style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: isLive ? '#10b981' : '#3b82f6',
+              animation: isLive ? 'pulse 2s infinite' : 'none',
+            }} />
+            <span style={{ 
+              fontSize: '14px', 
+              letterSpacing: '0.05em', 
+              textTransform: 'uppercase', 
+              fontWeight: 800,
+              color: isLive ? '#10b981' : '#3b82f6' 
+            }}>
+              {isLive ? 'Exam In Progress' : 'Starting Soon'}
+            </span>
+          </div>
+
+          {/* Time indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.55)', fontSize: '16px', fontWeight: 600 }}>
+            <Clock size={16} />
+            <span>{slot.start_time} ({slot.duration_mins} min)</span>
+          </div>
+        </div>
+
+        {/* Room badges grid */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {slot.rooms && slot.rooms.map(room => {
+            const isCurrentKioskRoom = String(room.classroom_id) === String(classroomId);
+            
+            return (
+              <button
+                key={room.room_allocation_id}
+                onClick={() => onSelectRoom(room)}
+                className="room-badge-interactive"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  background: isCurrentKioskRoom 
+                    ? '#f59e0b' 
+                    : (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)'),
+                  border: isCurrentKioskRoom
+                    ? '1.5px solid #d97706'
+                    : `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
+                  color: isCurrentKioskRoom ? '#000000' : (isDark ? '#ffffff' : '#334155'),
+                  fontSize: '22px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: isCurrentKioskRoom ? '0 4px 15px rgba(245, 158, 11, 0.3)' : 'none',
+                }}
+                title="Click to view seating arrangement"
+              >
+                <Grid3x3 size={20} />
+                <span>Room {room.room_no}</span>
+                {room.block && (
+                  <span style={{ fontSize: '14px', opacity: 0.8, fontWeight: 500 }}>
+                    ({room.block})
+                  </span>
+                )}
+                {isCurrentKioskRoom && (
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    background: '#000',
+                    color: '#FFF',
+                    borderRadius: '4px',
+                    marginLeft: 6
+                  }}>
+                    HERE
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Middle section: Subject Detail */}
+      <div style={{ margin: '12px 0' }}>
+        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 6, fontWeight: 700 }}>
+          {isLive ? 'Active Subject' : 'Next Scheduled'}
+        </div>
+        <div style={{ 
+          fontSize: '44px', 
+          fontWeight: 800, 
+          lineHeight: 1.2, 
+          color: isDark ? '#ffffff' : '#0f172a', 
+          letterSpacing: '-0.02em',
+        }}>
+          {slot.subject_name}
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(15,23,42,0.6)', marginTop: 8, letterSpacing: '0.02em' }}>
+          {slot.subject_code} · <span style={{ color: '#D6001C', fontWeight: 800 }}>{slot.branch}</span> · {slot.year} Year
+        </div>
+      </div>
+
+      {/* Countdown Timers */}
+      <div>
+        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 10, fontWeight: 700 }}>
+          {isLive ? 'Time Remaining' : 'Countdown'}
+        </div>
+        
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          {[
+            { v: pad(cd.hh), l: 'HRS' }, 
+            { v: pad(cd.mm), l: 'MIN' }, 
+            { v: pad(cd.ss), l: 'SEC' }
+          ].map(({ v, l }) => (
+            <div key={l} style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '64px', 
+                fontWeight: 800, 
+                lineHeight: 1.1, 
+                fontVariantNumeric: 'tabular-nums',
+                color: isLive ? (cd.diff < 1800 ? '#ef4444' : '#10b981') : '#3b82f6',
+                letterSpacing: '-0.03em',
+                background: isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.02)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)'}`,
+                padding: '12px 18px',
+                borderRadius: '14px',
+              }}>
+                {v}
+              </div>
+              <div style={{ fontSize: '10px', letterSpacing: '0.1em', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginTop: 4 }}>
+                {l}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Under 30 minutes alert */}
+        {isLive && cd.diff < 1800 && (
+          <div style={{ 
+            marginTop: 12, 
+            color: '#ef4444', 
+            fontSize: '15px', 
+            letterSpacing: '0.05em', 
+            textTransform: 'uppercase', 
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            animation: 'pulse 1.5s infinite',
+          }}>
+            <AlertTriangle size={16} />
+            <span>Under 30 Minutes Remaining</span>
+          </div>
+        )}
+      </div>
+
+      {/* Metadata Row */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(4, 1fr)', 
+        gap: 12,
+        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15, 23, 42, 0.08)'}`, 
+        paddingTop: 20 
+      }}>
+        {[
+          { label: 'Start Time', value: slot.start_time },
+          { label: 'Duration', value: `${slot.duration_mins}m` },
+          { label: 'Exam Mode', value: slot.exam_mode?.toUpperCase() },
+          { label: 'Exam Type', value: slot.exam_type?.toUpperCase() },
+        ].map(({ label, value }) => (
+          <div key={label}>
+            <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 2, fontWeight: 700 }}>
+              {label}
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: isDark ? '#ffffff' : '#0f172a' }}>
+              {value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function KioskPage() {
   const { cycleId } = useParams();
   const [searchParams] = useSearchParams();
   const classroomId = searchParams.get('classroomId');
 
-  // Core State
+  // Core Data State
   const [slots, setSlots] = useState([]);
   const [cycle, setCycle] = useState(null);
-  const [now, setNow] = useState(new Date());
   const [broadcasts, setBroadcasts] = useState([]);
   const [broadcastIdx, setBroadcastIdx] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState(null);
 
-  // UI Theme & Carousel States
+  // Layout Theme & Carousel
   const [theme, setTheme] = useState(() => localStorage.getItem('kiosk_theme') || 'dark');
   const [currentCarouselPage, setCurrentCarouselPage] = useState(0);
   const [selectedAllocation, setSelectedAllocation] = useState(null); // { roomAllocationId, roomNo, block }
 
-  // Seating Map Overlay state
+  // Seating overlay data
   const [seatingData, setSeatingData] = useState(null);
   const [loadingSeating, setLoadingSeating] = useState(false);
 
-  // Load Kiosk data
+  // Root updates every 30 seconds to filter active slots and handle carousel re-indexing.
+  const [rootTick, setRootTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setRootTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Fetch Kiosk data from endpoint
   const loadData = useCallback(async () => {
     try {
       const params = {};
       if (classroomId) params.classroomId = classroomId;
       const { data } = await api.get(`/public/kiosk/${cycleId}`, { params });
       
-      // Update state and cache successfully
       setCycle(data.cycle);
       setSlots(data.slots || []);
       setBroadcasts((data.broadcasts || []).slice(0, 5));
       setIsOffline(false);
-      setLastRefreshed(new Date());
 
-      // Store in localStorage for offline continuity
+      // Cache data
       localStorage.setItem(
         `kiosk_cache_${cycleId}_${classroomId || ''}`,
         JSON.stringify({ cycle: data.cycle, slots: data.slots, broadcasts: data.broadcasts })
       );
     } catch (err) {
-      console.warn("Kiosk connection failed. Reading from local cache if available.", err);
+      console.warn("Connection lost. Reading cache.", err);
       setIsOffline(true);
-      // Retrieve from cache
       const cached = localStorage.getItem(`kiosk_cache_${cycleId}_${classroomId || ''}`);
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -96,12 +355,11 @@ export default function KioskPage() {
     }
   }, [cycleId, classroomId]);
 
-  // Initial load
+  // Initial and Polling load (Every 3 minutes / 180s)
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Polling every 3 minutes (180000ms) to sync
   useEffect(() => {
     const id = setInterval(() => {
       loadData();
@@ -109,18 +367,12 @@ export default function KioskPage() {
     return () => clearInterval(id);
   }, [loadData]);
 
-  // Local clock ticking every 1 second
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Theme storage sync
+  // Sync theme selection
   useEffect(() => {
     localStorage.setItem('kiosk_theme', theme);
   }, [theme]);
 
-  // Rotate notice broadcasts every 6s
+  // Notice rotator
   useEffect(() => {
     if (!broadcasts.length) return;
     const id = setInterval(() => {
@@ -129,7 +381,7 @@ export default function KioskPage() {
     return () => clearInterval(id);
   }, [broadcasts]);
 
-  // Fetch seating assignments when selectedRoomAllocationId changes
+  // Seating fetcher
   useEffect(() => {
     if (!selectedAllocation) {
       setSeatingData(null);
@@ -142,24 +394,30 @@ export default function KioskPage() {
         setLoadingSeating(false);
       })
       .catch(err => {
-        console.error("Error loading seating map", err);
+        console.error(err);
         setLoadingSeating(false);
       });
   }, [selectedAllocation]);
 
-  // Filter slots for carousel processing
-  const liveSlots = slots.filter(s => getPhase(s, now) === 'live');
-  const upcomingSlots = slots.filter(s => getPhase(s, now) === 'upcoming');
-  const doneSlots = slots.filter(s => getPhase(s, now) === 'done');
-  const activeSlots = [...liveSlots, ...upcomingSlots];
+  // Evaluate slots filter with fixed local reference
+  const getFilteredSlots = () => {
+    const referenceNow = new Date();
+    const live = slots.filter(s => getPhase(s, referenceNow) === 'live');
+    const upcoming = slots.filter(s => getPhase(s, referenceNow) === 'upcoming');
+    const done = slots.filter(s => getPhase(s, referenceNow) === 'done');
+    const active = [...live, ...upcoming];
+    return { live, upcoming, done, active };
+  };
 
-  // Group active slots into pages of size up to 2
+  const { live, upcoming, done, active } = getFilteredSlots();
+
+  // Group active slots for carousel pages
   const activeSlotsPages = [];
-  for (let i = 0; i < activeSlots.length; i += 2) {
-    activeSlotsPages.push(activeSlots.slice(i, i + 2));
+  for (let i = 0; i < active.length; i += 2) {
+    activeSlotsPages.push(active.slice(i, i + 2));
   }
 
-  // Auto-rotating carousel every 8 seconds for high-load concurrent exams
+  // Auto rotate carousel pages
   useEffect(() => {
     if (activeSlotsPages.length <= 1) {
       setCurrentCarouselPage(0);
@@ -171,21 +429,21 @@ export default function KioskPage() {
     return () => clearInterval(id);
   }, [activeSlotsPages.length]);
 
-  // Theme styling definitions
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#030306' : '#f4f6fa',
+    bgGradient: isDark 
+      ? 'radial-gradient(at 0% 0%, #0c1424 0px, transparent 50%), radial-gradient(at 100% 0%, #060b13 0px, transparent 50%), radial-gradient(at 50% 100%, #10192b 0px, transparent 50%), #04070c'
+      : 'radial-gradient(at 0% 0%, #eef2f7 0px, transparent 50%), radial-gradient(at 100% 0%, #f1f5f9 0px, transparent 50%), radial-gradient(at 50% 100%, #e2e8f0 0px, transparent 50%), #fafbfc',
     text: isDark ? '#f8fafc' : '#0f172a',
     textMuted: isDark ? 'rgba(248, 250, 252, 0.7)' : 'rgba(15, 23, 42, 0.75)',
     textDim: isDark ? 'rgba(248, 250, 252, 0.45)' : 'rgba(15, 23, 42, 0.55)',
-    cardBg: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.85)',
+    cardBg: isDark ? 'rgba(15, 22, 42, 0.45)' : 'rgba(255, 255, 255, 0.9)',
     cardBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
-    glassBg: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.45)',
-    border: isDark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(15, 23, 42, 0.09)',
-    activeBg: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.05)',
-    shadow: isDark ? '0 10px 40px rgba(0, 0, 0, 0.6)' : '0 10px 40px rgba(0, 0, 0, 0.06)',
-    modalOverlayBg: isDark ? 'rgba(3, 3, 6, 0.85)' : 'rgba(244, 246, 250, 0.85)',
-    modalContentBg: isDark ? '#0b0c10' : '#ffffff',
+    border: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
+    glassBg: isDark ? 'rgba(255, 255, 255, 0.015)' : 'rgba(255, 255, 255, 0.45)',
+    shadow: isDark ? '0 10px 40px rgba(0, 0, 0, 0.5)' : '0 10px 40px rgba(15, 23, 42, 0.04)',
+    modalOverlayBg: isDark ? 'rgba(4, 7, 12, 0.8)' : 'rgba(240, 242, 245, 0.8)',
+    modalContentBg: isDark ? '#090d16' : '#ffffff',
   };
 
   const currentPageIndex = Math.min(currentCarouselPage, Math.max(0, activeSlotsPages.length - 1));
@@ -198,91 +456,68 @@ export default function KioskPage() {
       width: '100vw',
       overflow: 'hidden',
       position: 'relative',
-      background: colors.bg,
+      background: colors.bgGradient,
       color: colors.text,
-      fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+      fontFamily: "'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif",
       display: 'flex',
       flexDirection: 'column',
       boxSizing: 'border-box',
-      transition: 'background-color 0.5s ease, color 0.5s ease',
+      transition: 'background 0.5s ease, color 0.5s ease',
     }}>
-      {/* Ambient Mesh Gradient Circles */}
-      <div className="mesh-gradient-container" style={{
-        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 0, overflow: 'hidden', pointerEvents: 'none',
-      }}>
-        <div style={{
-          position: 'absolute', width: '70vw', height: '70vw',
-          background: isDark ? 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
-          top: '-15%', left: '-10%',
-          borderRadius: '50%',
-          animation: 'mesh-float 22s infinite alternate ease-in-out',
-        }} />
-        <div style={{
-          position: 'absolute', width: '80vw', height: '80vw',
-          background: isDark ? 'radial-gradient(circle, rgba(20, 184, 166, 0.12) 0%, transparent 75%)' : 'radial-gradient(circle, rgba(20, 184, 166, 0.06) 0%, transparent 75%)',
-          bottom: '-25%', right: '-15%',
-          borderRadius: '50%',
-          animation: 'mesh-float 28s infinite alternate-reverse ease-in-out',
-        }} />
-        <div style={{
-          position: 'absolute', width: '65vw', height: '65vw',
-          background: isDark ? 'radial-gradient(circle, rgba(217, 70, 239, 0.1) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(217, 70, 239, 0.05) 0%, transparent 70%)',
-          top: '25%', left: '35%',
-          borderRadius: '50%',
-          animation: 'mesh-float 32s infinite alternate ease-in-out',
-        }} />
-      </div>
+      {/* Dynamic Font Import */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
-      {/* Top Header Bar */}
+      {/* Top Header Row */}
       <div style={{
         position: 'relative',
-        zIndex: 1,
+        zIndex: 5,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '24px 64px',
+        padding: '20px 48px',
         borderBottom: `1px solid ${colors.border}`,
         background: colors.glassBg,
-        backdropFilter: 'blur(20px)',
-        height: '110px',
+        backdropFilter: 'blur(12px)',
+        height: '96px',
         boxSizing: 'border-box',
       }}>
-        {/* Left side: Logo and Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ width: 6, height: 50, background: '#D6001C', borderRadius: 4 }} />
+        {/* Logo and details */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <div style={{ width: 5, height: 42, background: '#D6001C', borderRadius: 4 }} />
           <div>
-            <div style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.text }}>
+            <div style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.text }}>
               MIT World Peace University
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-              <span style={{ fontSize: '16px', color: colors.textMuted, letterSpacing: '0.08em', fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
+              <span style={{ fontSize: '14px', color: colors.textMuted, letterSpacing: '0.05em', fontWeight: 600 }}>
                 EXAMINATION CELL · {cycle?.name || 'EXAM CYCLE'}
               </span>
               
-              {/* Online/Offline status badge */}
+              {/* Online/Offline network state */}
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: isOffline ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                border: `1px solid ${isOffline ? '#ef4444' : '#22c55e'}`,
-                color: isOffline ? '#ef4444' : '#22c55e',
-                fontSize: '12px',
+                gap: 5,
+                padding: '3px 8px',
+                borderRadius: '5px',
+                background: isOffline ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                border: `1px solid ${isOffline ? '#ef4444' : '#10b981'}`,
+                color: isOffline ? '#ef4444' : '#10b981',
+                fontSize: '11px',
                 fontWeight: 700,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
               }}>
                 {isOffline ? (
                   <>
-                    <WifiOff size={13} />
-                    <span>Offline Mode</span>
+                    <WifiOff size={11} />
+                    <span>Offline</span>
                   </>
                 ) : (
                   <>
-                    <Wifi size={13} />
+                    <Wifi size={11} />
                     <span>Live</span>
                   </>
                 )}
@@ -292,36 +527,29 @@ export default function KioskPage() {
                 <button
                   onClick={loadData}
                   style={{
-                    padding: '3px 8px',
+                    padding: '2px 6px',
                     borderRadius: '4px',
                     background: colors.cardBg,
                     border: `1px solid ${colors.cardBorder}`,
                     color: colors.text,
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
-                  Retry
+                  Retry Sync
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right side: Clock & Mode Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '64px', fontWeight: 200, letterSpacing: '0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: colors.text }}>
-              {pad(now.getHours())}:{pad(now.getMinutes())}
-              <span style={{ fontSize: '32px', color: colors.textDim, marginLeft: 6 }}>{pad(now.getSeconds())}</span>
-            </div>
-            <div style={{ fontSize: '15px', color: colors.textMuted, letterSpacing: '0.12em', marginTop: 6, fontWeight: 500 }}>
-              {DAYS[now.getDay()].toUpperCase()}, {now.getDate()} {MONTHS[now.getMonth()].toUpperCase()} {now.getFullYear()}
-            </div>
-          </div>
+        {/* Clock & Mode switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          {/* Isolated clock component to prevent general page lagging */}
+          <TopBarClock isDark={isDark} />
 
-          {/* Theme Toggle Button */}
+          {/* Theme switcher toggle */}
           <button 
             onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
             style={{
@@ -333,17 +561,15 @@ export default function KioskPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: '12px',
-              width: 52,
-              height: 52,
+              borderRadius: '10px',
+              width: 44,
+              height: 44,
               boxShadow: colors.shadow,
               transition: 'transform 0.2s, background-color 0.2s',
             }}
-            title="Toggle Dark/Light Mode"
-            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            title="Toggle Light/Dark Theme"
           >
-            {isDark ? <Sun size={24} /> : <Moon size={24} />}
+            {isDark ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </div>
       </div>
@@ -354,13 +580,13 @@ export default function KioskPage() {
         zIndex: 1,
         flex: 1,
         display: 'flex',
-        padding: '32px 64px 24px 64px',
-        gap: '40px',
+        padding: '24px 48px',
+        gap: '32px',
         overflow: 'hidden',
         minHeight: 0,
         boxSizing: 'border-box',
       }}>
-        {/* Left Panel: Carousel of Active Exams */}
+        {/* Left Side: Slider pages of active exams */}
         <div style={{ 
           flex: 1, 
           display: 'flex', 
@@ -369,7 +595,7 @@ export default function KioskPage() {
           minHeight: 0,
           boxSizing: 'border-box',
         }}>
-          {activeSlots.length > 0 ? (
+          {active.length > 0 ? (
             <div style={{ 
               flex: 1,
               display: 'flex',
@@ -377,264 +603,53 @@ export default function KioskPage() {
               justifyContent: 'space-between',
               minHeight: 0,
             }}>
-              {/* Carousel Page Wrapper */}
+              {/* Carousel transition wrapper */}
               <div 
-                key={currentPageIndex} // Triggers fadeIn keyframe on page change
+                key={currentPageIndex}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: visibleSlots.length === 1 ? '1fr' : '1fr 1fr',
-                  gap: '32px',
+                  gap: '24px',
                   flex: 1,
                   minHeight: 0,
-                  animation: 'fadeIn 0.5s ease-in-out',
+                  animation: 'fadeIn 0.4s ease-out',
                 }}
               >
-                {visibleSlots.map(slot => {
-                  const cd = getCountdown(slot, now);
-                  const isLive = cd.phase === 'live';
-                  
-                  return (
-                    <div 
-                      key={slot.id} 
-                      style={{ 
-                        background: colors.cardBg, 
-                        border: `1.5px solid ${colors.cardBorder}`,
-                        borderRadius: '24px',
-                        padding: '40px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '24px',
-                        boxShadow: colors.shadow,
-                        backdropFilter: 'blur(20px)',
-                        boxSizing: 'border-box',
-                        minHeight: 0,
-                      }}
-                    >
-                      {/* Top Row: Status Indicator & Room Badges */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                          {/* Live/Upcoming Alert Pill */}
-                          <div style={{
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 10,
-                            padding: '10px 24px',
-                            borderRadius: '30px',
-                            background: isLive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                            border: `1.5px solid ${isLive ? '#22c55e' : '#3b82f6'}`,
-                          }}>
-                            <div style={{
-                              width: 12, height: 12, borderRadius: '50%',
-                              background: isLive ? '#22c55e' : '#3b82f6',
-                              animation: isLive ? 'pulse 1.8s infinite' : 'none',
-                            }} />
-                            <span style={{ 
-                              fontSize: '16px', 
-                              letterSpacing: '0.12em', 
-                              textTransform: 'uppercase', 
-                              fontWeight: 800,
-                              color: isLive ? '#22c55e' : '#3b82f6' 
-                            }}>
-                              {isLive ? 'Exam In Progress' : 'Starting Soon'}
-                            </span>
-                          </div>
-
-                          {/* Time & Duration Brief */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.textMuted, fontSize: '18px', fontWeight: 600 }}>
-                            <Clock size={18} />
-                            <span>{slot.start_time} ({slot.duration_mins}m)</span>
-                          </div>
-                        </div>
-
-                        {/* Interactive Room Badges */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                          {slot.rooms && slot.rooms.map(room => {
-                            const isCurrentKioskRoom = String(room.classroom_id) === String(classroomId);
-                            
-                            return (
-                              <button
-                                key={room.room_allocation_id}
-                                onClick={() => setSelectedAllocation({ 
-                                  roomAllocationId: room.room_allocation_id, 
-                                  roomNo: room.room_no,
-                                  block: room.block 
-                                })}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 10,
-                                  padding: '12px 24px',
-                                  borderRadius: '12px',
-                                  background: isCurrentKioskRoom 
-                                    ? '#eab308' // stand out highlight for the current room
-                                    : (isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.05)'),
-                                  border: isCurrentKioskRoom
-                                    ? '2px solid #ca8a04'
-                                    : `1px solid ${colors.cardBorder}`,
-                                  color: isCurrentKioskRoom ? '#000000' : colors.text,
-                                  fontSize: '24px',
-                                  fontWeight: 800,
-                                  cursor: 'pointer',
-                                  boxShadow: isCurrentKioskRoom ? '0 4px 20px rgba(234, 179, 8, 0.4)' : 'none',
-                                  transition: 'transform 0.2s, background-color 0.2s',
-                                }}
-                                title="Click to view seating plan"
-                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                              >
-                                <Grid3x3 size={24} />
-                                <span>Room {room.room_no}</span>
-                                {room.block && (
-                                  <span style={{ fontSize: '16px', opacity: 0.8, fontWeight: 500 }}>
-                                    ({room.block})
-                                  </span>
-                                )}
-                                {isCurrentKioskRoom && (
-                                  <span style={{
-                                    fontSize: '12px',
-                                    fontWeight: 900,
-                                    padding: '3px 8px',
-                                    background: '#000',
-                                    color: '#FFF',
-                                    borderRadius: '6px',
-                                    marginLeft: 6
-                                  }}>
-                                    THIS ROOM
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Subject Information (Really big and legible) */}
-                      <div>
-                        <div style={{ fontSize: '16px', letterSpacing: '0.2em', textTransform: 'uppercase', color: colors.textDim, marginBottom: 8, fontWeight: 700 }}>
-                          {isLive ? 'Currently Conducting' : 'Upcoming Exam'}
-                        </div>
-                        <div style={{ 
-                          fontSize: visibleSlots.length === 1 ? '56px' : '40px', 
-                          fontWeight: 900, 
-                          lineHeight: 1.15, 
-                          color: colors.text, 
-                          letterSpacing: '-0.03em',
-                        }}>
-                          {slot.subject_name}
-                        </div>
-                        <div style={{ fontSize: '24px', fontWeight: 600, color: colors.textMuted, marginTop: 10, letterSpacing: '0.02em' }}>
-                          {slot.subject_code} · <span style={{ color: '#D6001C', fontWeight: 800 }}>{slot.branch}</span> · {slot.year} Year
-                        </div>
-                      </div>
-
-                      {/* Countdown Clock (Massive font for readability from 15ft) */}
-                      <div>
-                        <div style={{ fontSize: '15px', letterSpacing: '0.2em', textTransform: 'uppercase', color: colors.textDim, marginBottom: 12, fontWeight: 700 }}>
-                          {isLive ? 'Time Remaining' : 'Begins In'}
-                        </div>
-                        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-end' }}>
-                          {[
-                            { v: pad(cd.hh), l: 'HOURS' }, 
-                            { v: pad(cd.mm), l: 'MINUTES' }, 
-                            { v: pad(cd.ss), l: 'SECONDS' }
-                          ].map(({ v, l }) => (
-                            <div key={l} style={{ textAlign: 'center' }}>
-                              <div style={{
-                                fontSize: visibleSlots.length === 1 ? '110px' : '82px', 
-                                fontWeight: 200, 
-                                lineHeight: 0.95, 
-                                fontVariantNumeric: 'tabular-nums',
-                                color: isLive ? (cd.diff < 1800 ? '#ef4444' : '#22c55e') : '#3b82f6',
-                                letterSpacing: '-0.04em',
-                                background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                                border: `1px solid ${colors.cardBorder}`,
-                                padding: '16px 24px',
-                                borderRadius: '16px',
-                              }}>
-                                {v}
-                              </div>
-                              <div style={{ fontSize: '13px', letterSpacing: '0.15em', fontWeight: 700, color: colors.textDim, marginTop: 8 }}>
-                                {l}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        {/* Urgent Alert banner inside card */}
-                        {isLive && cd.diff < 1800 && (
-                          <div style={{ 
-                            marginTop: 18, 
-                            color: '#ef4444', 
-                            fontSize: '18px', 
-                            letterSpacing: '0.05em', 
-                            textTransform: 'uppercase', 
-                            fontWeight: 800,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            animation: 'pulse 1.5s infinite',
-                          }}>
-                            <AlertTriangle size={20} />
-                            <span>Warning: Less than 30 minutes remaining</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Detail Footer Grid */}
-                      <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(4, 1fr)', 
-                        gap: 20,
-                        borderTop: `1px solid ${colors.border}`, 
-                        paddingTop: 24 
-                      }}>
-                        {[
-                          { label: 'Start Time', value: slot.start_time },
-                          { label: 'Duration', value: `${slot.duration_mins} min` },
-                          { label: 'Exam Mode', value: slot.exam_mode?.toUpperCase() },
-                          { label: 'Exam Type', value: slot.exam_type?.toUpperCase() },
-                        ].map(({ label, value }) => (
-                          <div key={label}>
-                            <div style={{ fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.textDim, marginBottom: 4, fontWeight: 700 }}>
-                              {label}
-                            </div>
-                            <div style={{ fontSize: '20px', fontWeight: 800, color: colors.text }}>
-                              {value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                {visibleSlots.map(slot => (
+                  <ExamCard 
+                    key={slot.id} 
+                    slot={slot} 
+                    isDark={isDark} 
+                    classroomId={classroomId}
+                    onSelectRoom={setSelectedAllocation}
+                  />
+                ))}
               </div>
 
-              {/* Carousel Pagination Dots */}
+              {/* Carousel Pagination bullets */}
               {activeSlotsPages.length > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: '16px' }}>
                   {activeSlotsPages.map((_, idx) => (
                     <button
                       key={idx}
                       onClick={() => setCurrentCarouselPage(idx)}
                       style={{
-                        width: 16,
-                        height: 16,
+                        width: 12,
+                        height: 12,
                         borderRadius: '50%',
                         border: 'none',
-                        background: currentPageIndex === idx ? (isDark ? '#FFF' : '#000') : 'rgba(128,128,128,0.4)',
+                        background: currentPageIndex === idx ? (isDark ? '#ffffff' : '#0f172a') : 'rgba(128,128,128,0.4)',
                         cursor: 'pointer',
-                        transform: currentPageIndex === idx ? 'scale(1.25)' : 'scale(1)',
-                        transition: 'all 0.3s ease',
+                        transform: currentPageIndex === idx ? 'scale(1.2)' : 'scale(1)',
+                        transition: 'all 0.2s ease',
                       }}
-                      title={`Go to page ${idx + 1}`}
                     />
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            /* Empty Active Slots State */
+            /* Idle page if no current slots */
             <div style={{ 
               flex: 1, 
               display: 'flex', 
@@ -642,89 +657,88 @@ export default function KioskPage() {
               justifyContent: 'center', 
               alignItems: 'center',
               background: colors.cardBg,
-              border: `1.5px solid ${colors.cardBorder}`,
+              border: `1px solid ${colors.cardBorder}`,
               borderRadius: '24px',
-              padding: '64px',
+              padding: '48px',
               textAlign: 'center',
-              backdropFilter: 'blur(20px)',
               boxShadow: colors.shadow,
             }}>
-              <CalendarDays size={84} style={{ color: colors.textDim, marginBottom: 24 }} />
-              <div style={{ fontSize: '32px', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {doneSlots.length > 0 ? 'All exams for today completed' : 'No active exams scheduled today'}
+              <CalendarDays size={72} style={{ color: colors.textDim, marginBottom: 16 }} />
+              <div style={{ fontSize: '28px', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {done.length > 0 ? 'Today\'s exam sessions completed' : 'No active sessions scheduled'}
               </div>
-              <div style={{ fontSize: '18px', color: colors.textMuted, marginTop: 12 }}>
-                Please review the full schedule sidebar or consult the exam coordinators.
+              <div style={{ fontSize: '16px', color: colors.textMuted, marginTop: 8 }}>
+                Check the daily schedule sidebar or request coordination desk support.
               </div>
             </div>
           )}
         </div>
 
-        {/* Right Panel: Side schedule board */}
+        {/* Right Side: Flat sidebar list of the day's schedule */}
         <div style={{ 
-          width: '460px', 
+          width: '400px', 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: 20,
+          gap: 16,
           background: colors.cardBg, 
-          border: `1.5px solid ${colors.cardBorder}`,
+          border: `1px solid ${colors.cardBorder}`,
           borderRadius: '24px',
-          padding: '32px',
+          padding: '28px',
           boxShadow: colors.shadow,
-          backdropFilter: 'blur(20px)',
           minHeight: 0,
           boxSizing: 'border-box',
+          backdropFilter: 'blur(10px)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '18px', letterSpacing: '0.15em', textTransform: 'uppercase', color: colors.textMuted, fontWeight: 800 }}>
-              Today's Schedule
+            <div style={{ fontSize: '16px', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.textMuted, fontWeight: 800 }}>
+              Daily Schedule
             </div>
-            <div style={{ fontSize: '14px', color: colors.textDim, fontWeight: 600 }}>
-              {slots.length} Exam{slots.length !== 1 ? 's' : ''}
+            <div style={{ fontSize: '13px', color: colors.textDim, fontWeight: 700 }}>
+              {slots.length} Total Slot{slots.length !== 1 ? 's' : ''}
             </div>
           </div>
           
           <div style={{ 
             flex: 1, 
             overflowY: 'auto',
-            paddingRight: '4px',
+            paddingRight: '2px',
           }} className="custom-scrollbar">
             {slots.length === 0 ? (
-              <div style={{ color: colors.textDim, fontStyle: 'italic', fontSize: '18px', padding: '24px 0' }}>
-                No slots allocated for today.
+              <div style={{ color: colors.textDim, fontStyle: 'italic', fontSize: '15px', padding: '16px 0' }}>
+                No slots found for today.
               </div>
             ) : (
               slots.map(slot => {
-                const phase = getPhase(slot, now);
-                const isActive = activeSlots.some(x => x.id === slot.id);
+                const phase = getPhase(slot, new Date());
+                const isActive = active.some(x => x.id === slot.id);
                 
-                let phaseColor = '#3b82f6';
-                if (phase === 'live') phaseColor = '#22c55e';
-                if (phase === 'done') phaseColor = 'rgba(128,128,128,0.5)';
+                let indicatorColor = '#3b82f6';
+                if (phase === 'live') indicatorColor = '#10b981';
+                if (phase === 'done') indicatorColor = 'rgba(128,128,128,0.4)';
 
                 return (
                   <div 
                     key={slot.id} 
                     style={{
                       display: 'flex', 
-                      gap: 16, 
-                      padding: '16px 20px', 
-                      marginBottom: '12px',
-                      background: isActive ? colors.activeBg : 'transparent',
-                      border: `1px solid ${isActive ? colors.textMuted : 'transparent'}`,
-                      borderRadius: '12px',
-                      transition: 'all 0.3s',
+                      gap: 14, 
+                      padding: '14px 18px', 
+                      marginBottom: '10px',
+                      background: isActive ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15, 23, 42, 0.03)') : 'transparent',
+                      border: `1.5px solid ${isActive ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(15, 23, 42, 0.12)') : 'transparent'}`,
+                      borderRadius: '14px',
+                      transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ width: 5, alignSelf: 'stretch', flexShrink: 0, background: phaseColor, borderRadius: '4px' }} />
+                    <div style={{ width: 4, alignSelf: 'stretch', flexShrink: 0, background: indicatorColor, borderRadius: '4px' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '18px', fontWeight: 800, color: phase === 'done' ? colors.textDim : colors.text }}>
+                      <div style={{ fontSize: '17px', fontWeight: 800, color: phase === 'done' ? colors.textDim : colors.text }}>
                         {slot.subject_code}
                       </div>
                       <div style={{ 
-                        fontSize: '15px', 
+                        fontSize: '14px', 
                         color: phase === 'done' ? colors.textDim : colors.textMuted, 
-                        marginTop: 4, 
+                        marginTop: 2, 
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis', 
                         whiteSpace: 'nowrap',
@@ -732,21 +746,21 @@ export default function KioskPage() {
                       }}>
                         {slot.subject_name}
                       </div>
-                      <div style={{ fontSize: '13px', color: colors.textDim, marginTop: 4, fontWeight: 600 }}>
-                        {slot.start_time} · {slot.branch} · {slot.year} Year
+                      <div style={{ fontSize: '12px', color: colors.textDim, marginTop: 4, fontWeight: 600 }}>
+                        {slot.start_time} · {slot.branch} · {slot.year} Yr
                       </div>
                     </div>
                     
                     <div style={{ 
-                      fontSize: '12px', 
-                      letterSpacing: '0.08em', 
+                      fontSize: '11px', 
+                      letterSpacing: '0.05em', 
                       textTransform: 'uppercase', 
-                      color: phaseColor, 
+                      color: indicatorColor, 
                       alignSelf: 'center',
                       fontWeight: 800,
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      background: phase === 'live' ? 'rgba(34,197,94,0.1)' : 'transparent',
+                      padding: '3px 6px',
+                      borderRadius: '5px',
+                      background: phase === 'live' ? 'rgba(16,185,129,0.08)' : 'transparent',
                     }}>
                       {phase}
                     </div>
@@ -758,61 +772,61 @@ export default function KioskPage() {
         </div>
       </div>
 
-      {/* Bottom Ticker: Alert notice banner */}
+      {/* Notice Board Banner Ticker */}
       <div style={{
         position: 'relative',
-        zIndex: 1,
+        zIndex: 5,
         borderTop: `1px solid ${colors.border}`,
         background: colors.glassBg,
-        backdropFilter: 'blur(20px)',
-        padding: '16px 64px',
+        backdropFilter: 'blur(12px)',
+        padding: '12px 48px',
         display: 'flex', 
         alignItems: 'center', 
-        gap: 24, 
-        height: '75px',
+        gap: 20, 
+        height: '64px',
         boxSizing: 'border-box',
       }}>
         <div style={{
-          fontSize: '15px', 
-          letterSpacing: '0.2em', 
+          fontSize: '13px', 
+          letterSpacing: '0.15em', 
           textTransform: 'uppercase',
           color: broadcasts.length ? '#ef4444' : colors.textDim,
           fontWeight: 900, 
           flexShrink: 0,
-          padding: '6px 16px', 
-          background: broadcasts.length ? 'rgba(239, 68, 68, 0.12)' : 'transparent',
+          padding: '5px 12px', 
+          background: broadcasts.length ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
           border: `1.5px solid ${broadcasts.length ? '#ef4444' : colors.cardBorder}`,
-          borderRadius: '6px',
+          borderRadius: '5px',
         }}>
-          {broadcasts.length ? 'CRITICAL NOTICE' : 'INFO'}
+          {broadcasts.length ? 'NOTICE' : 'INFO'}
         </div>
         
-        {/* Animated slide notice */}
+        {/* Fade notice slide */}
         <div 
           key={broadcastIdx}
           style={{ 
-            fontSize: '22px', 
+            fontSize: '20px', 
             fontWeight: 700, 
             color: broadcasts.length ? colors.text : colors.textMuted, 
             flex: 1, 
             overflow: 'hidden', 
             textOverflow: 'ellipsis', 
             whiteSpace: 'nowrap',
-            animation: 'slideNotice 0.4s ease-out',
+            animation: 'slideNotice 0.3s ease-out',
             letterSpacing: '0.01em',
           }}
         >
           {broadcasts.length
             ? broadcasts[broadcastIdx]?.message
-            : 'All candidates must strictly report 30 minutes before the session starts. Carrying digital devices, smartphones or smartwatches inside the exam rooms is a punishable offense.'}
+            : 'Hall tickets and official identity cards are mandatory. Carry no digital devices inside.'}
         </div>
         
-        <div style={{ fontSize: '15px', color: colors.textDim, flexShrink: 0, letterSpacing: '0.05em', fontWeight: 700 }}>
-          MIT-WPU CAMPUS
+        <div style={{ fontSize: '13px', color: colors.textDim, flexShrink: 0, letterSpacing: '0.05em', fontWeight: 700 }}>
+          EXAM CELL
         </div>
       </div>
 
-      {/* Quick-View Seating Map Overlay (PRN only modal) */}
+      {/* Seating Grid Modal overlay */}
       {selectedAllocation && (
         <div style={{
           position: 'fixed',
@@ -822,35 +836,35 @@ export default function KioskPage() {
           alignItems: 'center',
           justifyContent: 'center',
           background: colors.modalOverlayBg,
-          backdropFilter: 'blur(12px)',
-          animation: 'fadeIn 0.3s ease-out',
+          backdropFilter: 'blur(8px)',
+          animation: 'fadeIn 0.25s ease-out',
         }}>
           <div style={{
             background: colors.modalContentBg,
-            border: `1.5px solid ${colors.cardBorder}`,
+            border: `1px solid ${colors.cardBorder}`,
             borderRadius: '24px',
-            width: '85vw',
-            maxHeight: '88vh',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.8)',
+            width: '80vw',
+            maxHeight: '84vh',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
             boxSizing: 'border-box',
-            animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            animation: 'scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
           }}>
             {/* Modal Header */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '24px 40px',
+              padding: '20px 32px',
               borderBottom: `1px solid ${colors.border}`,
             }}>
               <div>
-                <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '0.2em', color: '#D6001C', textTransform: 'uppercase' }}>
-                  DOOR NOTIFICATION PLAN
+                <span style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.15em', color: '#D6001C', textTransform: 'uppercase' }}>
+                  DOOR ARRANGEMENT SLIP
                 </span>
-                <h2 style={{ fontSize: '36px', fontWeight: 900, margin: '4px 0 0 0', color: colors.text }}>
+                <h2 style={{ fontSize: '32px', fontWeight: 800, margin: '2px 0 0 0', color: colors.text }}>
                   Room {selectedAllocation.roomNo} {selectedAllocation.block ? `(${selectedAllocation.block})` : ''}
                 </h2>
               </div>
@@ -862,73 +876,69 @@ export default function KioskPage() {
                   border: `1px solid ${colors.cardBorder}`,
                   color: colors.text,
                   borderRadius: '50%',
-                  width: 52,
-                  height: 52,
+                  width: 44,
+                  height: 44,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                <X size={28} />
+                <X size={24} />
               </button>
             </div>
 
-            {/* Modal Body Container */}
+            {/* Modal Content */}
             <div style={{ 
-              padding: '32px 40px', 
+              padding: '24px 32px', 
               overflowY: 'auto', 
               flex: 1,
               display: 'flex',
               flexDirection: 'column',
-              gap: 24,
+              gap: 20,
             }} className="custom-scrollbar">
               
               {loadingSeating ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', gap: 12 }}>
                   <div className="spinner" style={{
-                    width: 48, height: 48,
-                    border: `4px solid ${colors.border}`,
-                    borderTop: '4px solid #D6001C',
+                    width: 40, height: 40,
+                    border: `3px solid ${colors.border}`,
+                    borderTop: '3px solid #D6001C',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
                   }} />
-                  <div style={{ fontSize: '18px', color: colors.textMuted, fontWeight: 600 }}>Loading seating assignments...</div>
+                  <div style={{ fontSize: '16px', color: colors.textMuted, fontWeight: 600 }}>Fetching assignments...</div>
                 </div>
               ) : seatingData ? (
                 <>
-                  {/* Orientation Indicator (Front of Room/Blackboard) */}
+                  {/* Blackboard position */}
                   <div style={{
-                    background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)',
-                    border: `2px dashed ${colors.cardBorder}`,
-                    borderRadius: '12px',
-                    padding: '16px',
+                    background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                    border: `1.5px dashed ${colors.cardBorder}`,
+                    borderRadius: '10px',
+                    padding: '12px',
                     textAlign: 'center',
                     fontWeight: 800,
-                    fontSize: '18px',
-                    letterSpacing: '0.25em',
+                    fontSize: '16px',
+                    letterSpacing: '0.2em',
                     color: colors.textMuted,
                     textTransform: 'uppercase',
                   }}>
-                    ▲ ▲ ▲ FRONT OF THE CLASSROOM / BLACKBOARD ▲ ▲ ▲
+                    ▲ FRONT / BLACKBOARD ▲
                   </div>
 
-                  {/* Seat Grid */}
+                  {/* Visual grid */}
                   {(() => {
                     const { classroom, assignments } = seatingData;
                     const rows = classroom?.bench_rows || 6;
                     const cols = classroom?.bench_cols || 4;
 
-                    // Map assignments by row-col index
                     const gridMap = {};
                     assignments.forEach(a => {
                       gridMap[`${a.bench_row}-${a.bench_col}`] = a;
                     });
 
-                    // Build array of grid elements
                     const seats = [];
                     for (let r = 1; r <= rows; r++) {
                       for (let c = 1; c <= cols; c++) {
@@ -939,8 +949,8 @@ export default function KioskPage() {
 
                     if (assignments.length === 0) {
                       return (
-                        <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textDim, fontSize: '18px' }}>
-                          No students are seated in this room for today's slots.
+                        <div style={{ textAlign: 'center', padding: '36px 0', color: colors.textDim, fontSize: '16px' }}>
+                          No candidates seated for today's slots.
                         </div>
                       );
                     }
@@ -949,74 +959,69 @@ export default function KioskPage() {
                       <div style={{
                         display: 'grid',
                         gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                        gap: '16px',
-                        padding: '8px',
+                        gap: '12px',
+                        padding: '4px',
                       }}>
                         {seats.map(({ r, c, seat }) => (
                           <div 
                             key={`${r}-${c}`} 
                             style={{
                               position: 'relative',
-                              padding: '24px 16px',
-                              borderRadius: '14px',
+                              padding: '20px 12px',
+                              borderRadius: '12px',
                               background: seat 
-                                ? (isDark ? 'rgba(99, 102, 241, 0.12)' : 'rgba(79, 70, 229, 0.06)') 
-                                : (isDark ? 'rgba(255, 255, 255, 0.01)' : 'rgba(0, 0, 0, 0.015)'),
+                                ? (isDark ? 'rgba(99, 102, 241, 0.1)' : 'rgba(79, 70, 229, 0.05)') 
+                                : (isDark ? 'rgba(255, 255, 255, 0.01)' : 'rgba(0, 0, 0, 0.01)'),
                               border: seat
-                                ? `2px solid ${isDark ? '#6366f1' : '#4f46e5'}`
+                                ? `1.5px solid ${isDark ? '#6366f1' : '#4f46e5'}`
                                 : `1px solid ${colors.cardBorder}`,
                               display: 'flex',
                               flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              minHeight: '110px',
+                              minHeight: '96px',
                               boxSizing: 'border-box',
                             }}
                           >
-                            {/* Seat Row-Col Tag */}
                             <span style={{ 
                               position: 'absolute', 
-                              top: 8, 
-                              left: 10, 
-                              fontSize: '11px', 
+                              top: 6, 
+                              left: 8, 
+                              fontSize: '10px', 
                               fontWeight: 700, 
                               color: colors.textDim,
-                              letterSpacing: '0.05em'
                             }}>
-                              Row {r} - Col {c}
+                              R{r}-C{c}
                             </span>
                             
                             {seat ? (
                               <>
-                                {/* PRN Text - bold and large */}
                                 <span style={{ 
-                                  fontSize: '28px', 
-                                  fontWeight: 900, 
+                                  fontSize: '24px', 
+                                  fontWeight: 800, 
                                   color: colors.text, 
-                                  letterSpacing: '0.08em',
+                                  letterSpacing: '0.05em',
                                 }}>
                                   {seat.prn}
                                 </span>
-                                {/* Branch & Year tag */}
                                 <span style={{ 
-                                  fontSize: '14px', 
+                                  fontSize: '12px', 
                                   color: colors.textMuted, 
-                                  marginTop: 6,
+                                  marginTop: 4,
                                   fontWeight: 700,
                                   textTransform: 'uppercase',
                                   background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
+                                  padding: '1px 6px',
+                                  borderRadius: '3px',
                                 }}>
                                   {seat.branch} {seat.year}
                                 </span>
                               </>
                             ) : (
                               <span style={{ 
-                                fontSize: '15px', 
+                                fontSize: '13px', 
                                 color: colors.textDim, 
                                 fontStyle: 'italic',
-                                fontWeight: 500
                               }}>
                                 Empty
                               </span>
@@ -1028,33 +1033,32 @@ export default function KioskPage() {
                   })()}
                 </>
               ) : (
-                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textDim, fontSize: '18px' }}>
-                  Unable to load seating arrangement.
+                <div style={{ textAlign: 'center', padding: '36px 0', color: colors.textDim, fontSize: '16px' }}>
+                  Unable to view arrangement.
                 </div>
               )}
             </div>
             
-            {/* Modal Footer Notice */}
+            {/* Modal Footer */}
             <div style={{
-              padding: '20px 40px',
+              padding: '16px 32px',
               borderTop: `1px solid ${colors.border}`,
               background: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
+              fontSize: '13px',
+              color: colors.textDim,
+              fontWeight: 600,
             }}>
-              <span style={{ fontSize: '14px', color: colors.textDim, fontWeight: 700 }}>
-                MIT WPU Examination Cell · Door Seating notice
-              </span>
-              <span style={{ fontSize: '13px', color: colors.textDim }}>
-                Press ESC or click close to return to Kiosk board.
-              </span>
+              <span>MIT WPU Examination Cell</span>
+              <span>Press close or tap background to exit.</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Global CSS Style declarations */}
+      {/* Styles */}
       <style>{`
         @keyframes pulse { 
           0%, 100% { opacity: 1; transform: scale(1); } 
@@ -1064,36 +1068,31 @@ export default function KioskPage() {
           from { transform: rotate(0deg); } 
           to { transform: rotate(360deg); } 
         }
-        @keyframes mesh-float {
-          0% { transform: translate(0px, 0px) rotate(0deg) scale(1); }
-          50% { transform: translate(4vw, -4vh) rotate(180deg) scale(1.08); }
-          100% { transform: translate(-3vw, 5vh) rotate(360deg) scale(0.95); }
-        }
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
+          from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.95); }
+          from { opacity: 0; transform: scale(0.97); }
           to { opacity: 1; transform: scale(1); }
         }
         @keyframes slideNotice {
-          from { opacity: 0; transform: translateY(8px); }
+          from { opacity: 0; transform: translateY(6px); }
           to { opacity: 1; transform: translateY(0); }
         }
         
         .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
+          width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
-          border-radius: 4px;
+          background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'};
+          border-radius: 3px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'};
+          background: ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'};
         }
       `}</style>
     </div>
