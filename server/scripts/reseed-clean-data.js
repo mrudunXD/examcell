@@ -15,7 +15,7 @@ const db = new Database(DB_PATH);
 function mapProgramToBranches(program) {
   const p = program.toUpperCase();
   if (p.includes('COMMON TO ALL') || p.includes('COMMON FOR ALL') || p === 'ALL') {
-    return ['CE', 'CSE', 'CSE (AIDS)', 'ECE', 'ME'];
+    return ['CE', 'CSE', 'CSE (AIDS)', 'ECE', 'ME', 'MRA'];
   }
   const branches = [];
   if (p.includes('CIVIL') || (p.includes('CE') && !p.includes('ECE'))) branches.push('CE');
@@ -27,10 +27,14 @@ function mapProgramToBranches(program) {
     }
   }
   if (p.includes('ECE') || p.includes('ANALOG')) branches.push('ECE');
-  if ((p.includes('ME') && !p.includes('SEMESTER') && !p.includes('SCHEME') && !p.includes('MEASUREMENT')) || p.includes('MECH') || p.includes('MRA') || p.includes('ROBO') || p.includes('HVAC')) branches.push('ME');
+  if (p.includes('MRA') || p.includes('ROBO')) {
+    branches.push('MRA');
+  } else if ((p.includes('ME') && !p.includes('SEMESTER') && !p.includes('SCHEME') && !p.includes('MEASUREMENT')) || p.includes('MECH') || p.includes('HVAC')) {
+    branches.push('ME');
+  }
   
   if (branches.length === 0) {
-    if (p.includes('COMMON')) return ['CE', 'CSE', 'CSE (AIDS)', 'ECE', 'ME'];
+    if (p.includes('COMMON')) return ['CE', 'CSE', 'CSE (AIDS)', 'ECE', 'ME', 'MRA'];
     branches.push('CSE');
   }
   return [...new Set(branches)];
@@ -253,6 +257,16 @@ try {
             branch = 'AI';
           } else if (codeUpper.startsWith('DS')) {
             branch = 'DS';
+          } else if (codeUpper.startsWith('MEC')) {
+            branch = 'ME';
+          } else if (codeUpper.startsWith('MRA')) {
+            branch = 'MRA';
+          } else if (codeUpper.startsWith('CIV')) {
+            branch = 'CE';
+          } else if (codeUpper.startsWith('ECE')) {
+            branch = 'ECE';
+          } else if (codeUpper.startsWith('CSE')) {
+            branch = 'CSE';
           }
 
           const uuid = crypto.randomUUID();

@@ -13,6 +13,11 @@ function inferBranchFromCode(code, currentBranch) {
   if (c.startsWith('IOT')) return 'IoT';
   if (c.startsWith('AI')) return 'AI';
   if (c.startsWith('DS')) return 'DS';
+  if (c.startsWith('MEC')) return 'ME';
+  if (c.startsWith('MRA')) return 'MRA';
+  if (c.startsWith('CIV')) return 'CE';
+  if (c.startsWith('ECE')) return 'ECE';
+  if (c.startsWith('CSE')) return 'CSE';
   return currentBranch;
 }
 

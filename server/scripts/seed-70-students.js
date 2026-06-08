@@ -15,7 +15,7 @@ db.transaction(() => {
   db.prepare("DELETE FROM students").run();
 })();
 
-const branches = ['CSE', 'CSE (AIDS)', 'CE', 'ECE', 'ME'];
+const branches = ['CSE', 'CSE (AIDS)', 'CE', 'ECE', 'ME', 'MRA'];
 const years = [
   { name: 'FY', sems: [1, 2] },
   { name: 'SY', sems: [3, 4] },

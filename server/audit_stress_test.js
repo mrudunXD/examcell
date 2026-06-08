@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DB_PATH = path.resolve(__dirname, '../server/data/exam_management.db');
-const PY_PATH = path.resolve(__dirname, '../server/src/services/scheduler.py');
+const DB_PATH = path.resolve(__dirname, 'data/exam_management.db');
+const PY_PATH = path.resolve(__dirname, 'src/services/scheduler.py');
 
 console.log('🧪 Starting Autonomous QA Audit & Stress-Testing Suite...');
 console.log(`Connecting to database at ${DB_PATH}...`);

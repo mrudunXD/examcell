@@ -52,6 +52,16 @@ def solve():
             return "Cyber Security"
         if code_upper.startswith("IOT"):
             return "IoT"
+        if code_upper.startswith("MEC"):
+            return "ME"
+        if code_upper.startswith("MRA"):
+            return "MRA"
+        if code_upper.startswith("CIV"):
+            return "CE"
+        if code_upper.startswith("ECE"):
+            return "ECE"
+        if code_upper.startswith("CSE"):
+            return "CSE"
         return current_branch
 
     for s in subjects:
