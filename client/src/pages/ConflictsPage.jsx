@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, X, RefreshCw, AlertTriangle, Zap, ShieldAlert, Info } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 
 const TYPE_META = {
@@ -148,7 +149,7 @@ export default function ConflictsPage() {
                       <div style={{ flex: 1 }}>
                         {(c.date || c.subject_name) && (
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: meta.color, marginBottom: 4, opacity: 0.75 }}>
-                            {c.date} {c.start_time && `· ${c.start_time}`} {c.subject_name && `· ${c.subject_name}`}
+                            {formatDate(c.date)} {c.start_time && `· ${formatTime(c.start_time)}`} {c.subject_name && `· ${c.subject_name}`}
                           </div>
                         )}
                         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#111', marginBottom: c.suggested_resolution ? 4 : 0 }}>{c.description}</p>

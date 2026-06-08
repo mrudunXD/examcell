@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { 
   Sun, 
@@ -9,9 +9,15 @@ import {
   Grid3x3, 
   X, 
   Clock, 
-  CalendarDays 
+  CalendarDays,
+  Volume2,
+  VolumeX,
+  RefreshCw,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -42,6 +48,56 @@ function getCountdown(slot, now) {
   return { diff, hh, mm, ss, phase };
 }
 
+// Synthesizes chimes via browser Web Audio API
+function playChime(type) {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    const playTone = (freq, duration, startTime) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.25, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    if (type === 'start') {
+      // Starting: double high tone C5 -> G5
+      playTone(523.25, 0.18, now);
+      playTone(783.99, 0.45, now + 0.18);
+    } else if (type === 'hour') {
+      // Hour completed: chime progression E5 -> C5 -> G4
+      playTone(659.25, 0.25, now);
+      playTone(523.25, 0.25, now + 0.25);
+      playTone(392.00, 0.5, now + 0.5);
+    } else if (type === '30m') {
+      // 30 mins remaining: warning double chime A4 -> F4
+      playTone(440.00, 0.3, now);
+      playTone(349.23, 0.6, now + 0.35);
+    } else if (type === '10m') {
+      // 10 mins remaining: rapid alert double-double chime B4 -> G4 -> B4 -> G4
+      playTone(493.88, 0.15, now);
+      playTone(392.00, 0.15, now + 0.18);
+      playTone(493.88, 0.15, now + 0.36);
+      playTone(392.00, 0.5, now + 0.54);
+    } else if (type === 'end') {
+      // Exam ended: low double chime C4 -> G3
+      playTone(261.63, 0.35, now);
+      playTone(196.00, 0.7, now + 0.35);
+    }
+  } catch (e) {
+    console.warn("Failed to play synthesized chime:", e);
+  }
+}
+
 // ISOLATED COMPONENT: Renders only the top bar clock. Updates every 1s without triggering parent re-render.
 function TopBarClock({ isDark }) {
   const [time, setTime] = useState(new Date());
@@ -61,8 +117,9 @@ function TopBarClock({ isDark }) {
         fontFamily: 'var(--font-mono)',
         color: isDark ? '#ffffff' : '#111111' 
       }}>
-        {pad(time.getHours())}:{pad(time.getMinutes())}
+        {((time.getHours() % 12) || 12)}:{pad(time.getMinutes())}
         <span style={{ fontSize: '20px', opacity: 0.5, marginLeft: 6, fontWeight: 'normal' }}>{pad(time.getSeconds())}</span>
+        <span style={{ fontSize: '20px', opacity: 0.5, marginLeft: 6, fontWeight: 'normal' }}>{time.getHours() >= 12 ? 'PM' : 'AM'}</span>
       </div>
       <div style={{ 
         fontSize: '11px', 
@@ -72,20 +129,83 @@ function TopBarClock({ isDark }) {
         fontFamily: 'var(--font-serif)',
         fontStyle: 'italic',
       }}>
-        {DAYS[time.getDay()].toUpperCase()}, {time.getDate()} {MONTHS[time.getMonth()].toUpperCase()} {time.getFullYear()}
+        {DAYS[time.getDay()].toUpperCase()}, {pad(time.getDate())}/{pad(time.getMonth() + 1)}/{time.getFullYear()}
       </div>
     </div>
   );
 }
 
 // ISOLATED COMPONENT: Renders slot details & updates its local countdown timer every 1s.
-function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
+function ExamCard({ slot, isDark, classroomId, onSelectRoom, chimesEnabled }) {
   const [localNow, setLocalNow] = useState(new Date());
 
   useEffect(() => {
     const id = setInterval(() => setLocalNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  const playedMilestonesRef = useRef(null);
+  if (playedMilestonesRef.current === null || playedMilestonesRef.current.slotId !== slot.id) {
+    const past = new Set();
+    const initialCd = getCountdown(slot, new Date());
+    if (initialCd.phase === 'done') {
+      past.add('start');
+      past.add('end');
+      past.add('30m');
+      past.add('10m');
+      for (let h = 1; h <= 10; h++) past.add(`hour_${h}`);
+    } else if (initialCd.phase === 'live') {
+      past.add('start');
+      const elapsed = (slot.duration_mins || 180) * 60 - initialCd.diff;
+      const hrs = Math.floor(elapsed / 3600);
+      for (let h = 1; h <= hrs; h++) past.add(`hour_${h}`);
+      if (initialCd.diff <= 1800) past.add('30m');
+      if (initialCd.diff <= 600) past.add('10m');
+    }
+    playedMilestonesRef.current = { slotId: slot.id, set: past };
+  }
+
+  useEffect(() => {
+    if (!chimesEnabled) return;
+    const currentCd = getCountdown(slot, localNow);
+    const set = playedMilestonesRef.current.set;
+    
+    if (currentCd.phase === 'live') {
+      // 1. Check start
+      if (!set.has('start')) {
+        playChime('start');
+        set.add('start');
+      }
+      
+      // 2. Check hourly
+      const elapsed = (slot.duration_mins || 180) * 60 - currentCd.diff;
+      const hrs = Math.floor(elapsed / 3600);
+      for (let h = 1; h <= hrs; h++) {
+        if (!set.has(`hour_${h}`)) {
+          playChime('hour');
+          set.add(`hour_${h}`);
+        }
+      }
+      
+      // 3. Check 30m remaining
+      if (currentCd.diff <= 1800 && !set.has('30m')) {
+        playChime('30m');
+        set.add('30m');
+      }
+      
+      // 4. Check 10m remaining
+      if (currentCd.diff <= 600 && !set.has('10m')) {
+        playChime('10m');
+        set.add('10m');
+      }
+    } else if (currentCd.phase === 'done') {
+      // Check end
+      if (!set.has('end')) {
+        playChime('end');
+        set.add('end');
+      }
+    }
+  }, [localNow, slot, chimesEnabled]);
 
   const cd = getCountdown(slot, localNow);
   const isLive = cd.phase === 'live';
@@ -99,7 +219,7 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
       background: isDark ? '#111111' : '#F9F9F7', 
       border: `4px solid ${cardBorderColor}`,
       borderRadius: 0,
-      padding: '44px',
+      padding: 'clamp(16px, 3vh, 44px) clamp(16px, 3vw, 44px)',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
@@ -118,7 +238,7 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
       }} />
 
       {/* Card Header: Status & Quick Room info */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(10px, 2vh, 24px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           {/* Status badge */}
           <div style={{
@@ -149,73 +269,75 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
           {/* Time indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isDark ? '#A3A3A3' : '#525252', fontSize: '15px', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
             <Clock size={14} />
-            <span>{slot.start_time} ({slot.duration_mins} min)</span>
+            <span>{formatTime(slot.start_time)} ({slot.duration_mins} min)</span>
           </div>
         </div>
 
         {/* Room badges grid */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {slot.rooms && slot.rooms.map(room => {
-            const isCurrentKioskRoom = String(room.classroom_id) === String(classroomId);
-            
-            return (
-              <button
-                key={room.room_allocation_id}
-                onClick={() => onSelectRoom(room)}
-                className="room-badge-interactive"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 20px',
-                  background: isCurrentKioskRoom ? 'var(--np-red)' : 'transparent',
-                  border: `2px solid ${cardBorderColor}`,
-                  color: isCurrentKioskRoom ? '#ffffff' : (isDark ? '#ffffff' : '#111111'),
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-mono)',
-                  boxShadow: isCurrentKioskRoom 
-                    ? (isDark ? '4px 4px 0 0 #fff' : '4px 4px 0 0 #111') 
-                    : 'none',
-                  transition: 'transform 0.1s',
-                }}
-                title="Click to view seating arrangement"
-              >
-                <Grid3x3 size={18} />
-                <span>Room {room.room_no}</span>
-                {room.block && (
-                  <span style={{ fontSize: '13px', opacity: 0.8, fontWeight: 'normal' }}>
-                    ({room.block})
-                  </span>
-                )}
-                {isCurrentKioskRoom && (
-                  <span style={{
-                    fontSize: '9px',
+          {slot.rooms && slot.rooms
+            .filter(room => !classroomId || String(room.classroom_id) === String(classroomId))
+            .map(room => {
+              const isCurrentKioskRoom = String(room.classroom_id) === String(classroomId);
+              
+              return (
+                <button
+                  key={room.room_allocation_id}
+                  onClick={() => onSelectRoom(room)}
+                  className="room-badge-interactive"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 'clamp(6px, 1.2vh, 12px) clamp(10px, 1.8vw, 20px)',
+                    background: isCurrentKioskRoom ? 'var(--np-red)' : 'transparent',
+                    border: `2px solid ${cardBorderColor}`,
+                    color: isCurrentKioskRoom ? '#ffffff' : (isDark ? '#ffffff' : '#111111'),
+                    fontSize: 'clamp(14px, 2.2vh, 20px)',
                     fontWeight: 'bold',
-                    padding: '2px 6px',
-                    background: '#000',
-                    color: '#FFF',
-                    marginLeft: 6,
-                    letterSpacing: '0.05em',
-                    border: '1px solid #fff',
-                  }}>
-                    HERE
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-mono)',
+                    boxShadow: isCurrentKioskRoom 
+                      ? (isDark ? '4px 4px 0 0 #fff' : '4px 4px 0 0 #111') 
+                      : 'none',
+                    transition: 'transform 0.1s',
+                  }}
+                  title="Click to view seating arrangement"
+                >
+                  <Grid3x3 size={18} />
+                  <span>Room {room.room_no}</span>
+                  {room.block && (
+                    <span style={{ fontSize: '13px', opacity: 0.8, fontWeight: 'normal' }}>
+                      ({room.block})
+                    </span>
+                  )}
+                  {isCurrentKioskRoom && (
+                    <span style={{
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      padding: '2px 6px',
+                      background: '#000',
+                      color: '#FFF',
+                      marginLeft: 6,
+                      letterSpacing: '0.05em',
+                      border: '1px solid #fff',
+                    }}>
+                      HERE
+                    </span>
+                  )}
+                </button>
+              );
+            })}
         </div>
       </div>
 
       {/* Middle section: Subject Detail */}
-      <div style={{ margin: '20px 0' }}>
-        <div style={{ fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 8, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+      <div style={{ margin: 'clamp(10px, 2vh, 24px) 0' }}>
+        <div style={{ fontSize: 'clamp(9px, 1.2vh, 12px)', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 'clamp(4px, 0.8vh, 8px)', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
           {isLive ? 'Active Subject' : 'Next Scheduled'}
         </div>
         <div style={{ 
-          fontSize: '44px', 
+          fontSize: 'clamp(20px, 4.2vh, 44px)', 
           fontWeight: 'bold', 
           lineHeight: 1.15, 
           color: isDark ? '#ffffff' : '#111111', 
@@ -224,18 +346,18 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
         }}>
           {slot.subject_name}
         </div>
-        <div style={{ fontSize: '18px', fontWeight: 'bold', color: isDark ? '#cbd5e1' : '#334155', marginTop: 10, letterSpacing: '0.02em', fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
+        <div style={{ fontSize: 'clamp(12px, 1.8vh, 18px)', fontWeight: 'bold', color: isDark ? '#cbd5e1' : '#334155', marginTop: 'clamp(4px, 1vh, 10px)', letterSpacing: '0.02em', fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
           {slot.subject_code} · <span style={{ color: 'var(--np-red)', fontWeight: 'bold', fontStyle: 'normal' }}>{slot.branch}</span> · {slot.year} Year
         </div>
       </div>
 
       {/* Countdown Timers */}
       <div>
-        <div style={{ fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 14, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 'clamp(9px, 1.2vh, 12px)', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 'clamp(6px, 1vh, 14px)', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
           {isLive ? 'Time Remaining' : 'Countdown'}
         </div>
         
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'clamp(8px, 1.5vw, 16px)', alignItems: 'center' }}>
           {[
             { v: pad(cd.hh), l: 'HRS' }, 
             { v: pad(cd.mm), l: 'MIN' }, 
@@ -243,7 +365,7 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
           ].map(({ v, l }) => (
             <div key={l} style={{ textAlign: 'center' }}>
               <div style={{
-                fontSize: '72px', 
+                fontSize: 'clamp(32px, 7vh, 72px)', 
                 fontWeight: 'bold', 
                 lineHeight: 1.1, 
                 fontVariantNumeric: 'tabular-nums',
@@ -251,13 +373,13 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
                 letterSpacing: '-0.03em',
                 background: isDark ? '#262626' : '#E5E5E0',
                 border: `2px solid ${cardBorderColor}`,
-                padding: '12px 20px',
+                padding: 'clamp(6px, 1.2vh, 12px) clamp(10px, 1.8vw, 20px)',
                 boxShadow: isDark ? '4px 4px 0 0 #525252' : '4px 4px 0 0 #888888',
                 fontFamily: "var(--font-mono)"
               }}>
                 {v}
               </div>
-              <div style={{ fontSize: '10px', letterSpacing: '0.15em', fontWeight: 'bold', color: isDark ? '#A3A3A3' : '#525252', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: '9px', letterSpacing: '0.15em', fontWeight: 'bold', color: isDark ? '#A3A3A3' : '#525252', marginTop: 'clamp(4px, 0.8vh, 8px)', fontFamily: 'var(--font-mono)' }}>
                 {l}
               </div>
             </div>
@@ -291,19 +413,19 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
         gridTemplateColumns: 'repeat(4, 1fr)', 
         gap: 12,
         borderTop: `2px solid ${cardBorderColor}`, 
-        paddingTop: 24 
+        paddingTop: 'clamp(12px, 2vh, 24px)' 
       }}>
         {[
-          { label: 'Start Time', value: slot.start_time },
+          { label: 'Start Time', value: formatTime(slot.start_time) },
           { label: 'Duration', value: `${slot.duration_mins}m` },
           { label: 'Exam Mode', value: slot.exam_mode?.toUpperCase() },
           { label: 'Exam Type', value: slot.exam_type?.toUpperCase() },
         ].map(({ label, value }) => (
           <div key={label}>
-            <div style={{ fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 4, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: '9px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 4, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
               {label}
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: isDark ? '#ffffff' : '#111111', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 'clamp(11px, 1.8vh, 16px)', fontWeight: 'bold', color: isDark ? '#ffffff' : '#111111', fontFamily: 'var(--font-mono)' }}>
               {value}
             </div>
           </div>
@@ -325,10 +447,52 @@ export default function KioskPage() {
   const [broadcastIdx, setBroadcastIdx] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
 
+  // Fullscreen State
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const triggerAutoFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {
+          console.log("Automatic fullscreen blocked by browser policies, waiting for interaction.");
+        });
+      }
+    };
+    // Try immediately on load
+    triggerAutoFullscreen();
+    
+    // Fallback: trigger on the very first mouse/tap click anywhere on screen
+    const handleInteraction = () => {
+      triggerAutoFullscreen();
+      document.removeEventListener('click', handleInteraction);
+    };
+    document.addEventListener('click', handleInteraction);
+    return () => document.removeEventListener('click', handleInteraction);
+  }, []);
+
   // Layout Theme & Carousel
   const [theme, setTheme] = useState(() => localStorage.getItem('kiosk_theme') || 'dark');
   const [currentCarouselPage, setCurrentCarouselPage] = useState(0);
-  const [selectedAllocation, setSelectedAllocation] = useState(null); // { roomAllocationId, roomNo, block }
+  const [selectedAllocation, setSelectedAllocation] = useState(null); // { room_allocation_id, room_no, block }
+  const [chimesEnabled, setChimesEnabled] = useState(true);
 
   // Seating overlay data
   const [seatingData, setSeatingData] = useState(null);
@@ -413,7 +577,7 @@ export default function KioskPage() {
   useEffect(() => {
     const id = setInterval(() => {
       loadData();
-    }, 180000);
+    }, 30000);
     return () => clearInterval(id);
   }, [loadData]);
 
@@ -438,7 +602,7 @@ export default function KioskPage() {
       return;
     }
     setLoadingSeating(true);
-    api.get(`/public/seating/${selectedAllocation.roomAllocationId}`)
+    api.get(`/public/seating/${selectedAllocation.room_allocation_id}`)
       .then(res => {
         setSeatingData(res.data);
         setLoadingSeating(false);
@@ -598,6 +762,45 @@ export default function KioskPage() {
           {/* Isolated clock component to prevent general page lagging */}
           <TopBarClock isDark={isDark} />
 
+          {/* Sound toggle button */}
+          <button 
+            onClick={() => {
+              const nextVal = !chimesEnabled;
+              setChimesEnabled(nextVal);
+              if (nextVal) {
+                // Unlock Web Audio API context
+                try {
+                  const AudioContext = window.AudioContext || window.webkitAudioContext;
+                  const ctx = new AudioContext();
+                  const osc = ctx.createOscillator();
+                  const gain = ctx.createGain();
+                  gain.gain.setValueAtTime(0, ctx.currentTime);
+                  osc.connect(gain);
+                  gain.connect(ctx.destination);
+                  osc.start(0);
+                  osc.stop(0.01);
+                } catch (e) {}
+              }
+            }}
+            style={{
+              background: chimesEnabled ? 'var(--np-red)' : colors.cardBg,
+              border: `2px solid ${colors.cardBorder}`,
+              cursor: 'pointer',
+              color: chimesEnabled ? '#ffffff' : colors.text,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 44,
+              height: 44,
+              boxShadow: colors.shadow,
+              transition: 'transform 0.1s',
+            }}
+            title={chimesEnabled ? "Mute Chimes" : "Enable Chimes"}
+          >
+            {chimesEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+          </button>
+
           {/* Theme switcher toggle */}
           <button 
             onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
@@ -618,6 +821,50 @@ export default function KioskPage() {
             title="Toggle Light/Dark Theme"
           >
             {isDark ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          {/* Refresh button */}
+          <button 
+            onClick={loadData}
+            style={{
+              background: colors.cardBg,
+              border: `2px solid ${colors.cardBorder}`,
+              cursor: 'pointer',
+              color: colors.text,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 44,
+              height: 44,
+              boxShadow: colors.shadow,
+              transition: 'transform 0.1s',
+            }}
+            title="Refresh Data"
+          >
+            <RefreshCw size={20} />
+          </button>
+
+          {/* Fullscreen button */}
+          <button 
+            onClick={toggleFullscreen}
+            style={{
+              background: colors.cardBg,
+              border: `2px solid ${colors.cardBorder}`,
+              cursor: 'pointer',
+              color: colors.text,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 44,
+              height: 44,
+              boxShadow: colors.shadow,
+              transition: 'transform 0.1s',
+            }}
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
           </button>
         </div>
       </div>
@@ -670,6 +917,7 @@ export default function KioskPage() {
                     isDark={isDark} 
                     classroomId={classroomId}
                     onSelectRoom={setSelectedAllocation}
+                    chimesEnabled={chimesEnabled}
                   />
                 ))}
               </div>
@@ -791,7 +1039,7 @@ export default function KioskPage() {
                         {slot.subject_name}
                       </div>
                       <div style={{ fontSize: '11px', color: colors.textDim, marginTop: 4, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
-                        {slot.start_time} · {slot.branch} · {slot.year} Yr
+                        {formatTime(slot.start_time)} · {slot.branch} · {slot.year} Yr
                       </div>
                     </div>
                     
@@ -906,7 +1154,7 @@ export default function KioskPage() {
                   DOOR ARRANGEMENT SLIP
                 </span>
                 <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: '2px 0 0 0', color: colors.text, fontFamily: 'var(--font-serif)' }}>
-                  Room {selectedAllocation.roomNo} {selectedAllocation.block ? `(${selectedAllocation.block})` : ''}
+                  Room {selectedAllocation.room_no} {selectedAllocation.block ? `(${selectedAllocation.block})` : ''}
                 </h2>
               </div>
               

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileDown, Users, UserCheck, Calendar, AlertTriangle } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 
 export default function ExportPage() {
@@ -87,7 +88,7 @@ export default function ExportPage() {
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-                  {slot.date} · {slot.start_time}
+                  {formatDate(slot.date)} · {formatTime(slot.start_time)}
                 </div>
               </div>
               <div className="flex-row" style={{ flexWrap: 'wrap', gap: 6 }}>

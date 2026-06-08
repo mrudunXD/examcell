@@ -363,7 +363,7 @@ function GroupedStudents({ students, isCoord, onEdit, onDel }) {
           { label: YEAR_NAMES[drillYear], onClick: () => setDrillBranch(null) },
           { label: drillBranch },
         ]} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, marginTop: 12, border: '1px solid #E5E5E0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 16 }}>
           {Object.entries(secs).sort(([a],[b]) => a.localeCompare(b)).map(([sec, rows]) => (
             <StatCard key={sec}
               label={`Section ${sec}`}
@@ -386,7 +386,7 @@ function GroupedStudents({ students, isCoord, onEdit, onDel }) {
           { label: 'All Years', onClick: () => setDrillYear(null) },
           { label: YEAR_NAMES[drillYear] },
         ]} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, marginTop: 12, border: '1px solid #E5E5E0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 16 }}>
           {Object.entries(branches).sort(([a],[b]) => a.localeCompare(b)).map(([branch, secs]) => {
             const total = Object.values(secs).flat().length;
             return (
@@ -409,7 +409,7 @@ function GroupedStudents({ students, isCoord, onEdit, onDel }) {
   }
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1, border: '1px solid #E5E5E0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '24px', marginTop: 12 }}>
         {YEAR_ORDER.filter(y => yearGroups[y]).map(year => {
           const total    = Object.values(yearGroups[year]).flatMap(b => Object.values(b).flat()).length;
           const branches = Object.keys(yearGroups[year]).length;
@@ -431,28 +431,60 @@ function GroupedStudents({ students, isCoord, onEdit, onDel }) {
 // ── Shared minimal components ─────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, onClick, accent }) {
-  const accentColors = { FY: '#1d4ed8', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
-  const ac = accent ? accentColors[accent] || '#111' : '#111';
+  const [hovered, setHovered] = useState(false);
+  const accentColors = { FY: 'var(--np-red)', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
+  const ac = accent ? accentColors[accent] || 'var(--np-ink)' : 'var(--np-ink)';
+  
   return (
     <div
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        padding: '20px 18px',
+        padding: '24px 22px',
         cursor: onClick ? 'pointer' : 'default',
-        borderRight: '1px solid #E5E5E0',
-        borderBottom: '1px solid #E5E5E0',
-        background: '#FDFDFB',
-        transition: 'background 0.12s',
+        border: '4px solid var(--np-ink)',
+        background: hovered ? '#F5F5F2' : '#FDFDFB',
+        boxShadow: hovered ? '8px 8px 0 0 var(--np-ink)' : '4px 4px 0 0 var(--np-ink)',
+        transform: hovered ? 'translate(-4px, -4px)' : 'none',
+        transition: 'transform 0.15s ease-out, box-shadow 0.15s ease-out, background 0.15s ease-out',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        height: '100%',
+        minHeight: '140px',
       }}
-      onMouseEnter={e => { if (onClick) e.currentTarget.style.background = '#F5F5F2'; }}
-      onMouseLeave={e => { if (onClick) e.currentTarget.style.background = '#FDFDFB'; }}
     >
-      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: ac }} />}
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 900, color: '#111', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, marginTop: 6, color: '#111' }}>{label}</div>
-      {sub && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 3 }}>{sub}</div>}
-      {onClick && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: ac, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>View →</div>}
+      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: ac }} />}
+      <div>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: 'var(--np-ink)', lineHeight: 1.1 }}>
+          {value}
+        </div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: 'var(--np-ink)' }}>
+          {label}
+        </div>
+      </div>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        {sub && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)', letterSpacing: '0.02em' }}>
+            {sub}
+          </div>
+        )}
+        {onClick && (
+          <div style={{ 
+            fontFamily: 'var(--font-mono)', 
+            fontSize: 10, 
+            color: ac === 'var(--np-ink)' ? 'var(--np-red)' : ac, 
+            fontWeight: 'bold',
+            textTransform: 'uppercase', 
+            letterSpacing: '0.08em',
+            textDecoration: hovered ? 'underline' : 'none'
+          }}>
+            View →
+          </div>
+        )}
+      </div>
     </div>
   );
 }

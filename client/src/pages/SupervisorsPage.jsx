@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Play, UserCog, RefreshCw } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { formatDate, formatTime } from '../lib/format.js';
 
 export default function SupervisorsPage() {
   const { slotId } = useParams();
@@ -61,7 +62,7 @@ export default function SupervisorsPage() {
           <div className="accent-bar" />
           <h1 className="page-title">Supervisor Assignment</h1>
           {slotInfo && (
-            <p className="page-subtitle">{slotInfo.subject_code} — {slotInfo.subject_name} · {slotInfo.date} · {slotInfo.start_time}</p>
+            <p className="page-subtitle">{slotInfo.subject_code} — {slotInfo.subject_name} · {formatDate(slotInfo.date)} · {formatTime(slotInfo.start_time)}</p>
           )}
         </div>
         <div className="flex-row" style={{ gap: 6 }}>

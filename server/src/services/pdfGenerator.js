@@ -4,6 +4,35 @@
  */
 import PDFDocument from 'pdfkit';
 
+function formatDate(dateVal) {
+  if (!dateVal) return '';
+  let dateStr = typeof dateVal === 'string' ? dateVal : new Date(dateVal).toISOString();
+  if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+  if (dateStr.includes(' ')) dateStr = dateStr.split(' ')[0];
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return '';
+  const timePart = typeof timeStr === 'string' && timeStr.includes('T') 
+    ? timeStr.split('T')[1].substring(0, 5) 
+    : timeStr;
+  const parts = timePart.split(':');
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1].substring(0, 2);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  return timeStr;
+}
+
 // ── Constants ───────────────────────────────────────────────────────────────
 const BRAND     = 'MIT World Peace University — Polytechnic';
 const CELL      = 'Examination Cell';
@@ -23,7 +52,10 @@ function header(doc, subtitle) {
     .text(BRAND, 30, 12, { lineBreak: false });
   doc.font('Helvetica').fontSize(9).fillColor('rgba(255,255,255,0.8)')
     .text(subtitle, 30, 28, { lineBreak: false });
-  doc.text(`${CELL}  ·  Generated: ${new Date().toLocaleString('en-IN')}`, 30, 39, { lineBreak: false });
+  const generatedDate = new Date();
+  const formattedGen = `${String(generatedDate.getDate()).padStart(2, '0')}/${String(generatedDate.getMonth() + 1).padStart(2, '0')}/${generatedDate.getFullYear()} ` +
+    `${(generatedDate.getHours() % 12) || 12}:${String(generatedDate.getMinutes()).padStart(2, '0')} ${generatedDate.getHours() >= 12 ? 'PM' : 'AM'}`;
+  doc.text(`${CELL}  ·  Generated: ${formattedGen}`, 30, 39, { lineBreak: false });
   doc.fillColor('#111111');
   return 66;
 }
@@ -119,8 +151,8 @@ export async function generateSeatingPDF({ slot, classroom, assignments }) {
   y = metaRow(doc, y, [
     ['Room', `${classroom.room_no} (${classroom.block})`],
     ['Subject', `${slot.subject_code} — ${slot.subject_name}`],
-    ['Date', slot.date],
-    ['Time', `${slot.start_time}  (${slot.duration_mins} min)`],
+    ['Date', formatDate(slot.date)],
+    ['Time', `${formatTime(slot.start_time)}  (${slot.duration_mins} min)`],
     ['Seated / Cap.', `${assignments.length} / ${classroom.capacity}`],
   ]);
 
@@ -188,7 +220,7 @@ export async function generateSeatingPDF({ slot, classroom, assignments }) {
   // Footer
   doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
      .text('MIT WPU Examination Cell — Confidential', 30, doc.page.height - 30, { lineBreak: false })
-     .text(`Room ${classroom.room_no}  ·  ${slot.date}`, doc.page.width - 180, doc.page.height - 30, { lineBreak: false });
+     .text(`Room ${classroom.room_no}  ·  ${formatDate(slot.date)}`, doc.page.width - 180, doc.page.height - 30, { lineBreak: false });
 
   return docToBuffer(doc);
 }
@@ -201,8 +233,8 @@ export async function generateAttendancePDF({ slot, classroom, students }) {
   y = metaRow(doc, y, [
     ['Room', `${classroom.room_no} (${classroom.block})`],
     ['Subject', `${slot.subject_code}`],
-    ['Date', slot.date],
-    ['Time', slot.start_time],
+    ['Date', formatDate(slot.date)],
+    ['Time', formatTime(slot.start_time)],
     ['Total Students', students.length],
   ]);
 
@@ -251,8 +283,13 @@ export async function generateDutySheetPDF({ faculty, duties }) {
        .text('No duties assigned for this exam cycle.', 36, y + 10);
     y += 40;
   } else {
+    const formattedDuties = duties.map(d => ({
+      ...d,
+      date: formatDate(d.date),
+      start_time: formatTime(d.start_time)
+    }));
     y = sectionHead(doc, y, `Duty Schedule — ${duties.length} assignment(s)`);
-    y = table(doc, y, duties, [
+    y = table(doc, y, formattedDuties, [
       { header: 'Date',        width: 62,  key: 'date' },
       { header: 'Time',        width: 50,  key: 'start_time' },
       { header: 'Duration',    width: 48,  key: 'duration_mins', color: () => '#555' },
@@ -275,34 +312,263 @@ export async function generateDutySheetPDF({ faculty, duties }) {
 export async function generateTimetablePDF({ cycle, slots }) {
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 0, bufferPages: true });
 
-  let y = header(doc, `Exam Timetable — ${cycle.name}`);
+  // Group slots by semester
+  const semestersMap = {};
+  for (const slot of slots) {
+    const sem = slot.semester || 1;
+    if (!semestersMap[sem]) semestersMap[sem] = [];
+    semestersMap[sem].push(slot);
+  }
 
-  y = metaRow(doc, y, [
-    ['Cycle', cycle.name],
-    ['Period', `${cycle.start_date}  →  ${cycle.end_date}`],
-    ['Status', cycle.status],
-    ['Total Slots', slots.length],
-  ]);
+  const sortedSemesters = Object.keys(semestersMap).sort((a, b) => Number(a) - Number(b));
 
-  y = sectionHead(doc, y, 'Examination Schedule');
+  if (sortedSemesters.length === 0) {
+    // If no slots exist, output a blank page with message
+    doc.addPage();
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('#111111')
+       .text('MIT WORLD PEACE UNIVERSITY', 30, 30, { align: 'center', width: 781.89 });
+    doc.font('Helvetica').fontSize(11).fillColor('#555555')
+       .text('No examination schedule available for this cycle.', 30, 100, { align: 'center', width: 781.89 });
+    return docToBuffer(doc);
+  }
 
-  y = table(doc, y, slots, [
-    { header: 'Date',      width: 70,  key: 'date' },
-    { header: 'Time',      width: 55,  key: 'start_time' },
-    { header: 'Min',       width: 38,  key: 'duration_mins', align: 'center' },
-    { header: 'Code',      width: 60,  key: 'subject_code', color: () => RED_MARK },
-    { header: 'Subject',   width: 170, key: 'subject_name' },
-    { header: 'Branch',    width: 55,  key: 'branch' },
-    { header: 'Year',      width: 38,  key: 'year', color: r => YEAR_CLR[r.year] || '#111' },
-    { header: 'Type',      width: 52,  key: 'exam_type', color: r => r.exam_type === 'backlog' ? RED_MARK : '#111' },
-    { header: 'Mode',      width: 52,  key: 'exam_mode', color: r => r.exam_mode === 'online' ? '#1e40af' : '#111' },
-    { header: 'Students',  width: 55,  key: 'student_count', align: 'center' },
-    { header: 'Rooms',     width: 45,  key: 'room_count', align: 'center' },
-    { header: 'Status',    width: 62,  key: 'status' },
-  ]);
+  function getSemesterTitle(sem) {
+    const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI' };
+    const r = ROMAN[sem] || sem;
+    const yearPart = sem === 1 || sem === 2 ? 'First Year Diploma' :
+                     sem === 3 || sem === 4 ? 'Second Year Diploma' :
+                     sem === 5 || sem === 6 ? 'Third Year Diploma' : '';
+    const oddEvenPart = sem % 2 === 1 ? 'Odd Semester' : 'Even Semester';
+    return `${yearPart} ${oddEvenPart} — All Program's\n(Semester-${r})`;
+  }
 
-  doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
-     .text('MIT WPU Examination Cell — Confidential', 30, doc.page.height - 30, { lineBreak: false });
+  function formatPdfDate(dateStr) {
+    if (!dateStr) return '';
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const stdMonths = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return dateStr;
+    const dayName = weekdays[d.getDay()];
+    const dayDate = String(d.getDate()).padStart(2, '0');
+    const monthName = stdMonths[d.getMonth()];
+    const year = d.getFullYear();
+    return `${dayName}, ${dayDate} ${monthName} ${year}`;
+  }
+
+  function formatTimeRange(startTimeStr, durationMins) {
+    const parts = startTimeStr.split(':');
+    if (parts.length < 2) return startTimeStr;
+    let startHours = parseInt(parts[0], 10);
+    const startMinutes = parts[1].substring(0, 2);
+    const startAMPM = startHours >= 12 ? 'pm' : 'am';
+    let startH12 = startHours % 12;
+    startH12 = startH12 ? startH12 : 12;
+    const startFormatted = `${String(startH12).padStart(2, '0')}.${startMinutes} ${startAMPM}`;
+
+    // Calculate end time
+    const startDate = new Date();
+    startDate.setHours(startHours, parseInt(parts[1], 10), 0, 0);
+    const endDate = new Date(startDate.getTime() + durationMins * 60000);
+    let endHours = endDate.getHours();
+    const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
+    const endAMPM = endHours >= 12 ? 'pm' : 'am';
+    let endH12 = endHours % 12;
+    endH12 = endH12 ? endH12 : 12;
+    const endFormatted = `${String(endH12).padStart(2, '0')}.${endMinutes} ${endAMPM}`;
+
+    return `${startFormatted} to ${endFormatted}`;
+  }
+
+  sortedSemesters.forEach((sem, pageIdx) => {
+    if (pageIdx > 0) {
+      doc.addPage();
+    }
+
+    const semesterSlots = semestersMap[sem];
+    // Unique branches for this semester
+    const branches = [...new Set(semesterSlots.map(s => s.branch))].sort();
+    
+    // Group slots by date & time
+    const rowGroupsMap = {};
+    for (const slot of semesterSlots) {
+      const key = `${slot.date}_${slot.start_time}_${slot.duration_mins}`;
+      if (!rowGroupsMap[key]) {
+        rowGroupsMap[key] = {
+          date: slot.date,
+          start_time: slot.start_time,
+          duration_mins: slot.duration_mins,
+          slotsByBranch: {}
+        };
+      }
+      rowGroupsMap[key].slotsByBranch[slot.branch] = slot;
+    }
+
+    const sortedRowGroups = Object.values(rowGroupsMap).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.start_time.localeCompare(b.start_time);
+    });
+
+    const startX = 30;
+    const totalTableW = 781.89;
+    const dateColW = 110;
+    const timeColW = 120;
+    const remainingW = totalTableW - dateColW - timeColW;
+    const colW = Math.floor(remainingW / branches.length);
+    const totalBranchW = colW * branches.length;
+    const actualTableW = dateColW + timeColW + totalBranchW;
+    const adjustX = startX + Math.floor((totalTableW - actualTableW) / 2); // Center the table horizontally
+
+    function drawHeader() {
+      // Header Text
+      doc.font('Helvetica-Bold').fontSize(13).fillColor('#111111')
+         .text('MIT WORLD PEACE UNIVERSITY', 30, 25, { align: 'center', width: 781.89 });
+      doc.fontSize(9)
+         .text('DEPARTMENT OF POLYTECHNIC AND SKILL DEVELOPMENT, PUNE', 30, 41, { align: 'center', width: 781.89 });
+      
+      const cycleTitle = `TIME TABLE MIDTERM (${cycle.name.toUpperCase()})`;
+      doc.fontSize(10)
+         .text(cycleTitle, 30, 56, { align: 'center', width: 781.89 });
+      
+      const semTitle = getSemesterTitle(Number(sem));
+      doc.fontSize(10)
+         .text(semTitle, 30, 71, { align: 'center', width: 781.89 });
+
+      // Double Line under title block
+      doc.moveTo(30, 92).lineTo(811.89, 92).lineWidth(0.8).stroke('#111111');
+      doc.moveTo(30, 95).lineTo(811.89, 95).lineWidth(0.8).stroke('#111111');
+    }
+
+    function drawTableHeader() {
+      const headerY = 105;
+      
+      // Draw Header Background
+      doc.rect(adjustX, headerY, actualTableW, 30).fill('#f8fafc');
+      doc.rect(adjustX, headerY, actualTableW, 30).lineWidth(0.8).stroke('#111111');
+      
+      // Divider lines
+      doc.moveTo(adjustX + dateColW, headerY).lineTo(adjustX + dateColW, headerY + 30).stroke('#111111');
+      doc.moveTo(adjustX + dateColW + timeColW, headerY).lineTo(adjustX + dateColW + timeColW, headerY + 30).stroke('#111111');
+      
+      // Header Labels
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111111');
+      doc.text('DAY / DATE', adjustX, headerY + 11, { width: dateColW, align: 'center' });
+      doc.text('TIME', adjustX + dateColW, headerY + 11, { width: timeColW, align: 'center' });
+      
+      // Programme Header spanning across branches
+      doc.text('Name of Programme', adjustX + dateColW + timeColW, headerY + 3, { width: totalBranchW, align: 'center' });
+      doc.moveTo(adjustX + dateColW + timeColW, headerY + 15).lineTo(adjustX + dateColW + timeColW + totalBranchW, headerY + 15).stroke('#111111');
+      
+      // Draw Individual Branch headers
+      branches.forEach((branch, idx) => {
+        const bx = adjustX + dateColW + timeColW + idx * colW;
+        doc.text(branch, bx + 2, headerY + 18, { width: colW - 4, align: 'center' });
+        if (idx > 0) {
+          doc.moveTo(bx, headerY + 15).lineTo(bx, headerY + 30).stroke('#111111');
+        }
+      });
+    }
+
+    function drawSignatures() {
+      const sigY = 515;
+      const sigColW = 180;
+      const spacing = Math.floor((totalTableW - sigColW * 3) / 2);
+      
+      const sigs = [
+        { name: 'Prof. Mrs. M. P. Fatangare', role: 'FEO', x: startX },
+        { name: 'Prof. (Dr.) S.S.Karad', role: 'Program Coordinator', x: startX + sigColW + spacing },
+        { name: 'Prof. (Dr.) Rohini S. Kale', role: 'Program Director', x: startX + (sigColW + spacing) * 2 }
+      ];
+
+      sigs.forEach(sig => {
+        doc.moveTo(sig.x, sigY).lineTo(sig.x + sigColW, sigY).lineWidth(0.5).stroke('#111111');
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#111111')
+           .text(sig.name, sig.x, sigY + 5, { width: sigColW, align: 'center' });
+        doc.font('Helvetica').fontSize(7.5).fillColor('#444444')
+           .text(sig.role, sig.x, sigY + 14, { width: sigColW, align: 'center' });
+      });
+    }
+
+    // Initial draw for this page
+    drawHeader();
+    drawTableHeader();
+
+    let y = 135;
+    const bottomLimit = 495; // Leave space for signatures
+
+    sortedRowGroups.forEach(rowGroup => {
+      const dateText = formatPdfDate(rowGroup.date);
+      const timeText = formatTimeRange(rowGroup.start_time, rowGroup.duration_mins);
+
+      // Calculate row height dynamically
+      let rowH = 32;
+      const dateH = doc.heightOfString(dateText, { width: dateColW - 6, font: 'Helvetica-Bold', fontSize: 7.5 }) + 10;
+      if (dateH > rowH) rowH = dateH;
+
+      const timeH = doc.heightOfString(timeText, { width: timeColW - 6, font: 'Helvetica', fontSize: 7.5 }) + 10;
+      if (timeH > rowH) rowH = timeH;
+
+      branches.forEach(branch => {
+        const slot = rowGroup.slotsByBranch[branch];
+        if (slot) {
+          const subText = `${slot.subject_name}\n(${slot.subject_code})`;
+          const subH = doc.heightOfString(subText, { width: colW - 6, font: 'Helvetica', fontSize: 7 }) + 12;
+          if (subH > rowH) rowH = subH;
+        }
+      });
+
+      // Page break check
+      if (y + rowH > bottomLimit) {
+        // Draw signatures on current page before adding a new one
+        drawSignatures();
+        
+        doc.addPage();
+        drawHeader();
+        drawTableHeader();
+        y = 135;
+      }
+
+      // Draw Row Box
+      doc.rect(adjustX, y, actualTableW, rowH).lineWidth(0.8).stroke('#111111');
+      doc.moveTo(adjustX + dateColW, y).lineTo(adjustX + dateColW, y + rowH).stroke('#111111');
+      doc.moveTo(adjustX + dateColW + timeColW, y).lineTo(adjustX + dateColW + timeColW, y + rowH).stroke('#111111');
+
+      // Date Text (bold)
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111111');
+      doc.text(dateText, adjustX + 3, y + (rowH - dateH + 8) / 2, { width: dateColW - 6, align: 'center' });
+
+      // Time Text
+      doc.font('Helvetica').fontSize(7.5);
+      doc.text(timeText, adjustX + 3 + dateColW, y + (rowH - timeH + 8) / 2, { width: timeColW - 6, align: 'center' });
+
+      // Branch Subjects
+      branches.forEach((branch, idx) => {
+        const bx = adjustX + dateColW + timeColW + idx * colW;
+        if (idx > 0) {
+          doc.moveTo(bx, y).lineTo(bx, y + rowH).stroke('#111111');
+        }
+
+        const slot = rowGroup.slotsByBranch[branch];
+        if (slot) {
+          const subText = `${slot.subject_name}\n(${slot.subject_code})`;
+          const textH = doc.heightOfString(subText, { width: colW - 6, font: 'Helvetica', fontSize: 7 });
+          doc.font('Helvetica').fontSize(7);
+          doc.text(subText, bx + 3, y + (rowH - textH) / 2, { width: colW - 6, align: 'center' });
+        } else {
+          doc.font('Helvetica').fontSize(9).fillColor('#888888');
+          doc.text('-', bx + 3, y + (rowH - 9) / 2, { width: colW - 6, align: 'center' });
+          doc.fillColor('#111111');
+        }
+      });
+
+      y += rowH;
+    });
+
+    // Draw signatures at bottom of the page
+    drawSignatures();
+  });
 
   return docToBuffer(doc);
 }

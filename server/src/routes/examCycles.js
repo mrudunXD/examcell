@@ -5,6 +5,12 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
 import { generateSeating } from '../services/seatingEngine.js';
 import { assignSupervisors } from '../services/supervisorEngine.js';
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 router.use(authenticate);
@@ -124,12 +130,54 @@ router.post('/:id/duplicate', requireCoordinator, auditLog('DUPLICATE_CYCLE', 'e
 
 
 // POST /:id/auto-schedule — full automatic scheduling pipeline
+const runSolver = (inputData) => {
+  return new Promise((resolve, reject) => {
+    const pyPath = path.join(__dirname, '../services/scheduler.py');
+    const solverProcess = spawn('python', [pyPath]);
+    
+    let stdout = '';
+    let stderr = '';
+    
+    solverProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    solverProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    solverProcess.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Solver process failed with code ${code}. Stderr: ${stderr}`));
+        return;
+      }
+      try {
+        const result = JSON.parse(stdout);
+        resolve(result);
+      } catch (err) {
+        reject(new Error(`Failed to parse solver output: ${stdout}. Err: ${err.message}`));
+      }
+    });
+    
+    solverProcess.stdin.write(JSON.stringify(inputData));
+    solverProcess.stdin.end();
+  });
+};
+
 router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Auto-scheduled ${data?.created || 0} exam slots for cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
-  const { start_date, end_date, semester_type } = cycle;
+  const { start_date: custom_start, end_date: custom_end, duration_mins, shifts: custom_shifts, order_by_year } = req.body;
+  const startDate = custom_start || cycle.start_date;
+  const endDate = custom_end || cycle.end_date;
+
+  if (startDate > endDate) {
+    return res.status(400).json({ error: 'Start date must be on or before end date.' });
+  }
+
+  const { semester_type } = cycle;
   const parityFilter = semester_type === 'odd' ? 'semester % 2 = 1' : 'semester % 2 = 0';
 
   // 1. Get unique subjects (one slot per subject code)
@@ -139,65 +187,156 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
 
   // 2. Build valid date pool (skip Sundays, cap at 100 dates)
   const validDates = [];
-  let cur = start_date;
-  while (cur <= end_date && validDates.length < 100) {
+  let cur = startDate;
+  while (cur <= endDate && validDates.length < 100) {
     if (!isSunday(cur)) validDates.push(cur);
     cur = addDays(cur, 1);
   }
-  if (!validDates.length) return res.status(400).json({ error: 'No valid exam dates in the cycle range.' });
+  if (!validDates.length) return res.status(400).json({ error: 'No valid exam dates (excluding Sundays) in the specified range.' });
 
-  // 3. Group subjects by semester — one slot per subject per day, spread across semesters
-  const semQueues = {};
-  for (const s of subjects) {
-    const key = `sem_${s.semester}`;
-    if (!semQueues[key]) semQueues[key] = [];
-    semQueues[key].push(s);
+  // Gather required database sets for solver
+  const teaches = db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
+  const classrooms = db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
+  const faculty = db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const students = db.prepare("SELECT id, name, prn, roll_no, branch, year, semester FROM students WHERE is_active=1").all();
+
+  const solverShifts = custom_shifts || [
+    { id: '1', name: 'Shift 1', start_time: '09:30', duration_mins: 180 },
+    { id: '2', name: 'Shift 2', start_time: '13:30', duration_mins: 180 }
+  ];
+
+  if (duration_mins && !custom_shifts) {
+    solverShifts.forEach(s => s.duration_mins = parseInt(duration_mins));
   }
 
-  // 4. Round-robin by semester: each day assigns one subject per semester
-  const scheduled = [];
-  let dateIdx = 0;
-  const semKeys = Object.keys(semQueues).sort();
-  let hasMore = true;
-  while (hasMore) {
-    hasMore = false;
-    if (dateIdx >= validDates.length) dateIdx = validDates.length - 1;
-    for (const key of semKeys) {
-      if (semQueues[key].length === 0) continue;
-      hasMore = true;
-      scheduled.push({ subject: semQueues[key].shift(), date: validDates[dateIdx] });
+  const inputData = {
+    cycle: {
+      id: cycle.id,
+      name: cycle.name,
+      start_date: startDate,
+      end_date: endDate,
+      semester_type: cycle.semester_type
+    },
+    subjects,
+    students,
+    classrooms,
+    faculty,
+    teaches,
+    settings: {
+      time_limit_seconds: 30,
+      shifts: solverShifts,
+      dates: validDates,
+      order_by_year: order_by_year !== false
     }
-    if (hasMore) dateIdx++;
-  }
+  };
 
-  // 5. Create ONLY exam slots in a small, safe transaction (NO seating/supervisors here)
-  const results = { created: 0, warnings: [] };
   try {
-    db.transaction(() => {
-      // Delete only draft slots — preserve any finalised/approved slots
-      db.prepare("DELETE FROM exam_slots WHERE cycle_id=? AND status='draft'").run(cycle.id);
+    const result = await runSolver(inputData);
+    
+    if (result.status === 'SUCCESS') {
+      const createdCount = result.slots.length;
+      
+      db.transaction(() => {
+        // Clear all previous slots and related seating/supervisor data for this cycle
+        db.prepare("DELETE FROM exam_slots WHERE cycle_id=?").run(cycle.id);
+        db.prepare("DELETE FROM conflicts WHERE cycle_id=?").run(cycle.id);
 
-      const slotStmt = db.prepare(
-        `INSERT OR IGNORE INTO exam_slots
-           (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
-         VALUES (?, ?, ?, ?, '09:30', 180, 'regular', 'offline', 'draft')`
-      );
+        const slotStmt = db.prepare(`
+          INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')
+        `);
 
-      for (const { subject, date } of scheduled) {
-        const slotId = crypto.randomUUID();
-        const info = slotStmt.run(slotId, cycle.id, subject.id, date);
-        if (info.changes > 0) results.created++;
-      }
-    })();
+        for (const s of result.slots) {
+          const slotId = crypto.randomUUID();
+          slotStmt.run(slotId, cycle.id, s.subject_id, s.date, s.start_time, s.duration_mins, s.exam_type, s.exam_mode);
+
+          // Link students to slot
+          const subj = db.prepare('SELECT * FROM subjects WHERE id=?').get(s.subject_id);
+          const autoStudents = db.prepare(`
+            SELECT id FROM students WHERE is_active=1 AND year=? AND branch=? AND semester=?
+          `).all(subj.year, subj.branch, subj.semester);
+
+          const ssStmt = db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
+          for (const stud of autoStudents) {
+            ssStmt.run(slotId, stud.id);
+          }
+
+          // Insert room allocations
+          const raMap = {};
+          const raStmt = db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
+          for (const room of s.rooms) {
+            const raId = crypto.randomUUID();
+            raStmt.run(raId, slotId, room.classroom_id);
+            raMap[room.classroom_id] = raId;
+          }
+
+          // Generate seating
+          const studentsList = db.prepare(`
+            SELECT st.* FROM students st
+            JOIN slot_students ss ON ss.student_id = st.id
+            WHERE ss.slot_id = ?
+          `).all(slotId);
+
+          const roomsList = db.prepare(`
+            SELECT ra.id, ra.classroom_id, c.room_no, c.block, c.capacity, c.bench_rows, c.bench_cols
+            FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
+            WHERE ra.slot_id = ?
+          `).all(slotId);
+
+          if (studentsList.length && roomsList.length) {
+            const { assignments, conflicts: seatingConflicts } = generateSeating(studentsList, roomsList);
+            const seatStmt = db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
+            for (const a of assignments) {
+              seatStmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
+            }
+            const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            for (const c of seatingConflicts) {
+              cStmt.run(crypto.randomUUID(), slotId, cycle.id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
+            }
+          }
+
+          // Insert invigilators
+          const slotInvigilators = result.invigilators.filter(iv => iv.date === s.date && iv.start_time === s.start_time);
+          const invStmt = db.prepare(`
+            INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role, acknowledged)
+            VALUES (?, ?, ?, ?, 0)
+          `);
+          for (const iv of slotInvigilators) {
+            const raId = raMap[iv.classroom_id];
+            if (raId) {
+              const existingDuties = db.prepare('SELECT COUNT(*) as cnt FROM supervisor_duties WHERE room_allocation_id=?').get(raId);
+              const role = (existingDuties && existingDuties.cnt > 0) ? 'co' : 'primary';
+              invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, role);
+            }
+          }
+          
+          db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=?").run(slotId);
+        }
+      })();
+
+      res.json({
+        created: createdCount,
+        message: `Auto-schedule complete: scheduled ${createdCount} slots, allocated rooms, generated seating layouts, and assigned supervisors successfully.`
+      });
+    } else {
+      // SUCCESS status false, meaning solver failed or returned conflicts
+      db.transaction(() => {
+        db.prepare("DELETE FROM conflicts WHERE cycle_id=?").run(cycle.id);
+        const cStmt = db.prepare('INSERT INTO conflicts (id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?)');
+        for (const c of result.conflicts) {
+          cStmt.run(crypto.randomUUID(), cycle.id, c.type, c.description, c.suggested_resolution || null);
+        }
+      })();
+
+      res.status(422).json({
+        error: "Scheduling constraints could not be satisfied.",
+        conflicts: result.conflicts
+      });
+    }
   } catch (err) {
     console.error('❌ Auto-schedule error:', err.message);
-    return res.status(500).json({ error: `Auto-schedule failed: ${err.message}` });
+    res.status(500).json({ error: `Solver failed: ${err.message}` });
   }
-
-  res.json({
-    ...results,
-    message: `Auto-schedule complete: ${results.created} exam slots created. Open each slot to generate seating and assign supervisors.`,
-  });
 }));
 
 // ── SLOTS ────────────────────────────────────────────────────────────────────

@@ -87,6 +87,13 @@ export function initDb() {
     console.error('Failed to migrate incidents table:', err);
   }
 
+  try {
+    db.prepare('ALTER TABLE classrooms ADD COLUMN is_online INTEGER DEFAULT 0').run();
+    console.log('✅ Added is_online column to classrooms table');
+  } catch (err) {
+    // Expected to fail if column already exists
+  }
+
   seedInitialData();
 
   console.log('✅ Database initialized:', DB_PATH);
@@ -141,6 +148,7 @@ function createTables() {
       capacity INTEGER NOT NULL,
       bench_rows INTEGER NOT NULL,
       bench_cols INTEGER NOT NULL,
+      is_online INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
     );

@@ -4,6 +4,18 @@ import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
 
+function inferBranchFromCode(code, currentBranch) {
+  if (!code) return currentBranch;
+  const c = code.toUpperCase().trim();
+  if (c.startsWith('AID')) return 'CSE (AIDS)';
+  if (c.startsWith('AIML')) return 'ECE (AI&ML)';
+  if (c.startsWith('CYB') || c.startsWith('CS')) return 'Cyber Security';
+  if (c.startsWith('IOT')) return 'IoT';
+  if (c.startsWith('AI')) return 'AI';
+  if (c.startsWith('DS')) return 'DS';
+  return currentBranch;
+}
+
 const router = Router();
 router.use(authenticate);
 
@@ -17,21 +29,23 @@ router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
   if (!code || !name || !branch || !year || !semester)
     return res.status(400).json({ error: 'code, name, branch, year, semester required' });
+  const finalBranch = inferBranchFromCode(code, branch);
   const id = crypto.randomUUID();
   db.prepare(`
     INSERT INTO subjects (id, code, name, branch, year, semester, abbreviation, course_type)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, code.trim(), name.trim(), branch.trim(), year, parseInt(semester), abbreviation || null, course_type || null);
+  `).run(id, code.trim(), name.trim(), finalBranch.trim(), year, parseInt(semester), abbreviation || null, course_type || null);
   res.status(201).json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(id));
 }));
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (req) => req.params.id, (req, data) => `Updated subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
+  const finalBranch = inferBranchFromCode(code, branch);
   db.prepare(`
     UPDATE subjects SET code=?, name=?, branch=?, year=?, semester=?, abbreviation=?, course_type=?
     WHERE id=?
-  `).run(code, name, branch, year, parseInt(semester), abbreviation || null, course_type || null, req.params.id);
+  `).run(code, name, finalBranch, year, parseInt(semester), abbreviation || null, course_type || null, req.params.id);
   res.json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id));
 }));
 

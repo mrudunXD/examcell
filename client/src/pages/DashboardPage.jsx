@@ -6,6 +6,7 @@ import {
   Radio, ExternalLink, Bell
 } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 import { useAppStore } from '../store/index.js';
 import toast from 'react-hot-toast';
 
@@ -224,7 +225,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex-row" style={{ gap: 6 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-                  {stats.cycle.start_date} — {stats.cycle.end_date}
+                  {formatDate(stats.cycle.start_date)} — {formatDate(stats.cycle.end_date)}
                 </span>
                 <Link to="/live-dashboard" className="btn btn-sm" style={{ color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)' }}>
                   <Radio size={11} strokeWidth={1.5} /> Live Dashboard
@@ -308,7 +309,7 @@ export default function DashboardPage() {
                           {slot.subject_code} — {slot.subject_name}
                         </div>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 3 }}>
-                          {slot.date} · {slot.start_time}
+                          {formatDate(slot.date)} · {formatTime(slot.start_time)}
                         </div>
                       </div>
                       <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm">

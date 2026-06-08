@@ -88,21 +88,58 @@ function SubjectModal({ subject, onClose, onSave }) {
   );
 }
 
-const ACCENT_COLORS = { FY: '#1d4ed8', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
+const ACCENT_COLORS = { FY: 'var(--np-red)', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
 
 function SubjectStatCard({ label, value, sub, onClick, accent }) {
-  const ac = accent ? ACCENT_COLORS[accent] || '#111' : '#CC0000';
+  const [hovered, setHovered] = useState(false);
+  const ac = accent ? ACCENT_COLORS[accent] || 'var(--np-ink)' : 'var(--np-ink)';
   return (
     <div onClick={onClick}
-      style={{ padding: '20px 18px', cursor: 'pointer', borderRight: '1px solid #E5E5E0', borderBottom: '1px solid #E5E5E0', background: '#FDFDFB', transition: 'background 0.12s', position: 'relative' }}
-      onMouseEnter={e => { e.currentTarget.style.background = '#F5F5F2'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = '#FDFDFB'; }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: '24px 22px',
+        cursor: 'pointer',
+        border: '4px solid var(--np-ink)',
+        background: hovered ? '#F5F5F2' : '#FDFDFB',
+        boxShadow: hovered ? '8px 8px 0 0 var(--np-ink)' : '4px 4px 0 0 var(--np-ink)',
+        transform: hovered ? 'translate(-4px, -4px)' : 'none',
+        transition: 'transform 0.15s ease-out, box-shadow 0.15s ease-out, background 0.15s ease-out',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        height: '100%',
+        minHeight: '140px',
+      }}
     >
-      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: ac }} />}
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 900, color: '#111', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, marginTop: 6, color: '#111' }}>{label}</div>
-      {sub && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 3 }}>{sub}</div>}
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: ac, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>View →</div>
+      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: ac }} />}
+      <div>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: 'var(--np-ink)', lineHeight: 1.1 }}>
+          {value}
+        </div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: 'var(--np-ink)' }}>
+          {label}
+        </div>
+      </div>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        {sub && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)', letterSpacing: '0.02em' }}>
+            {sub}
+          </div>
+        )}
+        <div style={{ 
+          fontFamily: 'var(--font-mono)', 
+          fontSize: 10, 
+          color: ac === 'var(--np-ink)' ? 'var(--np-red)' : ac, 
+          fontWeight: 'bold',
+          textTransform: 'uppercase', 
+          letterSpacing: '0.08em',
+          textDecoration: hovered ? 'underline' : 'none'
+        }}>
+          View →
+        </div>
+      </div>
     </div>
   );
 }
@@ -240,7 +277,7 @@ export default function SubjectsPage() {
             onHome={resetDrill}
             onYear={() => { setDrillBranch(null); setDrillSem(null); }}
           />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1, marginTop: 12, border: '1px solid #E5E5E0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 16 }}>
             {Object.entries(grouped[drillYear][drillBranch]).sort(([a],[b]) => parseInt(a)-parseInt(b)).map(([sem, subs]) => (
               <SubjectStatCard key={sem}
                 label={`Semester ${sem}`}
@@ -258,7 +295,7 @@ export default function SubjectsPage() {
             year={drillYear} yearName={YEAR_NAMES[drillYear]}
             onHome={resetDrill}
           />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, marginTop: 12, border: '1px solid #E5E5E0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 16 }}>
             {Object.entries(grouped[drillYear]).sort(([a],[b]) => a.localeCompare(b)).map(([branch, semMap]) => {
               const total = Object.values(semMap).flat().length;
               const sems  = Object.keys(semMap).length;
@@ -275,7 +312,7 @@ export default function SubjectsPage() {
         </>
       ) : (
         // ── Level 0: year cards ──────────────────────────────
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1, border: '1px solid #E5E5E0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '24px', marginTop: 12 }}>
           {YEAR_ORDER.filter(y => grouped[y]).map(year => {
             const total    = Object.values(grouped[year]).flatMap(b => Object.values(b)).flat().length;
             const branches = Object.keys(grouped[year]).length;

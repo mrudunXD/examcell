@@ -33,7 +33,9 @@ const facultyNav = [
 ];
 
 // Inline date for the edition strip
-const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const d = new Date();
+const today = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
 
 function GlobalSearchModal({ onClose }) {
   const [query, setQuery] = useState('');

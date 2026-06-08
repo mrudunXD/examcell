@@ -5,9 +5,10 @@ import { useAuthStore } from '../store/index.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
-const today = new Date().toLocaleDateString('en-GB', {
-  weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
-});
+const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const d = new Date();
+const today = `${weekdays[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
 
 export default function LoginPage() {
   const { login, isLoading } = useAuthStore();

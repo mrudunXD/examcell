@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ClipboardList, RefreshCw, Filter } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { formatDateTime } from '../lib/format.js';
 
 const ACTION_COLOR = {
   INSERT: '#166534', UPDATE: '#1d4ed8', DELETE: '#CC0000',
@@ -124,7 +125,7 @@ export default function AuditPage() {
               {filtered.map(log => (
                 <tr key={log.id}>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 10, whiteSpace: 'nowrap', color: 'var(--np-n500)' }}>
-                    {new Date(log.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {formatDateTime(log.created_at)}
                   </td>
                   <td style={{ fontWeight: 600, fontSize: 12 }}>{log.user_name || <span style={{ color: 'var(--np-n400)', fontStyle: 'italic' }}>system</span>}</td>
                   <td>

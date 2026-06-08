@@ -4,11 +4,11 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
 
-const EMPTY = { room_no: '', block: '', capacity: '', bench_rows: '', bench_cols: '' };
+const EMPTY = { room_no: '', block: '', capacity: '', bench_rows: '', bench_cols: '', is_online: 0 };
 
 function RoomModal({ room, onClose, onSave }) {
   const [form, setForm] = useState(room
-    ? { room_no: room.room_no, block: room.block, capacity: room.capacity, bench_rows: room.bench_rows, bench_cols: room.bench_cols }
+    ? { room_no: room.room_no, block: room.block, capacity: room.capacity, bench_rows: room.bench_rows, bench_cols: room.bench_cols, is_online: room.is_online || 0 }
     : EMPTY
   );
   const [saving, setSaving] = useState(false);
@@ -52,6 +52,18 @@ function RoomModal({ room, onClose, onSave }) {
               <label className="form-label">Positions Per Row *</label>
               <input className="input" type="number" min={1} value={form.bench_cols} onChange={e => setForm({ ...form, bench_cols: e.target.value })} required placeholder="6" />
             </div>
+          </div>
+          <div className="form-group flex-row" style={{ alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <input 
+              type="checkbox" 
+              id="is_online"
+              checked={!!form.is_online} 
+              onChange={e => setForm({ ...form, is_online: e.target.checked ? 1 : 0 })}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <label htmlFor="is_online" className="form-label" style={{ margin: 0, cursor: 'pointer', userSelect: 'none' }}>
+              Online Compatible (Computer Lab)
+            </label>
           </div>
           {totalSeats > 0 && (
             <div className="alert alert-info" style={{ margin: 0 }}>
@@ -170,8 +182,23 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
                 borderBottom: '1px solid #E5E5E0',
                 padding: '16px 14px',
               }}>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, lineHeight: 1, color: '#111111', marginBottom: 2 }}>
-                  {r.room_no}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, lineHeight: 1, color: '#111111' }}>
+                    {r.room_no}
+                  </div>
+                  {!!r.is_online && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      background: 'var(--np-ink)',
+                      color: 'var(--np-bg)',
+                      padding: '2px 6px',
+                      border: '1.5px solid var(--np-ink)',
+                    }}>
+                      ONLINE LAB
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#737373', marginBottom: 12 }}>
                   {r.block}

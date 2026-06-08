@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Users, BookOpen, UserCheck, CalendarDays, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
+import { formatDate } from '../lib/format.js';
 
 export const ICONS = {
   students: Users,
@@ -29,7 +30,7 @@ export function getResultSub(type, item) {
   if (type === 'students') return `${item.prn} · ${item.branch} ${item.year} Sem ${item.semester}`;
   if (type === 'subjects') return `${item.code} · ${item.branch} ${item.year} Sem ${item.semester}`;
   if (type === 'faculty') return item.email;
-  if (type === 'cycles') return `${item.start_date} → ${item.end_date} · ${item.status}`;
+  if (type === 'cycles') return `${formatDate(item.start_date)} → ${formatDate(item.end_date)} · ${item.status}`;
   return '';
 }
 

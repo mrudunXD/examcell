@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -184,7 +185,7 @@ export default function CalendarPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 4 }}>
-                {new Date(selected.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(selected.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' })}, {formatDate(selected.date)}
               </div>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.slots.length} Exam{selected.slots.length > 1 ? 's' : ''} Scheduled</div>
             </div>
@@ -197,7 +198,7 @@ export default function CalendarPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-                    {slot.branch} · {slot.year} · Sem {slot.subject_semester} · {slot.start_time} · {slot.student_count} students
+                    {slot.branch} · {slot.year} · Sem {slot.subject_semester} · {formatTime(slot.start_time)} · {slot.student_count} students
                   </div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', padding: '2px 8px', border: '1px solid #E5E5E0', color: 'var(--np-n500)' }}>

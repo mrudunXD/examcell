@@ -4,6 +4,29 @@ import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateSeatingPDF, generateDutySheetPDF, generateTimetablePDF, generateAttendancePDF } from '../services/pdfGenerator.js';
 
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1].substring(0, 2);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  return timeStr;
+}
+
 const router = Router();
 router.use(authenticate);
 
@@ -99,7 +122,7 @@ router.get('/timetable/:cycleId', requireCoordinator, asyncHandler(async (req, r
 
   const slots = db.prepare(`
     SELECT es.date, es.start_time, es.duration_mins, es.status,
-      s.name as subject_name, s.code as subject_code, s.branch, s.year,
+      s.name as subject_name, s.code as subject_code, s.branch, s.year, s.semester,
       COUNT(DISTINCT ss.student_id) as student_count,
       COUNT(DISTINCT ra.id) as room_count
     FROM exam_slots es
@@ -182,7 +205,7 @@ router.get('/door-notice/:roomAllocationId', requireCoordinator, asyncHandler(as
     doc.font('Helvetica').fontSize(10).fillColor('rgba(255,255,255,0.8)')
        .text(`Room ${classroom.room_no} (${classroom.block || ''}) · ${slot.subject_code} — ${slot.subject_name}`, 0, 28, { align: 'center', width: doc.page.width });
     doc.fillColor('rgba(255,255,255,0.7)').fontSize(9)
-       .text(`Date: ${slot.date}  ·  Time: ${slot.start_time}  ·  ${slot.branch} ${slot.year}`, 0, 44, { align: 'center', width: doc.page.width });
+       .text(`Date: ${formatDate(slot.date)}  ·  Time: ${formatTime(slot.start_time)}  ·  ${slot.branch} ${slot.year}`, 0, 44, { align: 'center', width: doc.page.width });
 
     // Build grid
     const grid = {};

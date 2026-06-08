@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, X, Clock, Save, Users, RefreshCw, CheckSquare } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG = {
@@ -99,7 +100,7 @@ export default function AttendancePage() {
           <div className="accent-bar" />
           <h1 className="page-title">Attendance Marking</h1>
           <p className="page-subtitle">
-            {slot?.subject_code} — {slot?.subject_name} · {slot?.date} · {slot?.start_time}
+            {slot?.subject_code} — {slot?.subject_name} · {formatDate(slot?.date)} · {formatTime(slot?.start_time)}
           </p>
         </div>
         <div className="flex-row" style={{ gap: 8 }}>

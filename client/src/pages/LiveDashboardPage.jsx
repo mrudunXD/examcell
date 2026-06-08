@@ -5,6 +5,7 @@ import {
   Zap, RefreshCw, ChevronRight, Eye, Radio
 } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime, formatDateTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 
 function statusColor(slot) {
@@ -192,9 +193,9 @@ export default function LiveDashboardPage() {
             )}
           </div>
           <p className="page-subtitle">
-            {now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} ·{' '}
+            {now.toLocaleDateString('en-IN', { weekday: 'long' })}, {formatDate(now)} ·{' '}
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              {now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
             </span>
           </p>
         </div>
@@ -308,7 +309,7 @@ export default function LiveDashboardPage() {
             {data?.upcomingSlots?.length ? data.upcomingSlots.map(d => (
               <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #E5E5E0' }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 12 }}>{new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                  <div style={{ fontWeight: 600, fontSize: 12 }}>{new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })}, {formatDate(d.date)}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginTop: 2 }}>{d.subjects?.slice(0, 40)}{d.subjects?.length > 40 ? '…' : ''}</div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700 }}>{d.slot_count}</span>
@@ -365,7 +366,7 @@ export default function LiveDashboardPage() {
 
           {lastRefresh && (
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)', textAlign: 'center' }}>
-              Auto-refreshes every 30s · Last: {lastRefresh.toLocaleTimeString('en-IN')}
+              Auto-refreshes every 30s · Last: {lastRefresh.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
             </div>
           )}
         </div>
@@ -395,7 +396,7 @@ function SlotCard({ slot, phase, isLast, navigate }) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-              {slot.branch} · {slot.year} · Sem {slot.semester} · {slot.start_time} ({slot.duration_mins}min)
+              {slot.branch} · {slot.year} · Sem {slot.semester} · {formatTime(slot.start_time)} ({slot.duration_mins}min)
             </div>
           </div>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.1em', color, border: `1px solid ${color}`, padding: '2px 6px', flexShrink: 0 }}>

@@ -17,6 +17,7 @@ import {
   Calendar 
 } from 'lucide-react';
 import api from '../lib/api.js';
+import { formatDate, formatTime, formatDateTime } from '../lib/format.js';
 import { useAppStore, useAuthStore } from '../store/index.js';
 import toast from 'react-hot-toast';
 
@@ -540,8 +541,8 @@ export default function FacultyDutyPage() {
                   {/* Specifications grid */}
                   <div className="faculty-specs-grid">
                     {[
-                      { icon: CalendarDays, label: 'Date', val: duty.date },
-                      { icon: Clock,        label: 'Duration', val: `${duty.start_time} · ${duty.duration_mins} mins` },
+                      { icon: CalendarDays, label: 'Date', val: formatDate(duty.date) },
+                      { icon: Clock,        label: 'Duration', val: `${formatTime(duty.start_time)} · ${duty.duration_mins} mins` },
                       { icon: MapPin,       label: 'Room Allocation', val: `Room ${duty.room_no} (${duty.block || 'Main Block'})` },
                       duty.co_supervisor_name
                         ? { icon: UserCheck, label: 'Invigilation Team', val: `${duty.co_supervisor_name} (Co)` }
@@ -617,7 +618,7 @@ export default function FacultyDutyPage() {
                   <p style={{ margin: 0, fontSize: 14, color: '#333', lineHeight: 1.5 }}>{b.message}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#777', marginTop: 12, borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10 }}>
                     <span>Sent by: <strong>{b.sent_by_name || 'Exam Coordinator'}</strong></span>
-                    <span>{new Date(b.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>{formatDateTime(b.created_at)}</span>
                   </div>
                 </div>
               ))}
@@ -658,7 +659,7 @@ export default function FacultyDutyPage() {
                       letterSpacing: '0.05em'
                     }}>{inc.status}</span>
                     <span style={{ fontSize: 12, color: '#666', fontWeight: 500 }}>
-                      {new Date(inc.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {formatDate(inc.created_at)}
                     </span>
                   </div>
                   <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6, color: '#111' }}>

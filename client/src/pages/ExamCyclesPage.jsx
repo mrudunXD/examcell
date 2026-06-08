@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle, Calendar, Loader, Copy, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
+import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store/index.js';
 import { useAuthStore } from '../store/index.js';
@@ -303,11 +304,46 @@ export default function ExamCyclesPage() {
   const isCoord = user?.role === 'coordinator';
   const [scheduling, setScheduling] = useState({});
 
-  const autoSchedule = async (cycleId, cycleName) => {
-    if (!confirm(`Auto-schedule all exams for "${cycleName}"?\n\nThis will:\n• Delete existing slots\n• Create one slot per subject (matching semester parity)\n• Auto-assign rooms, seating & supervisors`)) return;
+  // Auto Schedule configurations
+  const [autoScheduleModal, setAutoScheduleModal] = useState(null);
+  const [schedStartDate, setSchedStartDate] = useState('');
+  const [schedEndDate, setSchedEndDate] = useState('');
+  const [schedDuration, setSchedDuration] = useState(180);
+  const [schedShifts, setSchedShifts] = useState([
+    { name: 'Morning Shift', start_time: '09:30' },
+    { name: 'Afternoon Shift', start_time: '13:30' }
+  ]);
+  const [schedOrderYear, setSchedOrderYear] = useState(true);
+
+  useEffect(() => {
+    if (autoScheduleModal) {
+      setSchedStartDate(autoScheduleModal.start_date);
+      setSchedEndDate(autoScheduleModal.end_date);
+      setSchedDuration(180);
+      setSchedShifts([
+        { name: 'Morning Shift', start_time: '09:30' },
+        { name: 'Afternoon Shift', start_time: '13:30' }
+      ]);
+      setSchedOrderYear(true);
+    }
+  }, [autoScheduleModal]);
+
+  const triggerAutoSchedule = async (cycleId) => {
     setScheduling(prev => ({ ...prev, [cycleId]: true }));
     try {
-      const { data } = await api.post(`/exam-cycles/${cycleId}/auto-schedule`);
+      const payload = {
+        start_date: schedStartDate,
+        end_date: schedEndDate,
+        duration_mins: schedDuration,
+        shifts: schedShifts.map((s, idx) => ({
+          id: String(idx + 1),
+          name: s.name,
+          start_time: s.start_time,
+          duration_mins: schedDuration
+        })),
+        order_by_year: schedOrderYear
+      };
+      const { data } = await api.post(`/exam-cycles/${cycleId}/auto-schedule`, payload);
       toast.success(data.message || 'Auto-scheduled!');
       if (data.warnings?.length) {
         data.warnings.slice(0, 3).forEach(w => toast.error(w, { duration: 5000 }));
@@ -425,7 +461,7 @@ export default function ExamCyclesPage() {
                       </span>
                     </div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-                      {cycle.start_date} — {cycle.end_date}
+                      {formatDate(cycle.start_date)} — {formatDate(cycle.end_date)}
                     </div>
                   </div>
                   <div className="flex-row" style={{ gap: 4 }} onClick={e => e.stopPropagation()}>
@@ -462,7 +498,14 @@ export default function ExamCyclesPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)' }}>Exam Slots</span>
                       {isCoord && (
-                        <div style={{ display: 'flex', gap: 4 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button 
+                            className="btn btn-warning btn-sm" 
+                            disabled={scheduling[cycle.id]} 
+                            onClick={() => setAutoScheduleModal(cycle)}
+                          >
+                            {scheduling[cycle.id] ? 'Scheduling...' : 'Auto-Schedule Cycle'}
+                          </button>
                           <button className="btn btn-ghost btn-sm" onClick={() => { setSlotCycleId(cycle.id); setEditing(null); setModal('slot'); }}>
                             <Plus size={12} strokeWidth={1.5} /> Add Slot
                           </button>
@@ -520,6 +563,149 @@ export default function ExamCyclesPage() {
           onSave={() => loadSlots(slotCycleId)}
         />
       )}
+      {autoScheduleModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setAutoScheduleModal(null)}>
+          <div className="modal" style={{ width: '100%', maxWidth: 500 }}>
+            <h2 className="modal-title" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, borderBottom: '2px solid var(--np-ink)', paddingBottom: 8, marginBottom: 16 }}>
+              Auto-Schedule: {autoScheduleModal.name}
+            </h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Date Range */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Exam Date Range
+                </label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 11, color: 'var(--np-n500)', display: 'block', marginBottom: 2 }}>Start Date</span>
+                    <input 
+                      type="date" 
+                      className="input" 
+                      value={schedStartDate} 
+                      onChange={(e) => setSchedStartDate(e.target.value)} 
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 11, color: 'var(--np-n500)', display: 'block', marginBottom: 2 }}>End Date</span>
+                    <input 
+                      type="date" 
+                      className="input" 
+                      value={schedEndDate} 
+                      onChange={(e) => setSchedEndDate(e.target.value)} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Duration */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Exam Duration (Minutes)
+                </label>
+                <input 
+                  type="number" 
+                  className="input" 
+                  value={schedDuration} 
+                  onChange={(e) => setSchedDuration(parseInt(e.target.value) || 180)} 
+                />
+              </div>
+
+              {/* Shifts */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label className="form-label" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                    Time Batches (Shifts)
+                  </label>
+                  <button 
+                    type="button" 
+                    className="btn btn-ghost btn-sm" 
+                    style={{ padding: '2px 8px', fontSize: 10 }}
+                    onClick={() => setSchedShifts([...schedShifts, { name: `Shift ${schedShifts.length + 1}`, start_time: '09:30' }])}
+                  >
+                    + Add Shift
+                  </button>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {schedShifts.map((shift, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input 
+                        type="text" 
+                        className="input" 
+                        placeholder="Shift Name"
+                        value={shift.name} 
+                        onChange={(e) => {
+                          const newShifts = [...schedShifts];
+                          newShifts[idx].name = e.target.value;
+                          setSchedShifts(newShifts);
+                        }} 
+                        style={{ flex: 1, padding: '6px 10px', fontSize: 12 }}
+                      />
+                      <input 
+                        type="time" 
+                        className="input" 
+                        value={shift.start_time} 
+                        onChange={(e) => {
+                          const newShifts = [...schedShifts];
+                          newShifts[idx].start_time = e.target.value;
+                          setSchedShifts(newShifts);
+                        }} 
+                        style={{ width: 120, padding: '6px 10px', fontSize: 12 }}
+                      />
+                      {schedShifts.length > 1 && (
+                        <button 
+                          type="button" 
+                          className="btn btn-danger btn-icon btn-sm" 
+                          style={{ padding: '6px 8px', height: 'auto' }}
+                          onClick={() => setSchedShifts(schedShifts.filter((_, sIdx) => sIdx !== idx))}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ordering Constraint */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+                <input 
+                  type="checkbox" 
+                  id="schedOrderYear"
+                  checked={schedOrderYear} 
+                  onChange={(e) => setSchedOrderYear(e.target.checked)} 
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <label htmlFor="schedOrderYear" style={{ fontWeight: 500, fontSize: 12, cursor: 'pointer', userSelect: 'none' }}>
+                  Schedule chronologically by year (FY ➔ SY ➔ TY)
+                </label>
+              </div>
+
+              {/* Footer / Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '2px solid var(--np-ink)', paddingTop: 16, marginTop: 8 }}>
+                <button 
+                  className="btn btn-ghost" 
+                  onClick={() => setAutoScheduleModal(null)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-warning" 
+                  disabled={scheduling[autoScheduleModal.id]}
+                  onClick={() => {
+                    const cycleId = autoScheduleModal.id;
+                    setAutoScheduleModal(null);
+                    triggerAutoSchedule(cycleId);
+                  }}
+                >
+                  {scheduling[autoScheduleModal.id] ? 'Scheduling...' : 'Generate Timetable'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -546,7 +732,7 @@ function SlotList({ slots, cycleId, isCoord, onEdit, onDel }) {
               )}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-              {slot.date} · {slot.start_time} · {slot.duration_mins}min ·{' '}
+              {formatDate(slot.date)} · {formatTime(slot.start_time)} · {slot.duration_mins}min ·{' '}
               {slot.rooms?.map(r => r.room_no).join(', ') || (slot.exam_mode === 'online' ? 'Online' : 'No rooms')} ·{' '}
               {slot.student_count} students
               {slot.course_type && <span style={{ marginLeft: 6, color: '#A3A3A3' }}>{slot.course_type}</span>}
