@@ -31,22 +31,22 @@ const router = Router();
 router.use(authenticate);
 
 // Check conflicts before export
-function checkConflicts(db, slotId) {
-  return db.prepare("SELECT COUNT(*) as cnt FROM conflicts WHERE slot_id=? AND status='open'").get(slotId)?.cnt || 0;
+async function checkConflicts(db, slotId) {
+  return (await db.prepare("SELECT COUNT(*) as cnt FROM conflicts WHERE slot_id=? AND status='open'").get(slotId))?.cnt || 0;
 }
 
 // GET seating chart PDF for a room allocation
 router.get('/seating/:roomAllocationId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const ra = db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
+  const ra = await db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
   if (!ra) return res.status(404).json({ error: 'Room allocation not found' });
 
-  const openConflicts = checkConflicts(db, ra.slot_id);
+  const openConflicts = await checkConflicts(db, ra.slot_id);
   if (openConflicts > 0) {
     return res.status(409).json({ error: `Cannot export: ${openConflicts} unresolved conflict(s). Resolve all conflicts first.` });
   }
 
-  const slot = db.prepare(`
+  const slot = await db.prepare(`
     SELECT es.*, s.name as subject_name, s.code as subject_code, ec.name as cycle_name
     FROM exam_slots es
     JOIN subjects s ON s.id=es.subject_id
@@ -54,9 +54,9 @@ router.get('/seating/:roomAllocationId', requireCoordinator, asyncHandler(async 
     WHERE es.id=?
   `).get(ra.slot_id);
 
-  const classroom = db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
+  const classroom = await db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
 
-  const assignments = db.prepare(`
+  const assignments = await db.prepare(`
     SELECT sa.bench_row, sa.bench_col,
       st.name as student_name, st.prn, st.roll_no, st.branch, st.year
     FROM seat_assignments sa
@@ -80,16 +80,16 @@ router.get('/duty/:facultyId/:cycleId', asyncHandler(async (req, res) => {
     if (req.user.id !== req.params.facultyId) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    const cycle = db.prepare('SELECT status FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+    const cycle = await db.prepare('SELECT status FROM exam_cycles WHERE id=?').get(req.params.cycleId);
     if (!cycle || cycle.status !== 'active') {
       return res.status(403).json({ error: 'Duties are not visible until the exam cycle is set active.' });
     }
   }
 
-  const faculty = db.prepare("SELECT id, name, email, department FROM users WHERE id=?").get(req.params.facultyId);
+  const faculty = await db.prepare("SELECT id, name, email, department FROM users WHERE id=?").get(req.params.facultyId);
   if (!faculty) return res.status(404).json({ error: 'Faculty not found' });
 
-  const duties = db.prepare(`
+  const duties = await db.prepare(`
     SELECT sd.role, sd.acknowledged,
       c.room_no, c.block,
       es.date, es.start_time, es.duration_mins,
@@ -117,10 +117,10 @@ router.get('/duty/:facultyId/:cycleId', asyncHandler(async (req, res) => {
 // GET timetable PDF for a cycle
 router.get('/timetable/:cycleId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
-  const slots = db.prepare(`
+  const slots = await db.prepare(`
     SELECT es.date, es.start_time, es.duration_mins, es.status,
       s.name as subject_name, s.code as subject_code, s.branch, s.year, s.semester,
       COUNT(DISTINCT ss.student_id) as student_count,
@@ -144,17 +144,17 @@ router.get('/timetable/:cycleId', requireCoordinator, asyncHandler(async (req, r
 // GET attendance sheet PDF for a room allocation
 router.get('/attendance/:roomAllocationId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const ra = db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
+  const ra = await db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
   if (!ra) return res.status(404).json({ error: 'Room allocation not found' });
 
-  const slot = db.prepare(`
+  const slot = await db.prepare(`
     SELECT es.*, s.name as subject_name, s.code as subject_code
     FROM exam_slots es JOIN subjects s ON s.id=es.subject_id
     WHERE es.id=?
   `).get(ra.slot_id);
-  const classroom = db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
+  const classroom = await db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
 
-  const students = db.prepare(`
+  const students = await db.prepare(`
     SELECT st.name, st.prn, st.roll_no, st.branch, st.year, sa.bench_row, sa.bench_col
     FROM seat_assignments sa
     JOIN students st ON st.id=sa.student_id
@@ -172,16 +172,16 @@ router.get('/attendance/:roomAllocationId', requireCoordinator, asyncHandler(asy
 // GET door notice — PRN-only seating map for classroom door
 router.get('/door-notice/:roomAllocationId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const ra = db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
+  const ra = await db.prepare('SELECT * FROM room_allocations WHERE id=?').get(req.params.roomAllocationId);
   if (!ra) return res.status(404).json({ error: 'Room allocation not found' });
 
-  const slot = db.prepare(`
+  const slot = await db.prepare(`
     SELECT es.*, s.name as subject_name, s.code as subject_code, s.branch, s.year
     FROM exam_slots es JOIN subjects s ON s.id=es.subject_id WHERE es.id=?
   `).get(ra.slot_id);
-  const classroom = db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
+  const classroom = await db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
 
-  const assignments = db.prepare(`
+  const assignments = await db.prepare(`
     SELECT sa.bench_row, sa.bench_col, st.prn, st.roll_no, st.branch, st.year
     FROM seat_assignments sa
     JOIN students st ON st.id=sa.student_id

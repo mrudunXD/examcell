@@ -3,6 +3,8 @@ import cors from 'cors';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import http from 'http';
+import { initSocket } from './services/socket.js';
 
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/students.js';
@@ -68,7 +70,10 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().t
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`\n🎓 MIT WPU Exam Management Server running on http://localhost:${PORT}\n`);
 });
 

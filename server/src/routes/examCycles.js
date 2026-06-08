@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
 import { generateSeating } from '../services/seatingEngine.js';
 import { assignSupervisors } from '../services/supervisorEngine.js';
+import { broadcastUpdate } from '../services/socket.js';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -39,7 +40,7 @@ function nextValidDate(dateStr, endDate) {
 
 router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
-  res.json(db.prepare('SELECT * FROM exam_cycles ORDER BY created_at DESC').all());
+  res.json(await db.prepare('SELECT * FROM exam_cycles ORDER BY created_at DESC').all());
 }));
 
 router.post('/', requireCoordinator, auditLog('CREATE_CYCLE', 'exam_cycles', (req, data) => data?.id, (req, data) => `Created cycle ${data?.name}`), asyncHandler(async (req, res) => {
@@ -48,47 +49,47 @@ router.post('/', requireCoordinator, auditLog('CREATE_CYCLE', 'exam_cycles', (re
   if (!name || !start_date || !end_date) return res.status(400).json({ error: 'name, start_date, end_date required' });
   if (!['odd', 'even'].includes(semester_type)) return res.status(400).json({ error: 'semester_type must be odd or even' });
   const id = crypto.randomUUID();
-  db.prepare('INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, created_by) VALUES (?,?,?,?,?,?)')
+  await db.prepare('INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, created_by) VALUES (?,?,?,?,?,?)')
     .run(id, name.trim(), start_date, end_date, semester_type, req.user.id);
-  res.status(201).json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(id));
+  res.status(201).json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(id));
 }));
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Updated cycle ${data?.name} (status: ${data?.status})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, start_date, end_date, status, semester_type } = req.body;
-  db.prepare("UPDATE exam_cycles SET name=?,start_date=?,end_date=?,status=?,semester_type=?,updated_at=datetime('now') WHERE id=?")
+  await db.prepare("UPDATE exam_cycles SET name=?,start_date=?,end_date=?,status=?,semester_type=?,updated_at=datetime('now') WHERE id=?")
     .run(name, start_date, end_date, status, semester_type || 'odd', req.params.id);
-  res.json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
+  res.json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
 }));
 
 router.delete('/:id', requireCoordinator, auditLog('DELETE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => `Deleted cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  db.prepare('DELETE FROM exam_cycles WHERE id=?').run(req.params.id);
+  await db.prepare('DELETE FROM exam_cycles WHERE id=?').run(req.params.id);
   res.json({ success: true });
 }));
 
 // POST /:id/activate — make this cycle "active", demote others to "draft"
 router.post('/:id/activate', requireCoordinator, auditLog('ACTIVATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Activated cycle ${data?.name}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
-  db.transaction(() => {
+  await db.transaction(async () => {
     // Demote all other active cycles to draft
-    db.prepare("UPDATE exam_cycles SET status='draft', updated_at=datetime('now') WHERE status='active' AND id != ?")
+    await db.prepare("UPDATE exam_cycles SET status='draft', updated_at=datetime('now') WHERE status='active' AND id != ?")
       .run(req.params.id);
     // Promote this one to active
-    db.prepare("UPDATE exam_cycles SET status='active', updated_at=datetime('now') WHERE id=?")
+    await db.prepare("UPDATE exam_cycles SET status='active', updated_at=datetime('now') WHERE id=?")
       .run(req.params.id);
   })();
 
-  res.json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
+  res.json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
 }));
 
 // POST /:id/duplicate — clone a cycle with all its draft slots, dates shifted +6 months
 router.post('/:id/duplicate', requireCoordinator, auditLog('DUPLICATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Duplicated cycle ID: ${req.params.id} to new copy ID: ${data?.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const src = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  const src = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!src) return res.status(404).json({ error: 'Cycle not found' });
 
   function shiftDate(d, months) {
@@ -105,27 +106,27 @@ router.post('/:id/duplicate', requireCoordinator, auditLog('DUPLICATE_CYCLE', 'e
   const newEnd   = shiftDate(src.end_date, 6);
 
   // Prepare OUTSIDE transaction
-  const insertCycle = db.prepare(
+  const insertCycle = await db.prepare(
     `INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, status, created_by)
      VALUES (?,?,?,?,?,  'draft',?)`
   );
-  const insertSlot = db.prepare(
+  const insertSlot = await db.prepare(
     `INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
      VALUES (?,?,?,?,?,?,?,?,'draft')`
   );
-  const slots = db.prepare("SELECT * FROM exam_slots WHERE cycle_id=? AND status='draft'").all(src.id);
+  const slots = await db.prepare("SELECT * FROM exam_slots WHERE cycle_id=? AND status='draft'").all(src.id);
 
-  db.transaction(() => {
-    insertCycle.run(newId, src.name + ' (Copy)', newStart, newEnd, src.semester_type || 'odd', req.user.id);
+  await db.transaction(async () => {
+    await insertCycle.run(newId, src.name + ' (Copy)', newStart, newEnd, src.semester_type || 'odd', req.user.id);
     for (const s of slots) {
-      insertSlot.run(
+      await insertSlot.run(
         crypto.randomUUID(), newId, s.subject_id,
         shiftDate(s.date, 6), s.start_time, s.duration_mins, s.exam_type, s.exam_mode
       );
     }
   })();
 
-  res.status(201).json(db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(newId));
+  res.status(201).json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(newId));
 }));
 
 
@@ -166,7 +167,7 @@ const runSolver = (inputData) => {
 
 router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Auto-scheduled ${data?.created || 0} exam slots for cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
   const { start_date: custom_start, end_date: custom_end, duration_mins, shifts: custom_shifts, order_by_year } = req.body;
@@ -181,7 +182,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
   const parityFilter = semester_type === 'odd' ? 'semester % 2 = 1' : 'semester % 2 = 0';
 
   // 1. Get unique subjects (one slot per subject code)
-  const subjects = db.prepare(`SELECT * FROM subjects WHERE ${parityFilter} GROUP BY code ORDER BY code`).all();
+  const subjects = await db.prepare(`SELECT * FROM subjects WHERE ${parityFilter} GROUP BY code ORDER BY code`).all();
   if (!subjects.length) return res.status(400).json({ error: `No subjects found for ${semester_type} semester cycle.` });
   if (subjects.length > 500) return res.status(400).json({ error: 'Too many subjects; please schedule manually.' });
 
@@ -195,10 +196,10 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
   if (!validDates.length) return res.status(400).json({ error: 'No valid exam dates (excluding Sundays) in the specified range.' });
 
   // Gather required database sets for solver
-  const teaches = db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
-  const classrooms = db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
-  const faculty = db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
-  const students = db.prepare("SELECT id, name, prn, roll_no, branch, year, semester FROM students WHERE is_active=1").all();
+  const teaches = await db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
+  const classrooms = await db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
+  const faculty = await db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const students = await db.prepare("SELECT id, name, prn, roll_no, branch, year, semester FROM students WHERE is_active=1").all();
 
   const solverShifts = custom_shifts || [
     { id: '1', name: 'Shift 1', start_time: '09:30', duration_mins: 180 },
@@ -236,48 +237,48 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     if (result.status === 'SUCCESS') {
       const createdCount = result.slots.length;
       
-      db.transaction(() => {
+      await db.transaction(async () => {
         // Clear all previous slots and related seating/supervisor data for this cycle
-        db.prepare("DELETE FROM exam_slots WHERE cycle_id=?").run(cycle.id);
-        db.prepare("DELETE FROM conflicts WHERE cycle_id=?").run(cycle.id);
+        await db.prepare("DELETE FROM exam_slots WHERE cycle_id=?").run(cycle.id);
+        await db.prepare("DELETE FROM conflicts WHERE cycle_id=?").run(cycle.id);
 
-        const slotStmt = db.prepare(`
+        const slotStmt = await db.prepare(`
           INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')
         `);
 
         for (const s of result.slots) {
           const slotId = crypto.randomUUID();
-          slotStmt.run(slotId, cycle.id, s.subject_id, s.date, s.start_time, s.duration_mins, s.exam_type, s.exam_mode);
+          await slotStmt.run(slotId, cycle.id, s.subject_id, s.date, s.start_time, s.duration_mins, s.exam_type, s.exam_mode);
 
           // Link students to slot
-          const subj = db.prepare('SELECT * FROM subjects WHERE id=?').get(s.subject_id);
-          const autoStudents = db.prepare(`
+          const subj = await db.prepare('SELECT * FROM subjects WHERE id=?').get(s.subject_id);
+          const autoStudents = await db.prepare(`
             SELECT id FROM students WHERE is_active=1 AND year=? AND branch=? AND semester=?
           `).all(subj.year, subj.branch, subj.semester);
 
-          const ssStmt = db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
+          const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
           for (const stud of autoStudents) {
-            ssStmt.run(slotId, stud.id);
+            await ssStmt.run(slotId, stud.id);
           }
 
           // Insert room allocations
           const raMap = {};
-          const raStmt = db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
+          const raStmt = await db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
           for (const room of s.rooms) {
             const raId = crypto.randomUUID();
-            raStmt.run(raId, slotId, room.classroom_id);
+            await raStmt.run(raId, slotId, room.classroom_id);
             raMap[room.classroom_id] = raId;
           }
 
           // Generate seating
-          const studentsList = db.prepare(`
+          const studentsList = await db.prepare(`
             SELECT st.* FROM students st
             JOIN slot_students ss ON ss.student_id = st.id
             WHERE ss.slot_id = ?
           `).all(slotId);
 
-          const roomsList = db.prepare(`
+          const roomsList = await db.prepare(`
             SELECT ra.id, ra.classroom_id, c.room_no, c.block, c.capacity, c.bench_rows, c.bench_cols
             FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
             WHERE ra.slot_id = ?
@@ -285,19 +286,19 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
 
           if (studentsList.length && roomsList.length) {
             const { assignments, conflicts: seatingConflicts } = generateSeating(studentsList, roomsList);
-            const seatStmt = db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
+            const seatStmt = await db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
             for (const a of assignments) {
-              seatStmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
+              await seatStmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
             }
-            const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
             for (const c of seatingConflicts) {
-              cStmt.run(crypto.randomUUID(), slotId, cycle.id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
+              await cStmt.run(crypto.randomUUID(), slotId, cycle.id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
             }
           }
 
           // Insert invigilators
           const slotInvigilators = result.invigilators.filter(iv => iv.date === s.date && iv.start_time === s.start_time);
-          const invStmt = db.prepare(`
+          const invStmt = await db.prepare(`
             INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role, acknowledged)
             VALUES (?, ?, ?, ?, 0)
           `);
@@ -306,13 +307,15 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
             if (raId) {
               const existingDuties = db.prepare('SELECT COUNT(*) as cnt FROM supervisor_duties WHERE room_allocation_id=?').get(raId);
               const role = (existingDuties && existingDuties.cnt > 0) ? 'co' : 'primary';
-              invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, role);
+              await invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, role);
             }
           }
           
-          db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=?").run(slotId);
+          await db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=?").run(slotId);
         }
       })();
+
+      broadcastUpdate('SCHEDULE_REGENERATED', { cycleId: cycle.id });
 
       res.json({
         created: createdCount,
@@ -320,11 +323,11 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
       });
     } else {
       // SUCCESS status false, meaning solver failed or returned conflicts
-      db.transaction(() => {
-        db.prepare("DELETE FROM conflicts WHERE cycle_id=?").run(cycle.id);
-        const cStmt = db.prepare('INSERT INTO conflicts (id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?)');
+      await db.transaction(async () => {
+        await db.prepare("DELETE FROM conflicts WHERE cycle_id=?").run(cycle.id);
+        const cStmt = await db.prepare('INSERT INTO conflicts (id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?)');
         for (const c of result.conflicts) {
-          cStmt.run(crypto.randomUUID(), cycle.id, c.type, c.description, c.suggested_resolution || null);
+          await cStmt.run(crypto.randomUUID(), cycle.id, c.type, c.description, c.suggested_resolution || null);
         }
       })();
 
@@ -344,7 +347,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
 
 router.get('/:cycleId/slots', asyncHandler(async (req, res) => {
   const db = getDb();
-  const slots = db.prepare(`
+  const slots = await db.prepare(`
     SELECT es.*,
       s.code AS subject_code, s.name AS subject_name,
       s.branch, s.year, s.semester AS subject_semester,
@@ -355,36 +358,38 @@ router.get('/:cycleId/slots', asyncHandler(async (req, res) => {
     ORDER BY es.exam_type DESC, es.date, es.start_time
   `).all(req.params.cycleId);
 
-  const roomsStmt = db.prepare(`
+  const roomsStmt = await db.prepare(`
     SELECT ra.*, c.room_no, c.block, c.capacity,
       (SELECT COUNT(*) FROM seat_assignments sa WHERE sa.room_allocation_id = ra.id) AS seated_count
     FROM room_allocations ra
     JOIN classrooms c ON c.id = ra.classroom_id
     WHERE ra.slot_id = ?
   `);
-  const studentCountStmt = db.prepare('SELECT COUNT(*) AS cnt FROM slot_students WHERE slot_id=?');
+  const studentCountStmt = await db.prepare('SELECT COUNT(*) AS cnt FROM slot_students WHERE slot_id=?');
 
-  res.json(slots.map(slot => ({
+  const formattedSlots = await Promise.all(slots.map(async slot => ({
     ...slot,
-    rooms: roomsStmt.all(slot.id),
-    student_count: studentCountStmt.get(slot.id)?.cnt || 0,
-    room_count: roomsStmt.all(slot.id).length,
+    rooms: await roomsStmt.all(slot.id),
+    student_count: (await studentCountStmt.get(slot.id))?.cnt || 0,
+    room_count: (await roomsStmt.all(slot.id)).length,
   })));
+
+  res.json(formattedSlots);
 }));
 
 // Helper function to auto assign seating and supervisors immediately
-function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false) {
-  const slot = db.prepare('SELECT * FROM exam_slots WHERE id=?').get(slotId);
+async function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false) {
+  const slot = await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(slotId);
   if (!slot) return;
 
   // 1. Generate Seating Arrangement
-  const students = db.prepare(`
+  const students = await db.prepare(`
     SELECT st.* FROM students st
     JOIN slot_students ss ON ss.student_id = st.id
     WHERE ss.slot_id = ?
   `).all(slotId);
 
-  const rooms = db.prepare(`
+  const rooms = await db.prepare(`
     SELECT ra.id, ra.classroom_id, c.room_no, c.block, c.capacity, c.bench_rows, c.bench_cols
     FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
     WHERE ra.slot_id = ?
@@ -393,7 +398,7 @@ function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false) {
 
   if (!students.length || !rooms.length) return;
 
-  const existingSeatingCount = db.prepare(`
+  const existingSeatingCount = await db.prepare(`
     SELECT COUNT(*) as cnt FROM seat_assignments
     WHERE room_allocation_id IN (SELECT id FROM room_allocations WHERE slot_id = ?)
   `).get(slotId)?.cnt || 0;
@@ -403,37 +408,37 @@ function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false) {
   if (shouldGenerateSeating) {
     const { assignments, conflicts: seatingConflicts } = generateSeating(students, rooms);
 
-    db.transaction(() => {
+    await db.transaction(async () => {
       const raIds = rooms.map(r => r.id);
       for (const raId of raIds) {
-        db.prepare('DELETE FROM seat_assignments WHERE room_allocation_id=?').run(raId);
+        await db.prepare('DELETE FROM seat_assignments WHERE room_allocation_id=?').run(raId);
       }
-      db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('CAPACITY_OVERFLOW','BRANCH_MIXING_FAILED','INSUFFICIENT_ROOM_CAPACITY','NO_STUDENTS','NO_ROOMS')").run(slotId);
+      await db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('CAPACITY_OVERFLOW','BRANCH_MIXING_FAILED','INSUFFICIENT_ROOM_CAPACITY','NO_STUDENTS','NO_ROOMS')").run(slotId);
 
-      const stmt = db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
+      const stmt = await db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
       for (const a of assignments) {
-        stmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
+        await stmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
       }
 
-      const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
       for (const c of seatingConflicts) {
-        cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
+        await cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
       }
 
-      db.prepare("UPDATE exam_slots SET status='seating_generated' WHERE id=?").run(slotId);
+      await db.prepare("UPDATE exam_slots SET status='seating_generated' WHERE id=?").run(slotId);
     })();
   }
 
   // 2. Assign Supervisors
-  const updatedRooms = db.prepare(`
+  const updatedRooms = await db.prepare(`
     SELECT ra.id, ra.classroom_id, c.room_no,
       (SELECT COUNT(*) FROM seat_assignments sa WHERE sa.room_allocation_id = ra.id) as seated_count
     FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
     WHERE ra.slot_id = ?
   `).all(slotId);
 
-  const faculty = db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
-  const subjectStmt = db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
+  const faculty = await db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const subjectStmt = await db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
   const allFaculty = faculty.map(f => ({
     ...f,
     subject_ids: subjectStmt.all(f.id).map(r => r.subject_id)
@@ -441,7 +446,7 @@ function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false) {
 
   const globalWorkload = {};
   for (const f of faculty) globalWorkload[f.id] = 0;
-  const allDutyCounts = db.prepare(`
+  const allDutyCounts = await db.prepare(`
     SELECT sd.faculty_id, COUNT(*) as cnt
     FROM supervisor_duties sd
     JOIN room_allocations ra ON ra.id = sd.room_allocation_id
@@ -455,20 +460,20 @@ function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false) {
   const slotWithRooms = [{ ...slot, rooms: updatedRooms }];
   const { duties, conflicts: supervisorConflicts } = assignSupervisors(slotWithRooms, allFaculty, globalWorkload);
 
-  db.transaction(() => {
+  await db.transaction(async () => {
     const raIds = updatedRooms.map(r => r.id);
     for (const raId of raIds) {
-      db.prepare('DELETE FROM supervisor_duties WHERE room_allocation_id=?').run(raId);
+      await db.prepare('DELETE FROM supervisor_duties WHERE room_allocation_id=?').run(raId);
     }
-    db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('NO_SUPERVISOR_AVAILABLE','NO_CO_SUPERVISOR_AVAILABLE')").run(slotId);
+    await db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('NO_SUPERVISOR_AVAILABLE','NO_CO_SUPERVISOR_AVAILABLE')").run(slotId);
 
-    const stmt = db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
-    for (const d of duties) stmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role);
+    const stmt = await db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
+    for (const d of duties) await stmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role);
 
-    const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?)');
-    for (const c of supervisorConflicts) cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.suggested_resolution || null);
+    const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?)');
+    for (const c of supervisorConflicts) await cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.suggested_resolution || null);
 
-    db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=? AND status != 'finalised'").run(slotId);
+    await db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=? AND status != 'finalised'").run(slotId);
   })();
 }
 
@@ -482,11 +487,11 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
     return res.status(400).json({ error: 'subject_id, date, start_time required' });
 
   // Validate subject exists
-  const subject = db.prepare('SELECT * FROM subjects WHERE id=?').get(subject_id);
+  const subject = await db.prepare('SELECT * FROM subjects WHERE id=?').get(subject_id);
   if (!subject) return res.status(404).json({ error: 'Subject not found' });
 
   // Validate semester parity matches cycle
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
   if (semParity(subject.semester) !== cycle.semester_type) {
@@ -497,7 +502,7 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
 
   // Backlog rule: if regular slots exist for this subject, backlog must be earlier
   if (exam_type === 'backlog') {
-    const firstRegular = db.prepare(`
+    const firstRegular = await db.prepare(`
       SELECT MIN(date) AS min_date FROM exam_slots
       WHERE cycle_id=? AND subject_id=? AND exam_type='regular'
     `).get(req.params.cycleId, subject_id);
@@ -509,40 +514,40 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
   }
 
   const slotId = crypto.randomUUID();
-  db.transaction(() => {
-    db.prepare('INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode) VALUES (?,?,?,?,?,?,?,?)')
+  await db.transaction(async () => {
+    await db.prepare('INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode) VALUES (?,?,?,?,?,?,?,?)')
       .run(slotId, req.params.cycleId, subject_id, date, start_time, parseInt(duration_mins) || 180, exam_type, exam_mode);
 
     // Assign classrooms (for offline exams)
     if (exam_mode === 'offline' && Array.isArray(classroom_ids) && classroom_ids.length) {
-      const raStmt = db.prepare('INSERT OR IGNORE INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
-      for (const cid of classroom_ids) raStmt.run(crypto.randomUUID(), slotId, cid);
+      const raStmt = await db.prepare('INSERT OR IGNORE INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
+      for (const cid of classroom_ids) await raStmt.run(crypto.randomUUID(), slotId, cid);
     }
 
     // AUTO-ASSIGN STUDENTS: all active students in this year+branch+semester
-    const autoStudents = db.prepare(`
+    const autoStudents = await db.prepare(`
       SELECT id FROM students
       WHERE is_active=1 AND year=? AND branch=? AND semester=?
     `).all(subject.year, subject.branch, subject.semester);
 
-    const ssStmt = db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
-    for (const s of autoStudents) ssStmt.run(slotId, s.id);
+    const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
+    for (const s of autoStudents) await ssStmt.run(slotId, s.id);
   })();
 
   // AUTO ALLOCATE SEATING AND SUPERVISORS IMMEDIATELY FOR OFFLINE EXAMS
   if (exam_mode === 'offline' && Array.isArray(classroom_ids) && classroom_ids.length) {
     try {
-      autoAssignSeatingAndSupervisors(slotId, db);
+      await autoAssignSeatingAndSupervisors(slotId, db);
     } catch (err) {
       console.error("Auto allocation on slot creation failed:", err);
     }
   }
 
-  const created = db.prepare(`
+  const created = await db.prepare(`
     SELECT es.*, s.code AS subject_code, s.name AS subject_name, s.branch, s.year
     FROM exam_slots es JOIN subjects s ON s.id=es.subject_id WHERE es.id=?
   `).get(slotId);
-  const studentCount = db.prepare('SELECT COUNT(*) AS cnt FROM slot_students WHERE slot_id=?').get(slotId);
+  const studentCount = await db.prepare('SELECT COUNT(*) AS cnt FROM slot_students WHERE slot_id=?').get(slotId);
   res.status(201).json({ ...created, student_count: studentCount.cnt });
 }));
 
@@ -550,42 +555,42 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (re
   const db = getDb();
   const { subject_id, date, start_time, duration_mins, classroom_ids, exam_type, exam_mode } = req.body;
 
-  const subject = db.prepare('SELECT * FROM subjects WHERE id=?').get(subject_id);
+  const subject = await db.prepare('SELECT * FROM subjects WHERE id=?').get(subject_id);
   if (!subject) return res.status(404).json({ error: 'Subject not found' });
 
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (semParity(subject.semester) !== cycle.semester_type) {
     return res.status(400).json({ error: `Semester parity mismatch for cycle type "${cycle.semester_type}"` });
   }
 
-  const oldSlot = db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
+  const oldSlot = await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
   if (!oldSlot) return res.status(404).json({ error: 'Slot not found' });
 
-  const oldRoomIds = db.prepare('SELECT classroom_id FROM room_allocations WHERE slot_id=?').all(req.params.slotId).map(r => r.classroom_id);
+  const oldRoomIds = await db.prepare('SELECT classroom_id FROM room_allocations WHERE slot_id=?').all(req.params.slotId).map(r => r.classroom_id);
   const subjectChanged = oldSlot.subject_id !== subject_id;
   const classroomsChanged = Array.isArray(classroom_ids) && (
     oldRoomIds.length !== classroom_ids.length ||
     !oldRoomIds.every(id => classroom_ids.includes(id))
   );
 
-  db.transaction(() => {
-    db.prepare('UPDATE exam_slots SET subject_id=?,date=?,start_time=?,duration_mins=?,exam_type=?,exam_mode=? WHERE id=?')
+  await db.transaction(async () => {
+    await db.prepare('UPDATE exam_slots SET subject_id=?,date=?,start_time=?,duration_mins=?,exam_type=?,exam_mode=? WHERE id=?')
       .run(subject_id, date, start_time, parseInt(duration_mins), exam_type || 'regular', exam_mode || 'offline', req.params.slotId);
 
     // Always sync/refresh the students in slot_students to match latest students in the database
-    db.prepare('DELETE FROM slot_students WHERE slot_id=?').run(req.params.slotId);
-    const autoStudents = db.prepare(`
+    await db.prepare('DELETE FROM slot_students WHERE slot_id=?').run(req.params.slotId);
+    const autoStudents = await db.prepare(`
       SELECT id FROM students
       WHERE is_active=1 AND year=? AND branch=? AND semester=?
     `).all(subject.year, subject.branch, subject.semester);
 
-    const ssStmt = db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
-    for (const s of autoStudents) ssStmt.run(req.params.slotId, s.id);
+    const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
+    for (const s of autoStudents) await ssStmt.run(req.params.slotId, s.id);
 
     if (Array.isArray(classroom_ids) && classroomsChanged) {
-      db.prepare('DELETE FROM room_allocations WHERE slot_id=?').run(req.params.slotId);
-      const raStmt = db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
-      for (const cid of classroom_ids) raStmt.run(crypto.randomUUID(), req.params.slotId, cid);
+      await db.prepare('DELETE FROM room_allocations WHERE slot_id=?').run(req.params.slotId);
+      const raStmt = await db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
+      for (const cid of classroom_ids) await raStmt.run(crypto.randomUUID(), req.params.slotId, cid);
     }
   })();
 
@@ -593,24 +598,24 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (re
   if (exam_mode === 'offline' && Array.isArray(classroom_ids) && classroom_ids.length) {
     try {
       const forceSeatingRegen = subjectChanged || classroomsChanged;
-      autoAssignSeatingAndSupervisors(req.params.slotId, db, forceSeatingRegen);
+      await autoAssignSeatingAndSupervisors(req.params.slotId, db, forceSeatingRegen);
     } catch (err) {
       console.error("Auto allocation on slot update failed:", err);
     }
   }
 
-  res.json(db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId));
+  res.json(await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId));
 }));
 
 router.delete('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  db.prepare('DELETE FROM exam_slots WHERE id=?').run(req.params.slotId);
+  await db.prepare('DELETE FROM exam_slots WHERE id=?').run(req.params.slotId);
   res.json({ success: true });
 }));
 
 router.get('/:cycleId/slots/:slotId/students', asyncHandler(async (req, res) => {
   const db = getDb();
-  res.json(db.prepare(`
+  res.json(await db.prepare(`
     SELECT s.* FROM students s
     JOIN slot_students ss ON ss.student_id = s.id
     WHERE ss.slot_id = ?
@@ -621,12 +626,12 @@ router.get('/:cycleId/slots/:slotId/students', asyncHandler(async (req, res) => 
 // GET subjects valid for a cycle's semester_type
 router.get('/:cycleId/valid-subjects', asyncHandler(async (req, res) => {
   const db = getDb();
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
   // semester_type = 'odd' → semesters 1,3,5,7; 'even' → 2,4,6,8
   const validSems = cycle.semester_type === 'odd' ? [1,3,5,7] : [2,4,6,8];
   const placeholders = validSems.map(() => '?').join(',');
-  const subjects = db.prepare(
+  const subjects = await db.prepare(
     `SELECT * FROM subjects WHERE semester IN (${placeholders}) ORDER BY semester, code`
   ).all(...validSems);
   res.json(subjects);

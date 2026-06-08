@@ -1,316 +1,399 @@
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import fs from 'fs';
+import pg from 'pg';
+import { AsyncLocalStorage } from 'async_hooks';
+import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
-const DB_PATH = path.join(__dirname, '../../data/exam_management.db');
-const DATA_DIR = path.join(__dirname, '../../data');
+const pool = new pg.Pool({
+  host: process.env.PGHOST || 'localhost',
+  port: parseInt(process.env.PGPORT || '5432'),
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || '1234',
+  database: process.env.PGDATABASE || 'exam_management',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
 
-let db;
+const transactionContext = new AsyncLocalStorage();
+let dbInstance = null;
 
 export function getDb() {
-  if (!db) throw new Error('Database not initialized');
-  return db;
+  if (!dbInstance) throw new Error('Database not initialized');
+  return dbInstance;
 }
 
-export function initDb() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('busy_timeout = 5000');
-  db.pragma('foreign_keys = ON');
-
-  createTables();
-
-  // Run schema migration upgrades if tables exist but lack ON DELETE SET NULL
+export async function initDb() {
+  // Test connection
+  const client = await pool.connect();
   try {
-    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='attendance'").get();
-    if (tableInfo && !tableInfo.sql.includes('ON DELETE SET NULL')) {
-      console.log('🔄 Upgrading attendance table schema to support ON DELETE SET NULL...');
-      db.transaction(() => {
-        db.prepare('ALTER TABLE attendance RENAME TO attendance_old').run();
-        db.prepare(`
-          CREATE TABLE attendance (
-            id TEXT PRIMARY KEY,
-            slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
-            student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-            room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
-            status TEXT NOT NULL DEFAULT 'absent' CHECK(status IN ('present','absent','late')),
-            marked_by TEXT REFERENCES users(id),
-            marked_at TEXT DEFAULT (datetime('now')),
-            notes TEXT,
-            UNIQUE(slot_id, student_id)
-          )
-        `).run();
-        db.prepare('INSERT OR IGNORE INTO attendance SELECT * FROM attendance_old').run();
-        db.prepare('DROP TABLE attendance_old').run();
-        console.log('✅ attendance table upgraded successfully.');
-      })();
+    console.log('Connected to PostgreSQL database successfully.');
+  } finally {
+    client.release();
+  }
+
+  dbInstance = new PgDatabase(pool);
+  await dbInstance.initSchema();
+  await seedInitialData();
+  return dbInstance;
+}
+
+class PgDatabase {
+  constructor(pool) {
+    this.pool = pool;
+  }
+
+  pragma(str) {
+    // Stub pragma calls since PostgreSQL doesn't use pragmas
+    return null;
+  }
+
+  async close() {
+    await this.pool.end();
+  }
+
+  prepare(sql) {
+    return new PgStatement(this.pool, sql);
+  }
+
+  transaction(fn) {
+    return async (...args) => {
+      // Check if we are already in a transaction context
+      const existingClient = transactionContext.getStore();
+      if (existingClient) {
+        return await fn(...args);
+      }
+
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const result = await transactionContext.run(client, async () => {
+          return await fn(...args);
+        });
+        await client.query('COMMIT');
+        return result;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    };
+  }
+
+  async initSchema() {
+    const client = transactionContext.getStore() || this.pool;
+    
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('coordinator', 'faculty')),
+        department TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS students (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        prn TEXT UNIQUE NOT NULL,
+        roll_no TEXT NOT NULL,
+        branch TEXT NOT NULL,
+        section TEXT,
+        year TEXT NOT NULL CHECK(year IN ('FY', 'SY', 'TY', 'LY')),
+        semester INTEGER NOT NULL,
+        scheme TEXT DEFAULT 'K Scheme',
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS subjects (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        branch TEXT NOT NULL DEFAULT 'CSE',
+        year TEXT NOT NULL CHECK(year IN ('FY', 'SY', 'TY', 'LY')),
+        semester INTEGER NOT NULL,
+        abbreviation TEXT,
+        course_type TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(code, branch)
+      );
+
+      CREATE TABLE IF NOT EXISTS classrooms (
+        id TEXT PRIMARY KEY,
+        room_no TEXT UNIQUE NOT NULL,
+        block TEXT NOT NULL,
+        capacity INTEGER NOT NULL,
+        bench_rows INTEGER NOT NULL,
+        bench_cols INTEGER NOT NULL,
+        is_online INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS faculty_subjects (
+        faculty_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+        PRIMARY KEY (faculty_id, subject_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS exam_cycles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        semester_type TEXT DEFAULT 'odd' CHECK(semester_type IN ('odd','even')),
+        status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'finalised', 'archived')),
+        created_by TEXT REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS exam_slots (
+        id TEXT PRIMARY KEY,
+        cycle_id TEXT NOT NULL REFERENCES exam_cycles(id) ON DELETE CASCADE,
+        subject_id TEXT NOT NULL REFERENCES subjects(id),
+        date TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        duration_mins INTEGER DEFAULT 180,
+        exam_type TEXT DEFAULT 'regular' CHECK(exam_type IN ('regular','backlog')),
+        exam_mode TEXT DEFAULT 'offline' CHECK(exam_mode IN ('offline','online')),
+        status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'seating_generated', 'supervisors_assigned', 'finalised')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS slot_students (
+        slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        PRIMARY KEY (slot_id, student_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS room_allocations (
+        id TEXT PRIMARY KEY,
+        slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
+        classroom_id TEXT NOT NULL REFERENCES classrooms(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(slot_id, classroom_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS seat_assignments (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES students(id),
+        room_allocation_id TEXT NOT NULL REFERENCES room_allocations(id) ON DELETE CASCADE,
+        bench_row INTEGER NOT NULL,
+        bench_col INTEGER NOT NULL,
+        is_approved INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(student_id, room_allocation_id),
+        UNIQUE(room_allocation_id, bench_row, bench_col)
+      );
+
+      CREATE TABLE IF NOT EXISTS supervisor_duties (
+        id TEXT PRIMARY KEY,
+        faculty_id TEXT NOT NULL REFERENCES users(id),
+        room_allocation_id TEXT NOT NULL REFERENCES room_allocations(id) ON DELETE CASCADE,
+        role TEXT NOT NULL CHECK(role IN ('primary', 'co')),
+        acknowledged INTEGER DEFAULT 0,
+        acknowledged_at TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(faculty_id, room_allocation_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS conflicts (
+        id TEXT PRIMARY KEY,
+        cycle_id TEXT REFERENCES exam_cycles(id) ON DELETE CASCADE,
+        slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        affected_entities TEXT,
+        suggested_resolution TEXT,
+        status TEXT DEFAULT 'open' CHECK(status IN ('open', 'resolved', 'ignored')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TEXT,
+        resolved_by TEXT REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id),
+        action TEXT NOT NULL,
+        entity TEXT NOT NULL,
+        entity_id TEXT,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS attendance (
+        id TEXT PRIMARY KEY,
+        slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'absent' CHECK(status IN ('present','absent','late')),
+        marked_by TEXT REFERENCES users(id),
+        marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        UNIQUE(slot_id, student_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS broadcasts (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        sent_by TEXT REFERENCES users(id),
+        priority TEXT DEFAULT 'normal' CHECK(priority IN ('normal','urgent','critical')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS broadcast_reads (
+        broadcast_id TEXT REFERENCES broadcasts(id) ON DELETE CASCADE,
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+        read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (broadcast_id, user_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS incidents (
+        id TEXT PRIMARY KEY,
+        slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
+        room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
+        reported_by TEXT REFERENCES users(id),
+        type TEXT NOT NULL CHECK(type IN ('malpractice','disturbance','technical','medical','other')),
+        description TEXT NOT NULL,
+        student_prn TEXT,
+        action_taken TEXT,
+        severity TEXT DEFAULT 'low' CHECK(severity IN ('low','medium','high')),
+        status TEXT DEFAULT 'open' CHECK(status IN ('open','resolved','escalated')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
+      CREATE INDEX IF NOT EXISTS idx_students_year ON students(year);
+      CREATE INDEX IF NOT EXISTS idx_exam_slots_cycle ON exam_slots(cycle_id);
+      CREATE INDEX IF NOT EXISTS idx_seat_assignments_room ON seat_assignments(room_allocation_id);
+      CREATE INDEX IF NOT EXISTS idx_supervisor_duties_faculty ON supervisor_duties(faculty_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+      CREATE INDEX IF NOT EXISTS idx_attendance_slot ON attendance(slot_id);
+      CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
+      CREATE INDEX IF NOT EXISTS idx_incidents_slot ON incidents(slot_id);
+      CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at);
+    `);
+  }
+}
+
+class PgStatement {
+  constructor(pool, sql) {
+    this.pool = pool;
+    this.sql = sql;
+    this.formatSql();
+  }
+
+  formatSql() {
+    // Convert SQLite ? placeholders to PG $1, $2, $3...
+    let index = 1;
+    this.sql = this.sql.replace(/\?/g, () => `$${index++}`);
+
+    // Convert SQLite INSERT OR IGNORE INTO to standard INSERT ... ON CONFLICT DO NOTHING
+    if (this.sql.toUpperCase().includes('INSERT OR IGNORE INTO')) {
+      this.sql = this.sql.replace(/INSERT OR IGNORE INTO/i, 'INSERT INTO');
+      if (!this.sql.toUpperCase().includes('ON CONFLICT')) {
+        this.sql += ' ON CONFLICT DO NOTHING';
+      }
     }
-  } catch (err) {
-    console.error('Failed to migrate attendance table:', err);
-  }
 
-  try {
-    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='incidents'").get();
-    if (tableInfo && !tableInfo.sql.includes('ON DELETE SET NULL')) {
-      console.log('🔄 Upgrading incidents table schema to support ON DELETE SET NULL...');
-      db.transaction(() => {
-        db.prepare('ALTER TABLE incidents RENAME TO incidents_old').run();
-        db.prepare(`
-          CREATE TABLE incidents (
-            id TEXT PRIMARY KEY,
-            slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
-            room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
-            reported_by TEXT REFERENCES users(id),
-            type TEXT NOT NULL CHECK(type IN ('malpractice','disturbance','technical','medical','other')),
-            description TEXT NOT NULL,
-            student_prn TEXT,
-            action_taken TEXT,
-            severity TEXT DEFAULT 'low' CHECK(severity IN ('low','medium','high')),
-            status TEXT DEFAULT 'open' CHECK(status IN ('open','resolved','escalated')),
-            created_at TEXT DEFAULT (datetime('now')),
-            resolved_at TEXT
-          )
-        `).run();
-        db.prepare('INSERT OR IGNORE INTO incidents SELECT * FROM incidents_old').run();
-        db.prepare('DROP TABLE incidents_old').run();
-        console.log('✅ incidents table upgraded successfully.');
-      })();
+    // Convert SQLite datetime('now') to PG CURRENT_TIMESTAMP
+    this.sql = this.sql.replace(/datetime\('now'\)/ig, 'CURRENT_TIMESTAMP');
+
+    // Convert SQLite GROUP_CONCAT to STRING_AGG
+    this.sql = this.sql.replace(/GROUP_CONCAT\s*\(\s*DISTINCT\s+([^)]+)\)/ig, "STRING_AGG(DISTINCT $1, ',')");
+    this.sql = this.sql.replace(/GROUP_CONCAT\s*\(\s*([^,)]+)\)/ig, "STRING_AGG($1, ',')");
+    this.sql = this.sql.replace(/GROUP_CONCAT\s*\(\s*([\s\S]*?)\s*,\s*([\s\S]*?)\)/ig, "STRING_AGG($1, $2)");
+
+    // PostgreSQL specific GROUP BY adaptations to satisfy strict column listing:
+    // 1. subjects unique query
+    this.sql = this.sql.replace(
+      /SELECT\s+\*\s+FROM\s+subjects\s+WHERE\s+([\s\S]+?)\s+GROUP\s+BY\s+code(?:\s+ORDER\s+BY\s+code)?(?:\s+LIMIT\s+(\d+))?/i,
+      (match, whereClause, limit) => {
+        let replacement = `SELECT DISTINCT ON (code) * FROM subjects WHERE ${whereClause.trim()} ORDER BY code`;
+        if (limit) {
+          replacement += ` LIMIT ${limit}`;
+        }
+        return replacement;
+      }
+    );
+
+    // 2. broadcasts grouping
+    if (this.sql.includes('GROUP BY b.id') && !this.sql.includes('GROUP BY b.id, u.name')) {
+      this.sql = this.sql.replace('GROUP BY b.id', 'GROUP BY b.id, u.name');
     }
-  } catch (err) {
-    console.error('Failed to migrate incidents table:', err);
+
+    // 3. conflicts: facultyClashStmt
+    if (this.sql.includes('GROUP BY sd.faculty_id, es.date, es.start_time') && !this.sql.includes('GROUP BY sd.faculty_id, es.date, es.start_time, u.name')) {
+      this.sql = this.sql.replace('GROUP BY sd.faculty_id, es.date, es.start_time', 'GROUP BY sd.faculty_id, es.date, es.start_time, u.name');
+    }
+
+    // 4. conflicts: overflowStmt
+    if (this.sql.includes('GROUP BY ra.id') && !this.sql.includes('GROUP BY ra.id, c.room_no, c.capacity, es.id, es.date')) {
+      this.sql = this.sql.replace('GROUP BY ra.id', 'GROUP BY ra.id, c.room_no, c.capacity, es.id, es.date');
+    }
+
+    // 5. conflicts: studentClashStmt
+    if (this.sql.includes('GROUP BY ss.student_id, es.date, es.start_time') && !this.sql.includes('GROUP BY ss.student_id, es.date, es.start_time, s.name, s.prn')) {
+      this.sql = this.sql.replace('GROUP BY ss.student_id, es.date, es.start_time', 'GROUP BY ss.student_id, es.date, es.start_time, s.name, s.prn');
+    }
+
+    // 6. todaySlots / export: GROUP BY es.id
+    if (this.sql.includes('GROUP BY es.id') && !this.sql.includes('GROUP BY es.id, s.id, s.name, s.code, s.branch, s.year, s.semester')) {
+      this.sql = this.sql.replace('GROUP BY es.id', 'GROUP BY es.id, s.id, s.name, s.code, s.branch, s.year, s.semester');
+    }
   }
 
-  try {
-    db.prepare('ALTER TABLE classrooms ADD COLUMN is_online INTEGER DEFAULT 0').run();
-    console.log('✅ Added is_online column to classrooms table');
-  } catch (err) {
-    // Expected to fail if column already exists
+  async execute(params) {
+    const client = transactionContext.getStore() || this.pool;
+    // Map params: convert JS Date objects to ISO strings if needed, and clean values
+    const cleanParams = params.map(p => {
+      if (p instanceof Date) return p.toISOString();
+      return p;
+    });
+    return await client.query(this.sql, cleanParams);
   }
 
-  seedInitialData();
+  async all(...params) {
+    const result = await this.execute(params);
+    return result.rows;
+  }
 
-  console.log('✅ Database initialized:', DB_PATH);
-  return db;
+  async get(...params) {
+    const result = await this.execute(params);
+    return result.rows[0];
+  }
+
+  async run(...params) {
+    const result = await this.execute(params);
+    return {
+      changes: result.rowCount,
+      lastInsertRowid: null
+    };
+  }
 }
 
-function createTables() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('coordinator', 'faculty')),
-      department TEXT,
-      is_active INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS students (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      prn TEXT UNIQUE NOT NULL,
-      roll_no TEXT NOT NULL,
-      branch TEXT NOT NULL,
-      year TEXT NOT NULL CHECK(year IN ('FY', 'SY', 'TY', 'LY')),
-      semester INTEGER NOT NULL,
-      scheme TEXT DEFAULT 'K Scheme',
-      is_active INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS subjects (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL,
-      name TEXT NOT NULL,
-      branch TEXT NOT NULL DEFAULT 'CSE',
-      year TEXT NOT NULL CHECK(year IN ('FY', 'SY', 'TY', 'LY')),
-      semester INTEGER NOT NULL,
-      abbreviation TEXT,
-      course_type TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      UNIQUE(code, branch)
-    );
-
-    CREATE TABLE IF NOT EXISTS classrooms (
-      id TEXT PRIMARY KEY,
-      room_no TEXT UNIQUE NOT NULL,
-      block TEXT NOT NULL,
-      capacity INTEGER NOT NULL,
-      bench_rows INTEGER NOT NULL,
-      bench_cols INTEGER NOT NULL,
-      is_online INTEGER DEFAULT 0,
-      is_active INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS faculty_subjects (
-      faculty_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-      PRIMARY KEY (faculty_id, subject_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS exam_cycles (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      start_date TEXT NOT NULL,
-      end_date TEXT NOT NULL,
-      semester_type TEXT DEFAULT 'odd' CHECK(semester_type IN ('odd','even')),
-      status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'finalised', 'archived')),
-      created_by TEXT REFERENCES users(id),
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS exam_slots (
-      id TEXT PRIMARY KEY,
-      cycle_id TEXT NOT NULL REFERENCES exam_cycles(id) ON DELETE CASCADE,
-      subject_id TEXT NOT NULL REFERENCES subjects(id),
-      date TEXT NOT NULL,
-      start_time TEXT NOT NULL,
-      duration_mins INTEGER DEFAULT 180,
-      exam_type TEXT DEFAULT 'regular' CHECK(exam_type IN ('regular','backlog')),
-      exam_mode TEXT DEFAULT 'offline' CHECK(exam_mode IN ('offline','online')),
-      status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'seating_generated', 'supervisors_assigned', 'finalised')),
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS slot_students (
-      slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
-      student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      PRIMARY KEY (slot_id, student_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS room_allocations (
-      id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
-      classroom_id TEXT NOT NULL REFERENCES classrooms(id),
-      created_at TEXT DEFAULT (datetime('now')),
-      UNIQUE(slot_id, classroom_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS seat_assignments (
-      id TEXT PRIMARY KEY,
-      student_id TEXT NOT NULL REFERENCES students(id),
-      room_allocation_id TEXT NOT NULL REFERENCES room_allocations(id) ON DELETE CASCADE,
-      bench_row INTEGER NOT NULL,
-      bench_col INTEGER NOT NULL,
-      is_approved INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      UNIQUE(student_id, room_allocation_id),
-      UNIQUE(room_allocation_id, bench_row, bench_col)
-    );
-
-    CREATE TABLE IF NOT EXISTS supervisor_duties (
-      id TEXT PRIMARY KEY,
-      faculty_id TEXT NOT NULL REFERENCES users(id),
-      room_allocation_id TEXT NOT NULL REFERENCES room_allocations(id) ON DELETE CASCADE,
-      role TEXT NOT NULL CHECK(role IN ('primary', 'co')),
-      acknowledged INTEGER DEFAULT 0,
-      acknowledged_at TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      UNIQUE(faculty_id, room_allocation_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS conflicts (
-      id TEXT PRIMARY KEY,
-      cycle_id TEXT REFERENCES exam_cycles(id) ON DELETE CASCADE,
-      slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      description TEXT NOT NULL,
-      affected_entities TEXT,
-      suggested_resolution TEXT,
-      status TEXT DEFAULT 'open' CHECK(status IN ('open', 'resolved', 'ignored')),
-      created_at TEXT DEFAULT (datetime('now')),
-      resolved_at TEXT,
-      resolved_by TEXT REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id TEXT PRIMARY KEY,
-      user_id TEXT REFERENCES users(id),
-      action TEXT NOT NULL,
-      entity TEXT NOT NULL,
-      entity_id TEXT,
-      details TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS attendance (
-      id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
-      student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
-      status TEXT NOT NULL DEFAULT 'absent' CHECK(status IN ('present','absent','late')),
-      marked_by TEXT REFERENCES users(id),
-      marked_at TEXT DEFAULT (datetime('now')),
-      notes TEXT,
-      UNIQUE(slot_id, student_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
-    CREATE INDEX IF NOT EXISTS idx_students_year ON students(year);
-    CREATE INDEX IF NOT EXISTS idx_exam_slots_cycle ON exam_slots(cycle_id);
-    CREATE INDEX IF NOT EXISTS idx_seat_assignments_room ON seat_assignments(room_allocation_id);
-    CREATE INDEX IF NOT EXISTS idx_supervisor_duties_faculty ON supervisor_duties(faculty_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
-    CREATE INDEX IF NOT EXISTS idx_attendance_slot ON attendance(slot_id);
-    CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
-
-    CREATE TABLE IF NOT EXISTS broadcasts (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      message TEXT NOT NULL,
-      sent_by TEXT REFERENCES users(id),
-      priority TEXT DEFAULT 'normal' CHECK(priority IN ('normal','urgent','critical')),
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS broadcast_reads (
-      broadcast_id TEXT REFERENCES broadcasts(id) ON DELETE CASCADE,
-      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-      read_at TEXT DEFAULT (datetime('now')),
-      PRIMARY KEY (broadcast_id, user_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS incidents (
-      id TEXT PRIMARY KEY,
-      slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE,
-      room_allocation_id TEXT REFERENCES room_allocations(id) ON DELETE SET NULL,
-      reported_by TEXT REFERENCES users(id),
-      type TEXT NOT NULL CHECK(type IN ('malpractice','disturbance','technical','medical','other')),
-      description TEXT NOT NULL,
-      student_prn TEXT,
-      action_taken TEXT,
-      severity TEXT DEFAULT 'low' CHECK(severity IN ('low','medium','high')),
-      status TEXT DEFAULT 'open' CHECK(status IN ('open','resolved','escalated')),
-      created_at TEXT DEFAULT (datetime('now')),
-      resolved_at TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_incidents_slot ON incidents(slot_id);
-    CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at);
-  `);
-}
-
-function seedInitialData() {
-  const existing = db.prepare('SELECT COUNT(*) as cnt FROM users').get();
+async function seedInitialData() {
+  const db = getDb();
+  const existing = await db.prepare('SELECT COUNT(*) as cnt FROM users').get();
   if (existing.cnt > 0) return;
 
   const coordHash = bcrypt.hashSync('admin123', 10);
   const coordId = crypto.randomUUID();
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, name, email, password_hash, role, department)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(coordId, 'Admin Coordinator', 'admin@mitwpu.edu.in', coordHash, 'coordinator', 'Examination Cell');

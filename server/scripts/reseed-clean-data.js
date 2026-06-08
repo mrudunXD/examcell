@@ -1,15 +1,10 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { initDb, getDb } from '../src/db/database.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DB_PATH = path.resolve(__dirname, '../data/exam_management.db');
-
-console.log(`Connecting to database at ${DB_PATH}...`);
-const db = new Database(DB_PATH);
+console.log('Connecting to PostgreSQL database...');
+await initDb();
+const db = getDb();
 
 // Helper to normalize branch
 function mapProgramToBranches(program) {
@@ -174,20 +169,20 @@ try {
   console.log('🔒 Disabling foreign key constraints temporarily for seed transaction...');
   db.pragma('foreign_keys = OFF');
   
-  db.transaction(() => {
+  await db.transaction(async () => {
     console.log('🗑️ Purging existing timetable, duties, seating, and subjects...');
     
-    db.prepare('DELETE FROM faculty_subjects').run();
-    db.prepare('DELETE FROM supervisor_duties').run();
-    db.prepare('DELETE FROM seat_assignments').run();
-    db.prepare('DELETE FROM room_allocations').run();
-    db.prepare('DELETE FROM slot_students').run();
-    db.prepare('DELETE FROM exam_slots').run();
-    db.prepare('DELETE FROM attendance').run();
-    db.prepare('DELETE FROM incidents').run();
-    db.prepare('DELETE FROM conflicts').run();
-    db.prepare('DELETE FROM subjects').run();
-    db.prepare("DELETE FROM users WHERE role = 'faculty'").run();
+    await db.prepare('DELETE FROM faculty_subjects').run();
+    await db.prepare('DELETE FROM supervisor_duties').run();
+    await db.prepare('DELETE FROM seat_assignments').run();
+    await db.prepare('DELETE FROM room_allocations').run();
+    await db.prepare('DELETE FROM slot_students').run();
+    await db.prepare('DELETE FROM exam_slots').run();
+    await db.prepare('DELETE FROM attendance').run();
+    await db.prepare('DELETE FROM incidents').run();
+    await db.prepare('DELETE FROM conflicts').run();
+    await db.prepare('DELETE FROM subjects').run();
+    await db.prepare("DELETE FROM users WHERE role = 'faculty'").run();
     
     console.log('🌱 Seeding Faculty members (39 entries)...');
     
@@ -217,7 +212,7 @@ try {
       // Determine department loosely based on name or assign 'Common'
       const dept = 'Common';
       
-      insertFaculty.run(uuid, f.name, email, defaultPasswordHash, dept);
+      await insertFaculty.run(uuid, f.name, email, defaultPasswordHash, dept);
       facultyIdsMapped.push(uuid);
       console.log(`  [+] Seeding Faculty: ${f.name} (${email})`);
     }
@@ -274,7 +269,7 @@ try {
           const abbreviation = raw.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().replace(/[^A-Z]/g, '');
           
           try {
-            insertSubject.run(
+            await insertSubject.run(
               uuid,
               code,
               raw.name,
@@ -309,9 +304,9 @@ try {
         const sub1 = seededSubjectIds[i % seededSubjectIds.length];
         const sub2 = seededSubjectIds[(i + 7) % seededSubjectIds.length];
         
-        insertTeaches.run(facId, sub1);
+        await insertTeaches.run(facId, sub1);
         if (sub1 !== sub2) {
-          insertTeaches.run(facId, sub2);
+          await insertTeaches.run(facId, sub2);
         }
       }
       console.log(`  [+] teaches-relations successfully created.`);

@@ -9,7 +9,7 @@ router.use(authenticate);
 // GET conflicts for a cycle
 router.get('/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
-  const conflicts = db.prepare(`
+  const conflicts = await db.prepare(`
     SELECT c.*,
       es.date, es.start_time,
       s.name as subject_name
@@ -25,25 +25,25 @@ router.get('/:cycleId', asyncHandler(async (req, res) => {
 // POST resolve a conflict
 router.post('/:id/resolve', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  db.prepare("UPDATE conflicts SET status='resolved', resolved_at=datetime('now'), resolved_by=? WHERE id=?").run(req.user.id, req.params.id);
+  await db.prepare("UPDATE conflicts SET status='resolved', resolved_at=datetime('now'), resolved_by=? WHERE id=?").run(req.user.id, req.params.id);
   res.json({ success: true });
 }));
 
 // POST ignore a conflict
 router.post('/:id/ignore', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  db.prepare("UPDATE conflicts SET status='ignored', resolved_at=datetime('now'), resolved_by=? WHERE id=?").run(req.user.id, req.params.id);
+  await db.prepare("UPDATE conflicts SET status='ignored', resolved_at=datetime('now'), resolved_by=? WHERE id=?").run(req.user.id, req.params.id);
   res.json({ success: true });
 }));
 
 // POST detect conflicts for a cycle
 router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
   // Clear old auto-detected conflicts for this cycle
-  db.prepare("DELETE FROM conflicts WHERE cycle_id=? AND type IN ('FACULTY_CLASH','STUDENT_CLASH','ROOM_OVERFLOW')")
+  await db.prepare("DELETE FROM conflicts WHERE cycle_id=? AND type IN ('FACULTY_CLASH','STUDENT_CLASH','ROOM_OVERFLOW')")
     .run(req.params.cycleId);
 
   // Prepare ALL statements OUTSIDE the transaction (better-sqlite3 requirement)
@@ -90,14 +90,14 @@ router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res
     HAVING COUNT(DISTINCT es.id) > 1
   `);
 
-  const facultyClashes = facultyClashStmt.all(req.params.cycleId);
-  const overflows = overflowStmt.all(req.params.cycleId);
-  const studentClashes = studentClashStmt.all(req.params.cycleId);
+  const facultyClashes = await facultyClashStmt.all(req.params.cycleId);
+  const overflows = await overflowStmt.all(req.params.cycleId);
+  const studentClashes = await studentClashStmt.all(req.params.cycleId);
 
   let detected = 0;
-  const insertAll = db.transaction(() => {
+  const insertAll = await db.transaction(async () => {
     for (const clash of facultyClashes) {
-      conflStmt.run(
+      await conflStmt.run(
         crypto.randomUUID(), clash.slot_id, req.params.cycleId, 'FACULTY_CLASH',
         `${clash.faculty_name} is assigned to multiple rooms (${clash.rooms}) on ${clash.date} at ${clash.start_time}`,
         clash.faculty_name, 'Reassign one room to a different faculty member'
@@ -105,7 +105,7 @@ router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res
       detected++;
     }
     for (const ov of overflows) {
-      conflStmt.run(
+      await conflStmt.run(
         crypto.randomUUID(), ov.slot_id, req.params.cycleId, 'ROOM_OVERFLOW',
         `Room ${ov.room_no} has ${ov.seated} students but capacity is ${ov.capacity} on ${ov.date}`,
         `Room ${ov.room_no}`, 'Add another room or reduce student count'
@@ -113,7 +113,7 @@ router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res
       detected++;
     }
     for (const sc of studentClashes) {
-      conflStmt.run(
+      await conflStmt.run(
         crypto.randomUUID(), sc.slot_id, req.params.cycleId, 'STUDENT_CLASH',
         `Student ${sc.student_name} (${sc.student_prn}) is scheduled for multiple exams (${sc.subjects}) on ${sc.date} at ${sc.start_time}`,
         `${sc.student_name} (${sc.student_prn})`,
@@ -123,7 +123,7 @@ router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res
     }
   });
 
-  insertAll();
+  await insertAll();
   res.json({ detected, message: `Detected ${detected} conflict(s)` });
 }));
 

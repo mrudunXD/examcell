@@ -11,7 +11,7 @@ router.use(authenticate);
 // GET supervisors for a slot
 router.get('/:slotId', asyncHandler(async (req, res) => {
   const db = getDb();
-  const duties = db.prepare(`
+  const duties = await db.prepare(`
     SELECT sd.*, u.name as faculty_name, u.department,
       c.room_no, c.block,
       es.date, es.start_time,
@@ -32,14 +32,14 @@ router.get('/:slotId', asyncHandler(async (req, res) => {
 router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVISORS', 'supervisors', (req) => req.params.slotId, (req, data) => `Generated ${data?.assigned || 0} supervisor assignments for slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
   const db = getDb();
 
-  const slot = db.prepare(`
+  const slot = await db.prepare(`
     SELECT es.*, s.id as subject_id, s.name as subject_name
     FROM exam_slots es JOIN subjects s ON s.id = es.subject_id
     WHERE es.id=?
   `).get(req.params.slotId);
   if (!slot) return res.status(404).json({ error: 'Slot not found' });
 
-  const rooms = db.prepare(`
+  const rooms = await db.prepare(`
     SELECT ra.id, ra.classroom_id, c.room_no,
       (SELECT COUNT(*) FROM seat_assignments sa WHERE sa.room_allocation_id = ra.id) as seated_count
     FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
@@ -49,8 +49,8 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVIS
   if (!rooms.length) return res.status(400).json({ error: 'No rooms for this slot' });
 
   // Get all active faculty with their subject IDs
-  const faculty = db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
-  const subjectStmt = db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
+  const faculty = await db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const subjectStmt = await db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
   const allFaculty = faculty.map(f => ({
     ...f,
     subject_ids: subjectStmt.all(f.id).map(r => r.subject_id)
@@ -60,7 +60,7 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVIS
   // This ensures truly fair rotation — whoever has done least overall gets picked first
   const globalWorkload = {};
   for (const f of faculty) globalWorkload[f.id] = 0;
-  const allDutyCounts = db.prepare(`
+  const allDutyCounts = await db.prepare(`
     SELECT sd.faculty_id, COUNT(*) as cnt
     FROM supervisor_duties sd
     -- Exclude duties for the current slot (we're re-generating those)
@@ -76,24 +76,24 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVIS
   const { duties, conflicts } = assignSupervisors(slotWithRooms, allFaculty, globalWorkload);
 
   // Save
-  const saveDuties = db.transaction(() => {
+  const saveDuties = await db.transaction(async () => {
     // Delete existing supervisor duties for rooms in this slot
     const raIds = rooms.map(r => r.id);
     for (const raId of raIds) {
-      db.prepare('DELETE FROM supervisor_duties WHERE room_allocation_id=?').run(raId);
+      await db.prepare('DELETE FROM supervisor_duties WHERE room_allocation_id=?').run(raId);
     }
     // Clear old supervisor conflicts for this slot
-    db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('NO_SUPERVISOR_AVAILABLE','NO_CO_SUPERVISOR_AVAILABLE')").run(req.params.slotId);
+    await db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('NO_SUPERVISOR_AVAILABLE','NO_CO_SUPERVISOR_AVAILABLE')").run(req.params.slotId);
 
-    const stmt = db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
-    for (const d of duties) stmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role);
+    const stmt = await db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
+    for (const d of duties) await stmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role);
 
-    const cStmt = db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?)');
-    for (const c of conflicts) cStmt.run(crypto.randomUUID(), req.params.slotId, slot.cycle_id, c.type, c.description, c.suggested_resolution || null);
+    const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?)');
+    for (const c of conflicts) await cStmt.run(crypto.randomUUID(), req.params.slotId, slot.cycle_id, c.type, c.description, c.suggested_resolution || null);
 
-    db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=? AND status != 'finalised'").run(req.params.slotId);
+    await db.prepare("UPDATE exam_slots SET status='supervisors_assigned' WHERE id=? AND status != 'finalised'").run(req.params.slotId);
   });
-  saveDuties();
+  await saveDuties();
 
   res.json({ assigned: duties.length, conflicts, message: `Assigned ${duties.length} supervisor duties.` });
 }));
@@ -104,11 +104,11 @@ router.put('/reassign', requireCoordinator, auditLog('REASSIGN_SUPERVISOR', 'sup
   const { duty_id, new_faculty_id } = req.body;
 
   // 1. Verify faculty exists, is active
-  const faculty = db.prepare("SELECT * FROM users WHERE id=? AND role='faculty' AND is_active=1").get(new_faculty_id);
+  const faculty = await db.prepare("SELECT * FROM users WHERE id=? AND role='faculty' AND is_active=1").get(new_faculty_id);
   if (!faculty) return res.status(400).json({ error: 'Selected user is not an active faculty member' });
 
   // 2. Get slot details for the duty
-  const slot = db.prepare(`
+  const slot = await db.prepare(`
     SELECT es.*, s.name as subject_name, ra.id as room_allocation_id
     FROM supervisor_duties sd
     JOIN room_allocations ra ON ra.id = sd.room_allocation_id
@@ -119,11 +119,11 @@ router.put('/reassign', requireCoordinator, auditLog('REASSIGN_SUPERVISOR', 'sup
   if (!slot) return res.status(404).json({ error: 'Duty assignment not found' });
 
   // 3. Check if faculty teaches the subject
-  const teaches = db.prepare('SELECT 1 FROM faculty_subjects WHERE faculty_id=? AND subject_id=?').get(new_faculty_id, slot.subject_id);
+  const teaches = await db.prepare('SELECT 1 FROM faculty_subjects WHERE faculty_id=? AND subject_id=?').get(new_faculty_id, slot.subject_id);
   if (teaches) return res.status(400).json({ error: `${faculty.name} teaches the subject (${slot.subject_name}) and cannot supervise it.` });
 
   // 4. Check if faculty is already busy in another room at this slot time
-  const busy = db.prepare(`
+  const busy = await db.prepare(`
     SELECT c.room_no
     FROM supervisor_duties sd
     JOIN room_allocations ra ON ra.id = sd.room_allocation_id
@@ -133,7 +133,7 @@ router.put('/reassign', requireCoordinator, auditLog('REASSIGN_SUPERVISOR', 'sup
   `).get(new_faculty_id, slot.date, slot.start_time, duty_id);
   if (busy) return res.status(400).json({ error: `${faculty.name} is already assigned to Room ${busy.room_no} at this slot (${slot.date} ${slot.start_time}).` });
 
-  db.prepare('UPDATE supervisor_duties SET faculty_id=? WHERE id=?').run(new_faculty_id, duty_id);
+  await db.prepare('UPDATE supervisor_duties SET faculty_id=? WHERE id=?').run(new_faculty_id, duty_id);
   res.json({ success: true });
 }));
 
@@ -143,12 +143,12 @@ router.get('/my-duties/:cycleId', asyncHandler(async (req, res) => {
 
   // Faculty can only see duties when cycle is active
   if (req.user.role === 'faculty') {
-    const cycle = db.prepare('SELECT status FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+    const cycle = await db.prepare('SELECT status FROM exam_cycles WHERE id=?').get(req.params.cycleId);
     if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
     if (cycle.status !== 'active') return res.status(403).json({ error: 'Duties are not visible until the exam cycle is set active.', cycle_status: cycle.status });
   }
 
-  const duties = db.prepare(`
+  const duties = await db.prepare(`
     SELECT sd.id, sd.role, sd.acknowledged, sd.acknowledged_at, sd.room_allocation_id, ra.slot_id,
       c.room_no, c.block,
       es.date, es.start_time, es.duration_mins,
@@ -170,10 +170,10 @@ router.get('/my-duties/:cycleId', asyncHandler(async (req, res) => {
 // POST acknowledge duty
 router.post('/acknowledge/:dutyId', auditLog('ACKNOWLEDGE_DUTY', 'supervisors', (req) => req.params.dutyId, (req) => `Faculty acknowledged duty ID: ${req.params.dutyId}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const duty = db.prepare('SELECT * FROM supervisor_duties WHERE id=?').get(req.params.dutyId);
+  const duty = await db.prepare('SELECT * FROM supervisor_duties WHERE id=?').get(req.params.dutyId);
   if (!duty) return res.status(404).json({ error: 'Duty not found' });
   if (duty.faculty_id !== req.user.id) return res.status(403).json({ error: 'Not your duty' });
-  db.prepare("UPDATE supervisor_duties SET acknowledged=1, acknowledged_at=datetime('now') WHERE id=?").run(req.params.dutyId);
+  await db.prepare("UPDATE supervisor_duties SET acknowledged=1, acknowledged_at=datetime('now') WHERE id=?").run(req.params.dutyId);
   res.json({ success: true });
 }));
 

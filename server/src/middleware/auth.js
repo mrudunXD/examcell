@@ -3,7 +3,7 @@ import { getDb } from '../db/database.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mitwpu_exam_secret_2026_change_in_prod';
 
-export function authenticate(req, res, next) {
+export async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -13,7 +13,7 @@ export function authenticate(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const db = getDb();
-    const user = db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ? AND is_active = 1').get(payload.userId);
+    const user = await db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ? AND is_active = 1').get(payload.userId);
     if (!user) return res.status(401).json({ error: 'User not found or deactivated' });
     req.user = user;
     next();

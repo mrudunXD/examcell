@@ -25,7 +25,7 @@ router.get('/', asyncHandler(async (req, res) => {
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
   query += ' ORDER BY year, branch, section, roll_no';
-  res.json(db.prepare(query).all(...params));
+  res.json(await db.prepare(query).all(...params));
 }));
 
 // POST /api/students
@@ -35,29 +35,29 @@ router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req
   if (!name || !prn || !roll_no || !branch || !year || !semester)
     return res.status(400).json({ error: 'name, prn, roll_no, branch, year, semester are required' });
   const id = crypto.randomUUID();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO students (id, name, prn, roll_no, branch, section, year, semester)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, name.trim(), prn.trim(), roll_no.trim(), branch.trim(), (section || '').trim() || null, year, parseInt(semester));
-  res.status(201).json(db.prepare('SELECT * FROM students WHERE id = ?').get(id));
+  res.status(201).json(await db.prepare('SELECT * FROM students WHERE id = ?').get(id));
 }));
 
 // PUT /api/students/:id
 router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (req) => req.params.id, (req, data) => `Updated student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
-  db.prepare(`
+  await db.prepare(`
     UPDATE students
     SET name=?, prn=?, roll_no=?, branch=?, section=?, year=?, semester=?, updated_at=datetime('now')
     WHERE id=? AND is_active=1
   `).run(name, prn, roll_no, branch, (section || '').trim() || null, year, parseInt(semester), req.params.id);
-  res.json(db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
+  res.json(await db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
 }));
 
 // DELETE /api/students/:id  (soft delete)
 router.delete('/:id', requireCoordinator, auditLog('DELETE_STUDENT', 'students', (req) => req.params.id, (req) => `Soft-deleted student ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  db.prepare("UPDATE students SET is_active=0 WHERE id=?").run(req.params.id);
+  await db.prepare("UPDATE students SET is_active=0 WHERE id=?").run(req.params.id);
   res.json({ success: true });
 }));
 
@@ -81,7 +81,7 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const insertMany = db.transaction((rows) => {
+  const insertMany = await db.transaction(async (rows) => {
     for (const row of rows) {
       try {
         const required = ['name', 'prn', 'roll_no', 'branch', 'year', 'semester'];
@@ -91,7 +91,7 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
         if (!validYears.includes(row.year?.toUpperCase())) {
           failed.push({ row, reason: 'year must be FY/SY/TY/LY' }); continue;
         }
-        stmt.run(
+        await stmt.run(
           crypto.randomUUID(),
           row.name.trim(), row.prn.trim(), row.roll_no.trim(),
           row.branch.trim(), (row.section || '').trim() || null,
@@ -104,7 +104,7 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
     }
   });
 
-  insertMany(data);
+  await insertMany(data);
   res.json({ inserted: inserted.length, failed, total: data.length });
 }));
 

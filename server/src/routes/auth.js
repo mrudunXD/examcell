@@ -12,7 +12,7 @@ router.post('/login', asyncHandler(async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
   const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email.toLowerCase().trim());
+  const user = await db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email.toLowerCase().trim());
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
   const valid = bcrypt.compareSync(password, user.password_hash);

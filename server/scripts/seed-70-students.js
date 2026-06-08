@@ -1,18 +1,16 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { initDb, getDb } from '../src/db/database.js';
 import crypto from 'crypto';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '../data/exam_management.db');
-const db = new Database(DB_PATH);
+console.log('Connecting to PostgreSQL database...');
+await initDb();
+const db = getDb();
 
 console.log("Deleting all old students and related records...");
-db.transaction(() => {
-  db.prepare("DELETE FROM seat_assignments").run();
-  db.prepare("DELETE FROM slot_students").run();
-  db.prepare("DELETE FROM attendance").run();
-  db.prepare("DELETE FROM students").run();
+await db.transaction(async () => {
+  await db.prepare("DELETE FROM seat_assignments").run();
+  await db.prepare("DELETE FROM slot_students").run();
+  await db.prepare("DELETE FROM attendance").run();
+  await db.prepare("DELETE FROM students").run();
 })();
 
 const branches = ['CSE', 'CSE (AIDS)', 'CE', 'ECE', 'ME', 'MRA'];
@@ -29,7 +27,7 @@ const insertStmt = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
 `);
 
-db.transaction(() => {
+await db.transaction(async () => {
   let count = 0;
   for (const branch of branches) {
     for (const yr of years) {
@@ -40,7 +38,7 @@ db.transaction(() => {
           const prn = `PRN_${branch}_${sem}_${String(i).padStart(3, '0')}`;
           const roll_no = `${section}-${String(i).padStart(2, '0')}`;
           const name = `${branch} ${yr.name} Student ${i}`;
-          insertStmt.run(id, name, prn, roll_no, branch, section, yr.name, sem);
+          await insertStmt.run(id, name, prn, roll_no, branch, section, yr.name, sem);
           count++;
         }
       }

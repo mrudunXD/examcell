@@ -3,24 +3,29 @@ import { getDb } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
+import { broadcastUpdate } from '../services/socket.js';
 
 const router = Router();
 router.use(authenticate);
 
-function verifyAttendanceAccess(req, res, next) {
-  if (req.user.role === 'coordinator') return next();
-  const db = getDb();
-  const isAssigned = db.prepare(`
-    SELECT 1 FROM supervisor_duties sd
-    JOIN room_allocations ra ON ra.id = sd.room_allocation_id
-    WHERE sd.faculty_id = ? AND ra.slot_id = ?
-    LIMIT 1
-  `).get(req.user.id, req.params.slotId);
+async function verifyAttendanceAccess(req, res, next) {
+  try {
+    if (req.user.role === 'coordinator') return next();
+    const db = getDb();
+    const isAssigned = await db.prepare(`
+      SELECT 1 FROM supervisor_duties sd
+      JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+      WHERE sd.faculty_id = ? AND ra.slot_id = ?
+      LIMIT 1
+    `).get(req.user.id, req.params.slotId);
 
-  if (!isAssigned) {
-    return res.status(403).json({ error: 'Access denied: You are not assigned to this exam slot.' });
+    if (!isAssigned) {
+      return res.status(403).json({ error: 'Access denied: You are not assigned to this exam slot.' });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 }
 
 // Prepared outside transaction — safe for better-sqlite3
@@ -54,7 +59,7 @@ router.get('/:slotId', verifyAttendanceAccess, asyncHandler(async (req, res) => 
   }
   query += ' ORDER BY sa.bench_row, sa.bench_col, s.roll_no';
 
-  const records = db.prepare(query).all(...params);
+  const records = await db.prepare(query).all(...params);
   res.json(records);
 }));
 
@@ -62,17 +67,17 @@ router.get('/:slotId', verifyAttendanceAccess, asyncHandler(async (req, res) => 
 router.get('/:slotId/summary', verifyAttendanceAccess, asyncHandler(async (req, res) => {
   const db = getDb();
   // Count total seated students in this slot
-  const total = db.prepare(`
+  const total = await db.prepare(`
     SELECT COUNT(DISTINCT sa.student_id) as cnt
     FROM seat_assignments sa
     JOIN room_allocations ra ON ra.id = sa.room_allocation_id
     WHERE ra.slot_id = ?
   `).get(req.params.slotId)?.cnt || 0;
 
-  const present  = db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='present'").get(req.params.slotId)?.cnt || 0;
-  const absent   = db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='absent'").get(req.params.slotId)?.cnt || 0;
-  const late     = db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='late'").get(req.params.slotId)?.cnt || 0;
-  const marked   = db.prepare('SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=?').get(req.params.slotId)?.cnt || 0;
+  const present  = await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='present'").get(req.params.slotId)?.cnt || 0;
+  const absent   = await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='absent'").get(req.params.slotId)?.cnt || 0;
+  const late     = await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='late'").get(req.params.slotId)?.cnt || 0;
+  const marked   = await db.prepare('SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=?').get(req.params.slotId)?.cnt || 0;
   res.json({ total, present, absent, late, marked, unmarked: total - marked });
 }));
 
@@ -94,9 +99,9 @@ router.post('/:slotId', verifyAttendanceAccess, auditLog('SAVE_ATTENDANCE', 'att
   `);
 
   let count = 0;
-  const upsert = db.transaction((recs) => {
+  const upsert = await db.transaction(async (recs) => {
     for (const r of recs) {
-      stmt.run(
+      await stmt.run(
         crypto.randomUUID(),
         req.params.slotId,
         r.student_id,
@@ -109,7 +114,8 @@ router.post('/:slotId', verifyAttendanceAccess, auditLog('SAVE_ATTENDANCE', 'att
     }
   });
 
-  upsert(records);
+  await upsert(records);
+  broadcastUpdate('ATTENDANCE_MARKED', { slotId: req.params.slotId, updatedCount: count });
   res.json({ updated: count });
 }));
 

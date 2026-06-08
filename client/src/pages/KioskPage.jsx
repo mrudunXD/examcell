@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { 
   Sun, 
   Moon, 
@@ -498,6 +499,53 @@ export default function KioskPage() {
   const [seatingData, setSeatingData] = useState(null);
   const [loadingSeating, setLoadingSeating] = useState(false);
 
+  // WebSocket Connection State
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  useEffect(() => {
+    const socketUrl = window.location.origin.includes('5173')
+      ? 'http://localhost:5000'
+      : window.location.origin;
+
+    console.log(`Connecting to WebSocket server at: ${socketUrl}`);
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('📡 WebSocket connected successfully');
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.warn('🔌 WebSocket disconnected');
+      setSocketConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('⚠️ WebSocket connection error:', err);
+      setSocketConnected(false);
+    });
+
+    // Listen for events
+    socket.on('EMERGENCY_BROADCAST', (broadcast) => {
+      console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
+      loadData();
+    });
+
+    socket.on('SCHEDULE_REGENERATED', (data) => {
+      console.log('📣 SCHEDULE_REGENERATED received:', data);
+      if (data.cycleId === cycleId) {
+        loadData();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [cycleId, loadData]);
+
   // Request screen wake lock to prevent TV/Smartboard from going to sleep
   useEffect(() => {
     let wakeLock = null;
@@ -734,6 +782,28 @@ export default function KioskPage() {
                     <span>Live</span>
                   </>
                 )}
+              </div>
+
+              {/* Socket.io connection state */}
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 8px',
+                background: socketConnected ? 'rgba(22, 101, 52, 0.1)' : 'rgba(204, 0, 0, 0.1)',
+                border: `1.5px solid ${socketConnected ? '#166534' : 'var(--np-red)'}`,
+                color: socketConnected ? '#166534' : 'var(--np-red)',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-mono)',
+                textTransform: 'uppercase',
+              }}>
+                <div style={{
+                  width: 6, height: 6,
+                  borderRadius: '50%',
+                  background: socketConnected ? '#166534' : 'var(--np-red)',
+                }} />
+                <span>{socketConnected ? 'Connected' : 'Disconnected'}</span>
               </div>
 
               {isOffline && (

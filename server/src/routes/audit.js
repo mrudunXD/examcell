@@ -10,7 +10,7 @@ router.use(authenticate, requireCoordinator);
 router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
   const limit = parseInt(req.query.limit) || 50;
-  const logs = db.prepare(`
+  const logs = await db.prepare(`
     SELECT al.*, u.name as user_name
     FROM audit_log al
     LEFT JOIN users u ON u.id = al.user_id

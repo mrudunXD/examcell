@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import {
   Activity, AlertTriangle, CheckCircle, Clock, Users, Shield,
   Zap, RefreshCw, ChevronRight, Eye, Radio
@@ -161,6 +162,50 @@ export default function LiveDashboardPage() {
   }, []);
 
   useEffect(() => { if (selectedCycle) fetchLive(selectedCycle); }, [selectedCycle, fetchLive]);
+
+  // WebSocket live synchronization
+  useEffect(() => {
+    if (!selectedCycle) return;
+
+    const socketUrl = window.location.origin.includes('5173')
+      ? 'http://localhost:5000'
+      : window.location.origin;
+
+    console.log(`Connecting LiveDashboard to WebSocket server at: ${socketUrl}`);
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('📡 LiveDashboard WebSocket connected successfully');
+    });
+
+    socket.on('disconnect', () => {
+      console.warn('🔌 LiveDashboard WebSocket disconnected');
+    });
+
+    // Listen for events
+    socket.on('ATTENDANCE_MARKED', (data) => {
+      console.log('📣 WebSocket ATTENDANCE_MARKED received:', data);
+      fetchLive(selectedCycle);
+    });
+
+    socket.on('INCIDENT_REPORTED', (incident) => {
+      console.log('📣 WebSocket INCIDENT_REPORTED received:', incident);
+      toast.error(`New Incident: ${incident.type} severity ${incident.severity} - ${incident.description}`);
+      fetchLive(selectedCycle);
+    });
+
+    socket.on('INCIDENT_UPDATED', (incident) => {
+      console.log('📣 WebSocket INCIDENT_UPDATED received:', incident);
+      fetchLive(selectedCycle);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [selectedCycle, fetchLive]);
 
   // Auto-refresh every 30s
   useEffect(() => {

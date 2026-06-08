@@ -26,7 +26,7 @@ router.use(authenticate);
 
 router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
-  res.json(db.prepare('SELECT * FROM subjects ORDER BY semester, code').all());
+  res.json(await db.prepare('SELECT * FROM subjects ORDER BY semester, code').all());
 }));
 
 router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req, data) => data?.id, (req, data) => `Created subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
@@ -36,27 +36,27 @@ router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req
     return res.status(400).json({ error: 'code, name, branch, year, semester required' });
   const finalBranch = inferBranchFromCode(code, branch);
   const id = crypto.randomUUID();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO subjects (id, code, name, branch, year, semester, abbreviation, course_type)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, code.trim(), name.trim(), finalBranch.trim(), year, parseInt(semester), abbreviation || null, course_type || null);
-  res.status(201).json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(id));
+  res.status(201).json(await db.prepare('SELECT * FROM subjects WHERE id = ?').get(id));
 }));
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (req) => req.params.id, (req, data) => `Updated subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
   const finalBranch = inferBranchFromCode(code, branch);
-  db.prepare(`
+  await db.prepare(`
     UPDATE subjects SET code=?, name=?, branch=?, year=?, semester=?, abbreviation=?, course_type=?
     WHERE id=?
   `).run(code, name, finalBranch, year, parseInt(semester), abbreviation || null, course_type || null, req.params.id);
-  res.json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id));
+  res.json(await db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id));
 }));
 
 router.delete('/:id', requireCoordinator, auditLog('DELETE_SUBJECT', 'subjects', (req) => req.params.id, (req) => `Deleted subject ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  db.prepare('DELETE FROM subjects WHERE id=?').run(req.params.id);
+  await db.prepare('DELETE FROM subjects WHERE id=?').run(req.params.id);
   res.json({ success: true });
 }));
 

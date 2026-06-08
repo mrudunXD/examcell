@@ -13,25 +13,25 @@ router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
   const term = `%${q.trim()}%`;
 
-  const students = db.prepare(`
+  const students = await db.prepare(`
     SELECT id, name, prn, roll_no, branch, year, semester
     FROM students WHERE is_active=1 AND (name LIKE ? OR prn LIKE ? OR roll_no LIKE ?)
     LIMIT 10
   `).all(term, term, term);
 
-  const subjects = db.prepare(`
+  const subjects = await db.prepare(`
     SELECT id, name, code, branch, year, semester, abbreviation
     FROM subjects WHERE name LIKE ? OR code LIKE ? OR abbreviation LIKE ?
     LIMIT 10
   `).all(term, term, term);
 
-  const faculty = db.prepare(`
+  const faculty = await db.prepare(`
     SELECT id, name, email, department, role
     FROM users WHERE is_active=1 AND (name LIKE ? OR email LIKE ? OR department LIKE ?)
     LIMIT 10
   `).all(term, term, term);
 
-  const cycles = db.prepare(`
+  const cycles = await db.prepare(`
     SELECT id, name, start_date, end_date, status, semester_type
     FROM exam_cycles WHERE name LIKE ?
     LIMIT 5

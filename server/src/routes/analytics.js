@@ -10,16 +10,16 @@ router.use(authenticate, requireCoordinator);
 router.get('/heatmap', asyncHandler(async (req, res) => {
   const db = getDb();
 
-  const faculty = db.prepare(`
+  const faculty = await db.prepare(`
     SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1 ORDER BY name
   `).all();
 
-  const cycles = db.prepare(`
+  const cycles = await db.prepare(`
     SELECT id, name, start_date, status FROM exam_cycles ORDER BY start_date DESC LIMIT 10
   `).all();
 
   // Duty counts per faculty per cycle
-  const duties = db.prepare(`
+  const duties = await db.prepare(`
     SELECT sd.faculty_id, es.cycle_id, COUNT(*) as duty_count
     FROM supervisor_duties sd
     JOIN room_allocations ra ON ra.id = sd.room_allocation_id
@@ -35,7 +35,7 @@ router.get('/heatmap', asyncHandler(async (req, res) => {
   }
 
   // Total per faculty
-  const totals = db.prepare(`
+  const totals = await db.prepare(`
     SELECT sd.faculty_id, COUNT(*) as total
     FROM supervisor_duties sd
     GROUP BY sd.faculty_id
@@ -49,7 +49,7 @@ router.get('/heatmap', asyncHandler(async (req, res) => {
 // GET faculty load for a specific cycle
 router.get('/load/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
-  const loads = db.prepare(`
+  const loads = await db.prepare(`
     SELECT u.id, u.name, u.department,
       COUNT(DISTINCT sd.id) as duty_count,
       COUNT(DISTINCT es.date) as exam_days,
@@ -75,11 +75,11 @@ router.get('/live/:cycleId', asyncHandler(async (req, res) => {
   const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
   const now = new Date().toTimeString().slice(0, 5); // HH:MM
 
-  const cycle = db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
   // Today's slots
-  const todaySlots = db.prepare(`
+  const todaySlots = await db.prepare(`
     SELECT es.*, s.name as subject_name, s.code as subject_code,
       s.branch, s.year, s.semester,
       COUNT(DISTINCT sa.id) as seated_count,
@@ -101,7 +101,7 @@ router.get('/live/:cycleId', asyncHandler(async (req, res) => {
   `).all(req.params.cycleId, today);
 
   // Upcoming slots (next 3 days)
-  const upcomingSlots = db.prepare(`
+  const upcomingSlots = await db.prepare(`
     SELECT es.date, COUNT(*) as slot_count,
       GROUP_CONCAT(DISTINCT s.code) as subjects
     FROM exam_slots es
@@ -113,7 +113,7 @@ router.get('/live/:cycleId', asyncHandler(async (req, res) => {
   `).all(req.params.cycleId, today);
 
   // Open incidents today
-  const openIncidents = db.prepare(`
+  const openIncidents = await db.prepare(`
     SELECT i.*, u.name as reported_by_name, c.room_no
     FROM incidents i
     LEFT JOIN users u ON u.id = i.reported_by

@@ -3,6 +3,7 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
+import { broadcastUpdate } from '../services/socket.js';
 
 const router = Router();
 router.use(authenticate);
@@ -43,7 +44,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
   query += ' ORDER BY i.created_at DESC';
 
-  res.json(db.prepare(query).all(...params));
+  res.json(await db.prepare(query).all(...params));
 }));
 
 // POST report a new incident
@@ -53,26 +54,30 @@ router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.i
   if (!slot_id || !type || !description) return res.status(400).json({ error: 'slot_id, type, description required' });
 
   const id = crypto.randomUUID();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO incidents (id, slot_id, room_allocation_id, reported_by, type, description, student_prn, action_taken, severity)
     VALUES (?,?,?,?,?,?,?,?,?)
   `).run(id, slot_id, room_allocation_id || null, req.user.id, type, description, student_prn || null, action_taken || null, severity || 'low');
 
-  res.status(201).json(db.prepare('SELECT * FROM incidents WHERE id=?').get(id));
+  const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(id);
+  broadcastUpdate('INCIDENT_REPORTED', incident);
+  res.status(201).json(incident);
 }));
 
 // PATCH update status/resolution
 router.patch('/:id', requireCoordinator, auditLog('RESOLVE_INCIDENT', 'incidents', (req) => req.params.id, (req, data) => `Updated incident ID: ${req.params.id} (status: ${data?.status})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { status, action_taken } = req.body;
-  db.prepare(`
+  await db.prepare(`
     UPDATE incidents SET 
       status = COALESCE(?, status),
       action_taken = COALESCE(?, action_taken),
       resolved_at = CASE WHEN ? = 'resolved' THEN datetime('now') ELSE resolved_at END
     WHERE id = ?
   `).run(status, action_taken, status, req.params.id);
-  res.json(db.prepare('SELECT * FROM incidents WHERE id=?').get(req.params.id));
+  const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(req.params.id);
+  broadcastUpdate('INCIDENT_UPDATED', incident);
+  res.json(incident);
 }));
 
 export default router;

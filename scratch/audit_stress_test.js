@@ -1,16 +1,16 @@
-import Database from 'better-sqlite3';
+import { initDb, getDb } from '../server/src/db/database.js';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DB_PATH = path.resolve(__dirname, '../server/data/exam_management.db');
 const PY_PATH = path.resolve(__dirname, '../server/src/services/scheduler.py');
 
 console.log('🧪 Starting Autonomous QA Audit & Stress-Testing Suite...');
-console.log(`Connecting to database at ${DB_PATH}...`);
-const db = new Database(DB_PATH);
+console.log('Connecting to PostgreSQL database...');
+await initDb();
+const db = getDb();
 
 // Helper to run solver process
 function runSolver(inputData) {
