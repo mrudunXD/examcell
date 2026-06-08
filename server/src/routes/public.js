@@ -59,7 +59,7 @@ router.get('/kiosk/:cycleId', asyncHandler(async (req, res) => {
     WHERE ra.slot_id = ?
   `);
   for (const s of slots) {
-    s.rooms = roomStmt.all(s.id);
+    s.rooms = await roomStmt.all(s.id);
   }
 
   // Get broadcasts (urgent/critical)

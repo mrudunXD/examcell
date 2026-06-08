@@ -55,10 +55,10 @@ router.post('/:id/read', asyncHandler(async (req, res) => {
 // GET unread count for current user
 router.get('/unread-count', asyncHandler(async (req, res) => {
   const db = getDb();
-  const count = await db.prepare(`
+  const count = (await db.prepare(`
     SELECT COUNT(*) as cnt FROM broadcasts b
     WHERE NOT EXISTS (SELECT 1 FROM broadcast_reads WHERE broadcast_id=b.id AND user_id=?)
-  `).get(req.user.id)?.cnt || 0;
+  `).get(req.user.id))?.cnt || 0;
   res.json({ count });
 }));
 

@@ -502,50 +502,6 @@ export default function KioskPage() {
   // WebSocket Connection State
   const [socketConnected, setSocketConnected] = useState(false);
 
-  useEffect(() => {
-    const socketUrl = window.location.origin.includes('5173')
-      ? 'http://localhost:5000'
-      : window.location.origin;
-
-    console.log(`Connecting to WebSocket server at: ${socketUrl}`);
-    const socket = io(socketUrl, {
-      withCredentials: true,
-      transports: ['websocket', 'polling']
-    });
-
-    socket.on('connect', () => {
-      console.log('📡 WebSocket connected successfully');
-      setSocketConnected(true);
-    });
-
-    socket.on('disconnect', () => {
-      console.warn('🔌 WebSocket disconnected');
-      setSocketConnected(false);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('⚠️ WebSocket connection error:', err);
-      setSocketConnected(false);
-    });
-
-    // Listen for events
-    socket.on('EMERGENCY_BROADCAST', (broadcast) => {
-      console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
-      loadData();
-    });
-
-    socket.on('SCHEDULE_REGENERATED', (data) => {
-      console.log('📣 SCHEDULE_REGENERATED received:', data);
-      if (data.cycleId === cycleId) {
-        loadData();
-      }
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [cycleId, loadData]);
-
   // Request screen wake lock to prevent TV/Smartboard from going to sleep
   useEffect(() => {
     let wakeLock = null;
@@ -628,6 +584,50 @@ export default function KioskPage() {
     }, 30000);
     return () => clearInterval(id);
   }, [loadData]);
+
+  useEffect(() => {
+    const socketUrl = window.location.origin.includes('5173')
+      ? 'http://localhost:5000'
+      : window.location.origin;
+
+    console.log(`Connecting to WebSocket server at: ${socketUrl}`);
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('📡 WebSocket connected successfully');
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.warn('🔌 WebSocket disconnected');
+      setSocketConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('⚠️ WebSocket connection error:', err);
+      setSocketConnected(false);
+    });
+
+    // Listen for events
+    socket.on('EMERGENCY_BROADCAST', (broadcast) => {
+      console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
+      loadData();
+    });
+
+    socket.on('SCHEDULE_REGENERATED', (data) => {
+      console.log('📣 SCHEDULE_REGENERATED received:', data);
+      if (data.cycleId === cycleId) {
+        loadData();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [cycleId, loadData]);
 
   // Sync theme selection
   useEffect(() => {

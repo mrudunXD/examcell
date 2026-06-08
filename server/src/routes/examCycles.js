@@ -346,7 +346,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
           for (const iv of slotInvigilators) {
             const raId = raMap[iv.classroom_id];
             if (raId) {
-              const existingDuties = db.prepare('SELECT COUNT(*) as cnt FROM supervisor_duties WHERE room_allocation_id=?').get(raId);
+              const existingDuties = await db.prepare('SELECT COUNT(*) as cnt FROM supervisor_duties WHERE room_allocation_id=?').get(raId);
               const role = (existingDuties && existingDuties.cnt > 0) ? 'co' : 'primary';
               await invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, role);
             }
@@ -439,10 +439,10 @@ async function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false)
 
   if (!students.length || !rooms.length) return;
 
-  const existingSeatingCount = await db.prepare(`
+  const existingSeatingCount = (await db.prepare(`
     SELECT COUNT(*) as cnt FROM seat_assignments
     WHERE room_allocation_id IN (SELECT id FROM room_allocations WHERE slot_id = ?)
-  `).get(slotId)?.cnt || 0;
+  `).get(slotId))?.cnt || 0;
 
   const shouldGenerateSeating = forceSeating || existingSeatingCount === 0;
 

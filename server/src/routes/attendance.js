@@ -67,17 +67,17 @@ router.get('/:slotId', verifyAttendanceAccess, asyncHandler(async (req, res) => 
 router.get('/:slotId/summary', verifyAttendanceAccess, asyncHandler(async (req, res) => {
   const db = getDb();
   // Count total seated students in this slot
-  const total = await db.prepare(`
+  const total = (await db.prepare(`
     SELECT COUNT(DISTINCT sa.student_id) as cnt
     FROM seat_assignments sa
     JOIN room_allocations ra ON ra.id = sa.room_allocation_id
     WHERE ra.slot_id = ?
-  `).get(req.params.slotId)?.cnt || 0;
+  `).get(req.params.slotId))?.cnt || 0;
 
-  const present  = await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='present'").get(req.params.slotId)?.cnt || 0;
-  const absent   = await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='absent'").get(req.params.slotId)?.cnt || 0;
-  const late     = await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='late'").get(req.params.slotId)?.cnt || 0;
-  const marked   = await db.prepare('SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=?').get(req.params.slotId)?.cnt || 0;
+  const present  = (await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='present'").get(req.params.slotId))?.cnt || 0;
+  const absent   = (await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='absent'").get(req.params.slotId))?.cnt || 0;
+  const late     = (await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='late'").get(req.params.slotId))?.cnt || 0;
+  const marked   = (await db.prepare('SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=?').get(req.params.slotId))?.cnt || 0;
   res.json({ total, present, absent, late, marked, unmarked: total - marked });
 }));
 
