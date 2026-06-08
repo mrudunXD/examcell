@@ -19,6 +19,34 @@ router.use(authenticate);
 // Semester parity helper
 function semParity(sem) { return sem % 2 === 1 ? 'odd' : 'even'; }
 
+// Student list query helper for branch/section separation
+async function getStudentsForSubject(db, subject) {
+  if (subject.branch === 'CSE') {
+    const codeUpper = subject.code.toUpperCase();
+    if (codeUpper.startsWith('AID')) {
+      // Section AIDS only
+      return await db.prepare(`
+        SELECT id FROM students WHERE is_active=1 AND year=? AND branch='CSE' AND semester=? AND section='AIDS'
+      `).all(subject.year, subject.semester);
+    } else if (codeUpper.startsWith('CSE') && !codeUpper.includes('AID')) {
+      // Standard sections only (not AIDS)
+      return await db.prepare(`
+        SELECT id FROM students WHERE is_active=1 AND year=? AND branch='CSE' AND semester=? AND section != 'AIDS'
+      `).all(subject.year, subject.semester);
+    } else {
+      // Common/all sections
+      return await db.prepare(`
+        SELECT id FROM students WHERE is_active=1 AND year=? AND branch='CSE' AND semester=?
+      `).all(subject.year, subject.semester);
+    }
+  } else {
+    // Standard branch grouping
+    return await db.prepare(`
+      SELECT id FROM students WHERE is_active=1 AND year=? AND branch=? AND semester=?
+    `).all(subject.year, subject.branch, subject.semester);
+  }
+}
+
 // Date helpers
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -199,7 +227,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
   const teaches = await db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
   const classrooms = await db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
   const faculty = await db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
-  const students = await db.prepare("SELECT id, name, prn, roll_no, branch, year, semester FROM students WHERE is_active=1").all();
+  const students = await db.prepare("SELECT id, name, prn, roll_no, branch, year, semester, section FROM students WHERE is_active=1").all();
 
   const solverShifts = custom_shifts || [
     { id: '1', name: 'Shift 1', start_time: '09:30', duration_mins: 180 },
@@ -210,6 +238,21 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     solverShifts.forEach(s => s.duration_mins = parseInt(duration_mins));
   }
 
+  // Map branch of AIDS students and subjects to 'CSE (AIDS)' for the solver to keep them separated
+  const solverStudents = students.map(s => {
+    if (s.branch === 'CSE' && s.section === 'AIDS') {
+      return { ...s, branch: 'CSE (AIDS)' };
+    }
+    return s;
+  });
+
+  const solverSubjects = subjects.map(s => {
+    if (s.branch === 'CSE' && s.code.toUpperCase().trim().startsWith('AID')) {
+      return { ...s, branch: 'CSE (AIDS)' };
+    }
+    return s;
+  });
+
   const inputData = {
     cycle: {
       id: cycle.id,
@@ -218,8 +261,8 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
       end_date: endDate,
       semester_type: cycle.semester_type
     },
-    subjects,
-    students,
+    subjects: solverSubjects,
+    students: solverStudents,
     classrooms,
     faculty,
     teaches,
@@ -253,9 +296,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
 
           // Link students to slot
           const subj = await db.prepare('SELECT * FROM subjects WHERE id=?').get(s.subject_id);
-          const autoStudents = await db.prepare(`
-            SELECT id FROM students WHERE is_active=1 AND year=? AND branch=? AND semester=?
-          `).all(subj.year, subj.branch, subj.semester);
+          const autoStudents = await getStudentsForSubject(db, subj);
 
           const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
           for (const stud of autoStudents) {
@@ -524,11 +565,7 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
       for (const cid of classroom_ids) await raStmt.run(crypto.randomUUID(), slotId, cid);
     }
 
-    // AUTO-ASSIGN STUDENTS: all active students in this year+branch+semester
-    const autoStudents = await db.prepare(`
-      SELECT id FROM students
-      WHERE is_active=1 AND year=? AND branch=? AND semester=?
-    `).all(subject.year, subject.branch, subject.semester);
+    const autoStudents = await getStudentsForSubject(db, subject);
 
     const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
     for (const s of autoStudents) await ssStmt.run(slotId, s.id);
@@ -579,10 +616,7 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (re
 
     // Always sync/refresh the students in slot_students to match latest students in the database
     await db.prepare('DELETE FROM slot_students WHERE slot_id=?').run(req.params.slotId);
-    const autoStudents = await db.prepare(`
-      SELECT id FROM students
-      WHERE is_active=1 AND year=? AND branch=? AND semester=?
-    `).all(subject.year, subject.branch, subject.semester);
+    const autoStudents = await getStudentsForSubject(db, subject);
 
     const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
     for (const s of autoStudents) await ssStmt.run(req.params.slotId, s.id);

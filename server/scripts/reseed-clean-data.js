@@ -10,16 +10,12 @@ const db = getDb();
 function mapProgramToBranches(program) {
   const p = program.toUpperCase();
   if (p.includes('COMMON TO ALL') || p.includes('COMMON FOR ALL') || p === 'ALL') {
-    return ['CE', 'CSE', 'CSE (AIDS)', 'ECE', 'ME', 'MRA'];
+    return ['CE', 'CSE', 'ECE', 'ME', 'MRA'];
   }
   const branches = [];
   if (p.includes('CIVIL') || (p.includes('CE') && !p.includes('ECE'))) branches.push('CE');
   if (p.includes('CSE') || p.includes('AIDS') || p.includes('DATA ANALYTICS') || p.includes('JAVA')) {
-    if (p.includes('AIDS')) {
-      branches.push('CSE (AIDS)');
-    } else {
-      branches.push('CSE');
-    }
+    branches.push('CSE');
   }
   if (p.includes('ECE') || p.includes('ANALOG')) branches.push('ECE');
   if (p.includes('MRA') || p.includes('ROBO')) {
@@ -29,7 +25,7 @@ function mapProgramToBranches(program) {
   }
   
   if (branches.length === 0) {
-    if (p.includes('COMMON')) return ['CE', 'CSE', 'CSE (AIDS)', 'ECE', 'ME', 'MRA'];
+    if (p.includes('COMMON')) return ['CE', 'CSE', 'ECE', 'ME', 'MRA'];
     branches.push('CSE');
   }
   return [...new Set(branches)];
@@ -241,7 +237,7 @@ try {
         for (const code of codes) {
           const codeUpper = code.toUpperCase().trim();
           if (codeUpper.startsWith('AID')) {
-            branch = 'CSE (AIDS)';
+            branch = 'CSE';
           } else if (codeUpper.startsWith('AIML')) {
             branch = 'ECE (AI&ML)';
           } else if (codeUpper.startsWith('CYB') || codeUpper.startsWith('CS')) {

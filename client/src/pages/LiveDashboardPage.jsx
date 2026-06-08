@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import io from 'socket.io-client';
 import {
   Activity, AlertTriangle, CheckCircle, Clock, Users, Shield,
   Zap, RefreshCw, ChevronRight, Eye, Radio

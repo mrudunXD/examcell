@@ -14,6 +14,27 @@ const db = getDb();
 
 // Helper to run solver process
 function runSolver(inputData) {
+  // Map branch of AIDS students and subjects to 'CSE (AIDS)' for the solver to keep them separated
+  const solverStudents = (inputData.students || []).map(s => {
+    if (s.branch === 'CSE' && s.section === 'AIDS') {
+      return { ...s, branch: 'CSE (AIDS)' };
+    }
+    return s;
+  });
+
+  const solverSubjects = (inputData.subjects || []).map(s => {
+    if (s.branch === 'CSE' && s.code && s.code.toUpperCase().trim().startsWith('AID')) {
+      return { ...s, branch: 'CSE (AIDS)' };
+    }
+    return s;
+  });
+
+  const mappedInputData = {
+    ...inputData,
+    students: solverStudents,
+    subjects: solverSubjects
+  };
+
   return new Promise((resolve, reject) => {
     const solverProcess = spawn('python', [PY_PATH]);
     
@@ -40,7 +61,7 @@ function runSolver(inputData) {
       }
     });
     
-    solverProcess.stdin.write(JSON.stringify(inputData));
+    solverProcess.stdin.write(JSON.stringify(mappedInputData));
     solverProcess.stdin.end();
   });
 }
@@ -64,23 +85,23 @@ async function runTests() {
   // -------------------------------------------------------------
   console.log('\n--- Test 1: Database Branch Inference & Specialization Mapping ---');
   try {
-    const aidSubjects = db.prepare("SELECT * FROM subjects WHERE code LIKE 'AID%'").all();
-    const allAidCorrect = aidSubjects.every(s => s.branch === 'CSE (AIDS)');
+    const aidSubjects = await db.prepare("SELECT * FROM subjects WHERE code LIKE 'AID%'").all();
+    const allAidCorrect = aidSubjects.every(s => s.branch === 'CSE');
     assert(aidSubjects.length > 0, `Found ${aidSubjects.length} subjects with code starting with AID.`);
-    assert(allAidCorrect, 'All subjects with codes starting with AID are classified under the branch "CSE (AIDS)".');
+    assert(allAidCorrect, 'All subjects with codes starting with AID are classified under the branch "CSE".');
 
-    const cseStudents = db.prepare("SELECT COUNT(*) as count FROM students WHERE branch = 'CSE (AIDS)'").get();
-    assert(cseStudents.count > 0, `Database contains ${cseStudents.count} students registered under the branch "CSE (AIDS)".`);
+    const cseStudents = await db.prepare("SELECT COUNT(*) as count FROM students WHERE branch = 'CSE' AND section = 'AIDS'").get();
+    assert(cseStudents.count > 0, `Database contains ${cseStudents.count} students registered under the branch "CSE" with section "AIDS".`);
   } catch (err) {
     console.error('Test 1 failed with error:', err.message);
     failed++;
   }
 
   // Fetch base database records to build solver inputs
-  const classrooms = db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
-  const faculty = db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
-  const teaches = db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
-  const students = db.prepare("SELECT id, name, prn, roll_no, branch, year, semester FROM students WHERE is_active=1").all();
+  const classrooms = await db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
+  const faculty = await db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const teaches = await db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
+  const students = await db.prepare("SELECT id, name, prn, roll_no, branch, year, semester, section FROM students WHERE is_active=1").all();
 
   // -------------------------------------------------------------
   // TEST 2: Final Examination Rules (Max 1 exam/day per student)
@@ -88,7 +109,7 @@ async function runTests() {
   console.log('\n--- Test 2: Final Examination Scheduling (Max 1 exam/day per student, chronological ordering, compactness) ---');
   try {
     // Select odd subjects
-    const subjects = db.prepare("SELECT * FROM subjects WHERE semester % 2 = 1 GROUP BY code").all();
+    const subjects = await db.prepare("SELECT * FROM subjects WHERE semester % 2 = 1 GROUP BY code").all();
     
     const inputData = {
       cycle: {
@@ -119,7 +140,6 @@ async function runTests() {
     const result = await runSolver(inputData);
     const duration = Date.now() - start;
     console.log(`Solver finished in ${duration}ms.`);
-
     assert(result.status === 'SUCCESS', `Solver returned status: ${result.status}`);
 
     if (result.status === 'SUCCESS') {
@@ -178,7 +198,7 @@ async function runTests() {
   // -------------------------------------------------------------
   console.log('\n--- Test 3: CCA Examination Scheduling (Max 2 exams/day, 1-hour gap constraint) ---');
   try {
-    const subjects = db.prepare("SELECT * FROM subjects WHERE semester % 2 = 1 GROUP BY code LIMIT 15").all();
+    const subjects = await db.prepare("SELECT * FROM subjects WHERE semester % 2 = 1 GROUP BY code LIMIT 15").all();
     
     const inputData = {
       cycle: {
@@ -259,7 +279,7 @@ async function runTests() {
   console.log('\n--- Test 4: Impossible Schedule Graceful Failure & Conflict Logging ---');
   try {
     // Select 10 subjects and override them to be in the same student group (forcing a conflict)
-    const dbSubjects = db.prepare("SELECT * FROM subjects LIMIT 10").all();
+    const dbSubjects = await db.prepare("SELECT * FROM subjects LIMIT 10").all();
     const subjects = dbSubjects.map(s => ({
       ...s,
       branch: 'CSE',

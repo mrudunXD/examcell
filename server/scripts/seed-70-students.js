@@ -13,15 +13,14 @@ await db.transaction(async () => {
   await db.prepare("DELETE FROM students").run();
 })();
 
-const branches = ['CSE', 'CSE (AIDS)', 'CE', 'ECE', 'ME', 'MRA'];
+const branches = ['CSE', 'CE', 'ECE', 'ME', 'MRA'];
 const years = [
   { name: 'FY', sems: [1, 2] },
   { name: 'SY', sems: [3, 4] },
   { name: 'TY', sems: [5, 6] }
 ];
-const sections = ['A', 'B', 'C'];
 
-console.log("Seeding 70 students per branch/semester...");
+console.log("Seeding students...");
 const insertStmt = db.prepare(`
   INSERT INTO students (id, name, prn, roll_no, branch, section, year, semester, is_active)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -32,14 +31,38 @@ await db.transaction(async () => {
   for (const branch of branches) {
     for (const yr of years) {
       for (const sem of yr.sems) {
-        for (let i = 1; i <= 70; i++) {
-          const id = crypto.randomUUID();
-          const section = sections[(i - 1) % sections.length];
-          const prn = `PRN_${branch}_${sem}_${String(i).padStart(3, '0')}`;
-          const roll_no = `${section}-${String(i).padStart(2, '0')}`;
-          const name = `${branch} ${yr.name} Student ${i}`;
-          await insertStmt.run(id, name, prn, roll_no, branch, section, yr.name, sem);
-          count++;
+        if (branch === 'CSE') {
+          // 1. Seed 70 standard CSE students (sections A & B)
+          for (let i = 1; i <= 70; i++) {
+            const id = crypto.randomUUID();
+            const section = i <= 35 ? 'A' : 'B';
+            const prn = `PRN_CSE_${sem}_${String(i).padStart(3, '0')}`;
+            const roll_no = `${section}-${String(i).padStart(2, '0')}`;
+            const name = `CSE ${yr.name} Student ${i}`;
+            await insertStmt.run(id, name, prn, roll_no, 'CSE', section, yr.name, sem);
+            count++;
+          }
+          // 2. Seed 70 CSE AIDS students (section AIDS)
+          for (let i = 1; i <= 70; i++) {
+            const id = crypto.randomUUID();
+            const section = 'AIDS';
+            const prn = `PRN_CSE_AIDS_${sem}_${String(i).padStart(3, '0')}`;
+            const roll_no = `AIDS-${String(i).padStart(2, '0')}`;
+            const name = `CSE ${yr.name} AIDS Student ${i}`;
+            await insertStmt.run(id, name, prn, roll_no, 'CSE', section, yr.name, sem);
+            count++;
+          }
+        } else {
+          // Other branches: seed 70 students with sections A & B
+          for (let i = 1; i <= 70; i++) {
+            const id = crypto.randomUUID();
+            const section = i <= 35 ? 'A' : 'B';
+            const prn = `PRN_${branch}_${sem}_${String(i).padStart(3, '0')}`;
+            const roll_no = `${section}-${String(i).padStart(2, '0')}`;
+            const name = `${branch} ${yr.name} Student ${i}`;
+            await insertStmt.run(id, name, prn, roll_no, branch, section, yr.name, sem);
+            count++;
+          }
         }
       }
     }

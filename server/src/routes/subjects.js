@@ -7,7 +7,7 @@ import { auditLog } from '../middleware/auditLog.js';
 function inferBranchFromCode(code, currentBranch) {
   if (!code) return currentBranch;
   const c = code.toUpperCase().trim();
-  if (c.startsWith('AID')) return 'CSE (AIDS)';
+  if (c.startsWith('AID')) return 'CSE';
   if (c.startsWith('AIML')) return 'ECE (AI&ML)';
   if (c.startsWith('CYB') || c.startsWith('CS')) return 'Cyber Security';
   if (c.startsWith('IOT')) return 'IoT';

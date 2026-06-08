@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import io from 'socket.io-client';
 import { 
   Sun, 
   Moon, 
