@@ -54,22 +54,23 @@ function TopBarClock({ isDark }) {
   return (
     <div style={{ textAlign: 'right' }}>
       <div style={{ 
-        fontSize: '56px', 
-        fontWeight: 800, 
-        letterSpacing: '-0.03em', 
+        fontSize: '48px', 
+        fontWeight: 'bold', 
         lineHeight: 1, 
         fontVariantNumeric: 'tabular-nums',
-        color: isDark ? '#ffffff' : '#0f172a' 
+        fontFamily: 'var(--font-mono)',
+        color: isDark ? '#ffffff' : '#111111' 
       }}>
         {pad(time.getHours())}:{pad(time.getMinutes())}
-        <span style={{ fontSize: '26px', opacity: 0.5, marginLeft: 6, fontWeight: 500 }}>{pad(time.getSeconds())}</span>
+        <span style={{ fontSize: '20px', opacity: 0.5, marginLeft: 6, fontWeight: 'normal' }}>{pad(time.getSeconds())}</span>
       </div>
       <div style={{ 
-        fontSize: '13px', 
-        color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(15, 23, 42, 0.55)', 
+        fontSize: '11px', 
+        color: isDark ? '#A3A3A3' : '#525252', 
         letterSpacing: '0.12em', 
         marginTop: 6, 
-        fontWeight: 700 
+        fontFamily: 'var(--font-serif)',
+        fontStyle: 'italic',
       }}>
         {DAYS[time.getDay()].toUpperCase()}, {time.getDate()} {MONTHS[time.getMonth()].toUpperCase()} {time.getFullYear()}
       </div>
@@ -90,48 +91,30 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
   const isLive = cd.phase === 'live';
   const isCritical = isLive && cd.diff < 1800; // Under 30 minutes
 
-  // Premium active/upcoming glow configurations
-  const glowShadow = isLive 
-    ? (isCritical 
-        ? '0 25px 60px rgba(239, 68, 68, 0.12), 0 0 40px rgba(239, 68, 68, 0.15)' 
-        : '0 25px 60px rgba(16, 185, 129, 0.12), 0 0 40px rgba(16, 185, 129, 0.15)')
-    : '0 25px 60px rgba(59, 130, 246, 0.1), 0 0 45px rgba(59, 130, 246, 0.08)';
-
-  const cardBorderColor = isLive
-    ? (isCritical ? 'rgba(239, 68, 68, 0.5)' : 'rgba(16, 185, 129, 0.4)')
-    : 'rgba(59, 130, 246, 0.35)';
-
-  const timerColor = isLive 
-    ? (isCritical ? '#f87171' : '#34d399') 
-    : '#60a5fa';
-
-  const textShadowGlow = isLive 
-    ? (isCritical ? '0 0 20px rgba(239, 68, 68, 0.45)' : '0 0 20px rgba(16, 185, 129, 0.45)')
-    : '0 0 20px rgba(59, 130, 246, 0.35)';
+  const cardBorderColor = isDark ? '#ffffff' : '#111111';
+  const timerColor = isDark ? '#ffffff' : '#111111';
 
   return (
     <div style={{ 
-      background: isDark ? 'rgba(11, 19, 38, 0.7)' : '#ffffff', 
-      border: `2px solid ${cardBorderColor}`,
-      borderRadius: '28px',
+      background: isDark ? '#111111' : '#F9F9F7', 
+      border: `4px solid ${cardBorderColor}`,
+      borderRadius: 0,
       padding: '44px',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
-      boxShadow: isDark ? glowShadow : '0 20px 40px rgba(0, 0, 0, 0.03)',
+      boxShadow: isDark ? '8px 8px 0 0 #ffffff' : '8px 8px 0 0 #111111',
       boxSizing: 'border-box',
       height: '100%',
-      backdropFilter: 'blur(16px)',
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Decorative ambient light bar inside card */}
+      {/* Editorial top line */}
       <div style={{
         position: 'absolute',
         top: 0, left: 0, right: 0,
-        height: 4,
-        background: isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6',
-        boxShadow: isLive ? (isCritical ? '0 0 10px #ef4444' : '0 0 10px #10b981') : 'none'
+        height: '8px',
+        background: isLive ? (isCritical ? 'var(--np-red)' : '#166534') : '#1d4ed8',
       }} />
 
       {/* Card Header: Status & Quick Room info */}
@@ -142,32 +125,30 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
             display: 'flex', 
             alignItems: 'center', 
             gap: 10,
-            padding: '10px 22px',
-            borderRadius: '40px',
+            padding: '8px 16px',
             background: isLive 
-              ? (isCritical ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)') 
-              : 'rgba(59, 130, 246, 0.08)',
-            border: `1.5px solid ${isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6'}`,
+              ? (isCritical ? 'rgba(204, 0, 0, 0.1)' : 'rgba(22, 101, 52, 0.1)') 
+              : 'rgba(29, 78, 216, 0.1)',
+            border: `2px solid ${isLive ? (isCritical ? 'var(--np-red)' : '#166534') : '#1d4ed8'}`,
+            color: isLive ? (isCritical ? 'var(--np-red)' : '#166534') : '#1d4ed8',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            fontWeight: 'bold',
           }}>
             <div style={{
-              width: 10, height: 10, borderRadius: '50%',
-              background: isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6',
+              width: 8, height: 8,
+              background: isLive ? (isCritical ? 'var(--np-red)' : '#166534') : '#1d4ed8',
               animation: isLive ? 'pulse 2s infinite' : 'none',
             }} />
-            <span style={{ 
-              fontSize: '13px', 
-              letterSpacing: '0.1em', 
-              textTransform: 'uppercase', 
-              fontWeight: 900,
-              color: isLive ? (isCritical ? '#ef4444' : '#10b981') : '#3b82f6' 
-            }}>
+            <span>
               {isLive ? (isCritical ? 'CRITICAL TIME' : 'Exam In Progress') : 'Starting Soon'}
             </span>
           </div>
 
           {/* Time indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.55)', fontSize: '16px', fontWeight: 700 }}>
-            <Clock size={16} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isDark ? '#A3A3A3' : '#525252', fontSize: '15px', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+            <Clock size={14} />
             <span>{slot.start_time} ({slot.duration_mins} min)</span>
           </div>
         </div>
@@ -186,41 +167,38 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 10,
-                  padding: '12px 24px',
-                  borderRadius: '16px',
-                  background: isCurrentKioskRoom 
-                    ? '#f59e0b' 
-                    : (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)'),
-                  border: isCurrentKioskRoom
-                    ? '2px solid #d97706'
-                    : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.08)'}`,
-                  color: isCurrentKioskRoom ? '#000000' : (isDark ? '#ffffff' : '#1e293b'),
-                  fontSize: '22px',
-                  fontWeight: 900,
+                  padding: '10px 20px',
+                  background: isCurrentKioskRoom ? 'var(--np-red)' : 'transparent',
+                  border: `2px solid ${cardBorderColor}`,
+                  color: isCurrentKioskRoom ? '#ffffff' : (isDark ? '#ffffff' : '#111111'),
+                  fontSize: '20px',
+                  fontWeight: 'bold',
                   cursor: 'pointer',
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: isCurrentKioskRoom ? '0 8px 20px rgba(245, 158, 11, 0.3)' : 'none',
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: 'var(--font-mono)',
+                  boxShadow: isCurrentKioskRoom 
+                    ? (isDark ? '4px 4px 0 0 #fff' : '4px 4px 0 0 #111') 
+                    : 'none',
+                  transition: 'transform 0.1s',
                 }}
                 title="Click to view seating arrangement"
               >
-                <Grid3x3 size={20} />
+                <Grid3x3 size={18} />
                 <span>Room {room.room_no}</span>
                 {room.block && (
-                  <span style={{ fontSize: '14px', opacity: 0.8, fontWeight: 600 }}>
+                  <span style={{ fontSize: '13px', opacity: 0.8, fontWeight: 'normal' }}>
                     ({room.block})
                   </span>
                 )}
                 {isCurrentKioskRoom && (
                   <span style={{
-                    fontSize: '10px',
-                    fontWeight: 950,
-                    padding: '3px 8px',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    padding: '2px 6px',
                     background: '#000',
                     color: '#FFF',
-                    borderRadius: '5px',
                     marginLeft: 6,
-                    letterSpacing: '0.05em'
+                    letterSpacing: '0.05em',
+                    border: '1px solid #fff',
                   }}>
                     HERE
                   </span>
@@ -233,27 +211,27 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
 
       {/* Middle section: Subject Detail */}
       <div style={{ margin: '20px 0' }}>
-        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 8, fontWeight: 800 }}>
+        <div style={{ fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 8, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
           {isLive ? 'Active Subject' : 'Next Scheduled'}
         </div>
         <div style={{ 
-          fontSize: '48px', 
-          fontWeight: 900, 
+          fontSize: '44px', 
+          fontWeight: 'bold', 
           lineHeight: 1.15, 
-          color: isDark ? '#ffffff' : '#0f172a', 
+          color: isDark ? '#ffffff' : '#111111', 
           letterSpacing: '-0.02em',
-          fontFamily: "'Outfit', sans-serif"
+          fontFamily: "var(--font-serif)"
         }}>
           {slot.subject_name}
         </div>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.65)' : 'rgba(15,23,42,0.65)', marginTop: 10, letterSpacing: '0.02em' }}>
-          {slot.subject_code} · <span style={{ color: '#D6001C', fontWeight: 900 }}>{slot.branch}</span> · {slot.year} Year
+        <div style={{ fontSize: '18px', fontWeight: 'bold', color: isDark ? '#cbd5e1' : '#334155', marginTop: 10, letterSpacing: '0.02em', fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
+          {slot.subject_code} · <span style={{ color: 'var(--np-red)', fontWeight: 'bold', fontStyle: 'normal' }}>{slot.branch}</span> · {slot.year} Year
         </div>
       </div>
 
       {/* Countdown Timers */}
       <div>
-        <div style={{ fontSize: '13px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 14, fontWeight: 800 }}>
+        <div style={{ fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 14, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
           {isLive ? 'Time Remaining' : 'Countdown'}
         </div>
         
@@ -265,23 +243,21 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
           ].map(({ v, l }) => (
             <div key={l} style={{ textAlign: 'center' }}>
               <div style={{
-                fontSize: '84px', 
-                fontWeight: 900, 
-                lineHeight: 1, 
+                fontSize: '72px', 
+                fontWeight: 'bold', 
+                lineHeight: 1.1, 
                 fontVariantNumeric: 'tabular-nums',
                 color: timerColor,
-                textShadow: textShadowGlow,
                 letterSpacing: '-0.03em',
-                background: isDark ? 'rgba(9, 15, 30, 0.85)' : '#f8fafc',
-                border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'}`,
-                padding: '16px 24px',
-                borderRadius: '18px',
-                boxShadow: isDark ? 'inset 0 4px 12px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4)' : 'inset 0 2px 4px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02)',
-                fontFamily: "'Outfit', sans-serif"
+                background: isDark ? '#262626' : '#E5E5E0',
+                border: `2px solid ${cardBorderColor}`,
+                padding: '12px 20px',
+                boxShadow: isDark ? '4px 4px 0 0 #525252' : '4px 4px 0 0 #888888',
+                fontFamily: "var(--font-mono)"
               }}>
                 {v}
               </div>
-              <div style={{ fontSize: '11px', letterSpacing: '0.15em', fontWeight: 900, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginTop: 8 }}>
+              <div style={{ fontSize: '10px', letterSpacing: '0.15em', fontWeight: 'bold', color: isDark ? '#A3A3A3' : '#525252', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
                 {l}
               </div>
             </div>
@@ -292,17 +268,18 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
         {isLive && isCritical && (
           <div style={{ 
             marginTop: 16, 
-            color: '#ef4444', 
-            fontSize: '15px', 
+            color: 'var(--np-red)', 
+            fontSize: '14px', 
             letterSpacing: '0.05em', 
             textTransform: 'uppercase', 
-            fontWeight: 900,
+            fontWeight: 'bold',
             display: 'flex',
             alignItems: 'center',
             gap: 8,
             animation: 'pulse 1.5s infinite',
+            fontFamily: 'var(--font-mono)'
           }}>
-            <AlertTriangle size={18} />
+            <AlertTriangle size={16} />
             <span>Under 30 Minutes Remaining</span>
           </div>
         )}
@@ -313,7 +290,7 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
         display: 'grid', 
         gridTemplateColumns: 'repeat(4, 1fr)', 
         gap: 12,
-        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.08)'}`, 
+        borderTop: `2px solid ${cardBorderColor}`, 
         paddingTop: 24 
       }}>
         {[
@@ -323,10 +300,10 @@ function ExamCard({ slot, isDark, classroomId, onSelectRoom }) {
           { label: 'Exam Type', value: slot.exam_type?.toUpperCase() },
         ].map(({ label, value }) => (
           <div key={label}>
-            <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.45)', marginBottom: 4, fontWeight: 800 }}>
+            <div style={{ fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase', color: isDark ? '#A3A3A3' : '#525252', marginBottom: 4, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
               {label}
             </div>
-            <div style={{ fontSize: '17px', fontWeight: 800, color: isDark ? '#ffffff' : '#1e293b' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: isDark ? '#ffffff' : '#111111', fontFamily: 'var(--font-mono)' }}>
               {value}
             </div>
           </div>
@@ -504,19 +481,17 @@ export default function KioskPage() {
 
   const isDark = theme === 'dark';
   const colors = {
-    bgGradient: isDark 
-      ? 'radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%), radial-gradient(circle at 90% 10%, rgba(214, 0, 28, 0.12) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(79, 70, 229, 0.15) 0%, transparent 45%), #05080e'
-      : 'radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 10%, rgba(214, 0, 28, 0.06) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(79, 70, 229, 0.08) 0%, transparent 45%), #f5f7fa',
-    text: isDark ? '#f8fafc' : '#0f172a',
-    textMuted: isDark ? 'rgba(248, 250, 252, 0.7)' : 'rgba(15, 23, 42, 0.75)',
-    textDim: isDark ? 'rgba(248, 250, 252, 0.45)' : 'rgba(15, 23, 42, 0.55)',
-    cardBg: isDark ? 'rgba(15, 22, 42, 0.45)' : 'rgba(255, 255, 255, 0.9)',
-    cardBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
-    border: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
-    glassBg: isDark ? 'rgba(255, 255, 255, 0.015)' : 'rgba(255, 255, 255, 0.45)',
-    shadow: isDark ? '0 10px 40px rgba(0, 0, 0, 0.5)' : '0 10px 40px rgba(15, 23, 42, 0.04)',
-    modalOverlayBg: isDark ? 'rgba(4, 7, 12, 0.8)' : 'rgba(240, 242, 245, 0.8)',
-    modalContentBg: isDark ? '#090d16' : '#ffffff',
+    bg: isDark ? '#111111' : '#F9F9F7',
+    text: isDark ? '#F9F9F7' : '#111111',
+    textMuted: isDark ? '#A3A3A3' : '#525252',
+    textDim: isDark ? '#737373' : '#737373',
+    cardBg: isDark ? '#111111' : '#F9F9F7',
+    cardBorder: isDark ? '#ffffff' : '#111111',
+    border: isDark ? '#333333' : '#111111',
+    glassBg: isDark ? '#111111' : '#F9F9F7',
+    shadow: isDark ? '8px 8px 0 0 #ffffff' : '8px 8px 0 0 #111111',
+    modalOverlayBg: isDark ? 'rgba(17, 17, 17, 0.8)' : 'rgba(17, 17, 17, 0.6)',
+    modalContentBg: isDark ? '#111111' : '#F9F9F7',
   };
 
   const currentPageIndex = Math.min(currentCarouselPage, Math.max(0, activeSlotsPages.length - 1));
@@ -529,18 +504,21 @@ export default function KioskPage() {
       width: '100vw',
       overflow: 'hidden',
       position: 'relative',
-      background: colors.bgGradient,
+      background: colors.bg,
+      backgroundImage: isDark
+        ? "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23ffffff' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E\")"
+        : "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E\")",
       color: colors.text,
-      fontFamily: "'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif",
+      fontFamily: "var(--font-sans)",
       display: 'flex',
       flexDirection: 'column',
       boxSizing: 'border-box',
-      transition: 'background 0.5s ease, color 0.5s ease',
+      transition: 'background 0.3s ease, color 0.3s ease',
     }}>
       {/* Dynamic Font Import */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;750&display=swap" rel="stylesheet" />
 
       {/* Top Header Row */}
       <div style={{
@@ -550,21 +528,20 @@ export default function KioskPage() {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '20px 48px',
-        borderBottom: `1px solid ${colors.border}`,
+        borderBottom: `4px solid ${colors.border}`,
         background: colors.glassBg,
-        backdropFilter: 'blur(12px)',
         height: '96px',
         boxSizing: 'border-box',
       }}>
         {/* Logo and details */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{ width: 5, height: 42, background: '#D6001C', borderRadius: 4 }} />
+          <div style={{ width: 8, height: 42, background: 'var(--np-red)' }} />
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.text }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)', textTransform: 'uppercase', color: colors.text }}>
               MIT World Peace University
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
-              <span style={{ fontSize: '14px', color: colors.textMuted, letterSpacing: '0.05em', fontWeight: 600 }}>
+              <span style={{ fontSize: '11px', color: colors.textMuted, letterSpacing: '0.08em', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
                 EXAMINATION CELL · {cycle?.name || 'EXAM CYCLE'}
               </span>
               
@@ -574,23 +551,22 @@ export default function KioskPage() {
                 alignItems: 'center',
                 gap: 5,
                 padding: '3px 8px',
-                borderRadius: '5px',
-                background: isOffline ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                border: `1px solid ${isOffline ? '#ef4444' : '#10b981'}`,
-                color: isOffline ? '#ef4444' : '#10b981',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.05em',
+                background: isOffline ? 'rgba(204, 0, 0, 0.1)' : 'rgba(22, 101, 52, 0.1)',
+                border: `1.5px solid ${isOffline ? 'var(--np-red)' : '#166534'}`,
+                color: isOffline ? 'var(--np-red)' : '#166534',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-mono)',
                 textTransform: 'uppercase',
               }}>
                 {isOffline ? (
                   <>
-                    <WifiOff size={11} />
+                    <WifiOff size={10} />
                     <span>Offline</span>
                   </>
                 ) : (
                   <>
-                    <Wifi size={11} />
+                    <Wifi size={10} />
                     <span>Live</span>
                   </>
                 )}
@@ -601,12 +577,12 @@ export default function KioskPage() {
                   onClick={loadData}
                   style={{
                     padding: '2px 6px',
-                    borderRadius: '4px',
                     background: colors.cardBg,
-                    border: `1px solid ${colors.cardBorder}`,
+                    border: `1.5px solid ${colors.cardBorder}`,
                     color: colors.text,
                     fontSize: '10px',
-                    fontWeight: 600,
+                    fontWeight: 'bold',
+                    fontFamily: 'var(--font-mono)',
                     cursor: 'pointer',
                   }}
                 >
@@ -627,18 +603,17 @@ export default function KioskPage() {
             onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
             style={{
               background: colors.cardBg,
-              border: `1px solid ${colors.cardBorder}`,
+              border: `2px solid ${colors.cardBorder}`,
               cursor: 'pointer',
               color: colors.text,
               padding: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: '10px',
               width: 44,
               height: 44,
               boxShadow: colors.shadow,
-              transition: 'transform 0.2s, background-color 0.2s',
+              transition: 'transform 0.1s',
             }}
             title="Toggle Light/Dark Theme"
           >
@@ -709,9 +684,8 @@ export default function KioskPage() {
                       style={{
                         width: 12,
                         height: 12,
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: currentPageIndex === idx ? (isDark ? '#ffffff' : '#0f172a') : 'rgba(128,128,128,0.4)',
+                        border: `2px solid ${colors.cardBorder}`,
+                        background: currentPageIndex === idx ? colors.text : 'transparent',
                         cursor: 'pointer',
                         transform: currentPageIndex === idx ? 'scale(1.2)' : 'scale(1)',
                         transition: 'all 0.2s ease',
@@ -730,17 +704,16 @@ export default function KioskPage() {
               justifyContent: 'center', 
               alignItems: 'center',
               background: colors.cardBg,
-              border: `1px solid ${colors.cardBorder}`,
-              borderRadius: '24px',
+              border: `4px solid ${colors.cardBorder}`,
               padding: '48px',
               textAlign: 'center',
               boxShadow: colors.shadow,
             }}>
-              <CalendarDays size={72} style={{ color: colors.textDim, marginBottom: 16 }} />
-              <div style={{ fontSize: '28px', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {done.length > 0 ? 'Today\'s exam sessions completed' : 'No active sessions scheduled'}
+              <CalendarDays size={72} style={{ color: colors.textMuted, marginBottom: 16 }} />
+              <div style={{ fontSize: '28px', fontWeight: 'bold', fontFamily: 'var(--font-serif)', color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {done.length > 0 ? "Today's exam sessions completed" : "No active sessions scheduled"}
               </div>
-              <div style={{ fontSize: '16px', color: colors.textMuted, marginTop: 8 }}>
+              <div style={{ fontSize: '14px', color: colors.textMuted, marginTop: 8, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
                 Check the daily schedule sidebar or request coordination desk support.
               </div>
             </div>
@@ -754,19 +727,17 @@ export default function KioskPage() {
           flexDirection: 'column', 
           gap: 16,
           background: colors.cardBg, 
-          border: `1px solid ${colors.cardBorder}`,
-          borderRadius: '24px',
+          border: `4px solid ${colors.border}`,
           padding: '28px',
           boxShadow: colors.shadow,
           minHeight: 0,
           boxSizing: 'border-box',
-          backdropFilter: 'blur(10px)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '16px', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.textMuted, fontWeight: 800 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${colors.border}`, paddingBottom: 10 }}>
+            <div style={{ fontSize: '13px', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.text, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
               Daily Schedule
             </div>
-            <div style={{ fontSize: '13px', color: colors.textDim, fontWeight: 700 }}>
+            <div style={{ fontSize: '11px', color: colors.textMuted, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
               {slots.length} Total Slot{slots.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -777,7 +748,7 @@ export default function KioskPage() {
             paddingRight: '2px',
           }} className="custom-scrollbar">
             {slots.length === 0 ? (
-              <div style={{ color: colors.textDim, fontStyle: 'italic', fontSize: '15px', padding: '16px 0' }}>
+              <div style={{ color: colors.textMuted, fontStyle: 'italic', fontSize: '14px', padding: '16px 0', fontFamily: 'var(--font-body)' }}>
                 No slots found for today.
               </div>
             ) : (
@@ -786,7 +757,7 @@ export default function KioskPage() {
                 const isActive = active.some(x => x.id === slot.id);
                 
                 let indicatorColor = '#3b82f6';
-                if (phase === 'live') indicatorColor = '#10b981';
+                if (phase === 'live') indicatorColor = '#166534';
                 if (phase === 'done') indicatorColor = 'rgba(128,128,128,0.4)';
 
                 return (
@@ -797,43 +768,43 @@ export default function KioskPage() {
                       gap: 14, 
                       padding: '14px 18px', 
                       marginBottom: '10px',
-                      background: isActive ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15, 23, 42, 0.03)') : 'transparent',
-                      border: `1.5px solid ${isActive ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(15, 23, 42, 0.12)') : 'transparent'}`,
-                      borderRadius: '14px',
+                      background: isActive ? (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0, 0, 0, 0.03)') : 'transparent',
+                      border: `2px solid ${isActive ? colors.cardBorder : 'transparent'}`,
                       transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ width: 4, alignSelf: 'stretch', flexShrink: 0, background: indicatorColor, borderRadius: '4px' }} />
+                    <div style={{ width: 4, alignSelf: 'stretch', flexShrink: 0, background: indicatorColor }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '17px', fontWeight: 800, color: phase === 'done' ? colors.textDim : colors.text }}>
+                      <div style={{ fontSize: '16px', fontWeight: 'bold', color: phase === 'done' ? colors.textMuted : colors.text, fontFamily: 'var(--font-mono)' }}>
                         {slot.subject_code}
                       </div>
                       <div style={{ 
-                        fontSize: '14px', 
+                        fontSize: '13px', 
                         color: phase === 'done' ? colors.textDim : colors.textMuted, 
                         marginTop: 2, 
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis', 
                         whiteSpace: 'nowrap',
-                        fontWeight: 500,
+                        fontWeight: 'bold',
+                        fontFamily: 'var(--font-serif)'
                       }}>
                         {slot.subject_name}
                       </div>
-                      <div style={{ fontSize: '12px', color: colors.textDim, marginTop: 4, fontWeight: 600 }}>
+                      <div style={{ fontSize: '11px', color: colors.textDim, marginTop: 4, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
                         {slot.start_time} · {slot.branch} · {slot.year} Yr
                       </div>
                     </div>
                     
                     <div style={{ 
-                      fontSize: '11px', 
+                      fontSize: '10px', 
                       letterSpacing: '0.05em', 
                       textTransform: 'uppercase', 
                       color: indicatorColor, 
                       alignSelf: 'center',
-                      fontWeight: 800,
+                      fontWeight: 'bold',
+                      fontFamily: 'var(--font-mono)',
                       padding: '3px 6px',
-                      borderRadius: '5px',
-                      background: phase === 'live' ? 'rgba(16,185,129,0.08)' : 'transparent',
+                      border: `1.5px solid ${indicatorColor}`,
                     }}>
                       {phase}
                     </div>
@@ -849,9 +820,8 @@ export default function KioskPage() {
       <div style={{
         position: 'relative',
         zIndex: 5,
-        borderTop: `1px solid ${colors.border}`,
+        borderTop: `4px solid ${colors.border}`,
         background: colors.glassBg,
-        backdropFilter: 'blur(12px)',
         padding: '12px 48px',
         display: 'flex', 
         alignItems: 'center', 
@@ -860,16 +830,16 @@ export default function KioskPage() {
         boxSizing: 'border-box',
       }}>
         <div style={{
-          fontSize: '13px', 
+          fontSize: '11px', 
           letterSpacing: '0.15em', 
           textTransform: 'uppercase',
-          color: broadcasts.length ? '#ef4444' : colors.textDim,
-          fontWeight: 900, 
+          color: broadcasts.length ? 'var(--np-red)' : colors.textMuted,
+          fontWeight: 'bold', 
           flexShrink: 0,
-          padding: '5px 12px', 
-          background: broadcasts.length ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
-          border: `1.5px solid ${broadcasts.length ? '#ef4444' : colors.cardBorder}`,
-          borderRadius: '5px',
+          padding: '4px 10px', 
+          background: broadcasts.length ? 'rgba(204,0,0,0.1)' : 'transparent',
+          border: `2px solid ${broadcasts.length ? 'var(--np-red)' : colors.cardBorder}`,
+          fontFamily: 'var(--font-mono)',
         }}>
           {broadcasts.length ? 'NOTICE' : 'INFO'}
         </div>
@@ -878,15 +848,16 @@ export default function KioskPage() {
         <div 
           key={broadcastIdx}
           style={{ 
-            fontSize: '20px', 
-            fontWeight: 700, 
+            fontSize: '18px', 
+            fontWeight: 'bold', 
             color: broadcasts.length ? colors.text : colors.textMuted, 
             flex: 1, 
             overflow: 'hidden', 
             textOverflow: 'ellipsis', 
             whiteSpace: 'nowrap',
             animation: 'slideNotice 0.3s ease-out',
-            letterSpacing: '0.01em',
+            fontFamily: 'var(--font-body)',
+            fontStyle: 'italic',
           }}
         >
           {broadcasts.length
@@ -894,7 +865,7 @@ export default function KioskPage() {
             : 'Welcome to MIT World Peace University Examination Lobby'}
         </div>
         
-        <div style={{ fontSize: '13px', color: colors.textDim, flexShrink: 0, letterSpacing: '0.05em', fontWeight: 700 }}>
+        <div style={{ fontSize: '11px', color: colors.textDim, flexShrink: 0, letterSpacing: '0.08em', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
           EXAM CELL
         </div>
       </div>
@@ -909,21 +880,18 @@ export default function KioskPage() {
           alignItems: 'center',
           justifyContent: 'center',
           background: colors.modalOverlayBg,
-          backdropFilter: 'blur(8px)',
-          animation: 'fadeIn 0.25s ease-out',
+          animation: 'fadeIn 0.2s ease-out',
         }}>
           <div style={{
             background: colors.modalContentBg,
-            border: `1px solid ${colors.cardBorder}`,
-            borderRadius: '24px',
+            border: `4px solid ${colors.border}`,
             width: '80vw',
             maxHeight: '84vh',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+            boxShadow: colors.shadow,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
             boxSizing: 'border-box',
-            animation: 'scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
           }}>
             {/* Modal Header */}
             <div style={{
@@ -931,13 +899,13 @@ export default function KioskPage() {
               justifyContent: 'space-between',
               alignItems: 'center',
               padding: '20px 32px',
-              borderBottom: `1px solid ${colors.border}`,
+              borderBottom: `4px solid ${colors.border}`,
             }}>
               <div>
-                <span style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.15em', color: '#D6001C', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.15em', color: 'var(--np-red)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
                   DOOR ARRANGEMENT SLIP
                 </span>
-                <h2 style={{ fontSize: '32px', fontWeight: 800, margin: '2px 0 0 0', color: colors.text }}>
+                <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: '2px 0 0 0', color: colors.text, fontFamily: 'var(--font-serif)' }}>
                   Room {selectedAllocation.roomNo} {selectedAllocation.block ? `(${selectedAllocation.block})` : ''}
                 </h2>
               </div>
@@ -945,20 +913,19 @@ export default function KioskPage() {
               <button 
                 onClick={() => setSelectedAllocation(null)}
                 style={{
-                  background: colors.glassBg,
-                  border: `1px solid ${colors.cardBorder}`,
+                  background: 'transparent',
+                  border: `2px solid ${colors.cardBorder}`,
                   color: colors.text,
-                  borderRadius: '50%',
                   width: 44,
                   height: 44,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  fontWeight: 'bold',
                 }}
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
@@ -975,28 +942,27 @@ export default function KioskPage() {
               {loadingSeating ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', gap: 12 }}>
                   <div className="spinner" style={{
-                    width: 40, height: 40,
+                    width: 32, height: 32,
                     border: `3px solid ${colors.border}`,
-                    borderTop: '3px solid #D6001C',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
+                    borderTop: '3px solid var(--np-red)',
+                    animation: 'spin 0.6s linear infinite',
                   }} />
-                  <div style={{ fontSize: '16px', color: colors.textMuted, fontWeight: 600 }}>Fetching assignments...</div>
+                  <div style={{ fontSize: '14px', color: colors.textMuted, fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>Fetching assignments...</div>
                 </div>
               ) : seatingData ? (
                 <>
                   {/* Blackboard position */}
                   <div style={{
-                    background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                    border: `1.5px dashed ${colors.cardBorder}`,
-                    borderRadius: '10px',
+                    background: isDark ? '#262626' : '#E5E5E0',
+                    border: `2px solid ${colors.cardBorder}`,
                     padding: '12px',
                     textAlign: 'center',
-                    fontWeight: 800,
-                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
                     letterSpacing: '0.2em',
-                    color: colors.textMuted,
+                    color: colors.text,
                     textTransform: 'uppercase',
+                    fontFamily: 'var(--font-mono)',
                   }}>
                     ▲ FRONT / BLACKBOARD ▲
                   </div>
@@ -1022,7 +988,7 @@ export default function KioskPage() {
 
                     if (assignments.length === 0) {
                       return (
-                        <div style={{ textAlign: 'center', padding: '36px 0', color: colors.textDim, fontSize: '16px' }}>
+                        <div style={{ textAlign: 'center', padding: '36px 0', color: colors.textMuted, fontSize: '15px', fontStyle: 'italic', fontFamily: 'var(--font-body)' }}>
                           No candidates seated for today's slots.
                         </div>
                       );
@@ -1041,13 +1007,12 @@ export default function KioskPage() {
                             style={{
                               position: 'relative',
                               padding: '20px 12px',
-                              borderRadius: '12px',
                               background: seat 
-                                ? (isDark ? 'rgba(99, 102, 241, 0.1)' : 'rgba(79, 70, 229, 0.05)') 
-                                : (isDark ? 'rgba(255, 255, 255, 0.01)' : 'rgba(0, 0, 0, 0.01)'),
+                                ? (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)') 
+                                : 'transparent',
                               border: seat
-                                ? `1.5px solid ${isDark ? '#6366f1' : '#4f46e5'}`
-                                : `1px solid ${colors.cardBorder}`,
+                                ? `2.5px solid ${colors.cardBorder}`
+                                : `1px dashed ${colors.border}`,
                               display: 'flex',
                               flexDirection: 'column',
                               alignItems: 'center',
@@ -1060,9 +1025,10 @@ export default function KioskPage() {
                               position: 'absolute', 
                               top: 6, 
                               left: 8, 
-                              fontSize: '10px', 
-                              fontWeight: 700, 
-                              color: colors.textDim,
+                              fontSize: '9px', 
+                              fontWeight: 'bold', 
+                              color: colors.textMuted,
+                              fontFamily: 'var(--font-mono)'
                             }}>
                               R{r}-C{c}
                             </span>
@@ -1070,31 +1036,34 @@ export default function KioskPage() {
                             {seat ? (
                               <>
                                 <span style={{ 
-                                  fontSize: '24px', 
-                                  fontWeight: 800, 
+                                  fontSize: '22px', 
+                                  fontWeight: 'bold', 
                                   color: colors.text, 
                                   letterSpacing: '0.05em',
+                                  fontFamily: 'var(--font-mono)'
                                 }}>
                                   {seat.prn}
                                 </span>
                                 <span style={{ 
-                                  fontSize: '12px', 
+                                  fontSize: '11px', 
                                   color: colors.textMuted, 
                                   marginTop: 4,
-                                  fontWeight: 700,
+                                  fontWeight: 'bold',
                                   textTransform: 'uppercase',
-                                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                                  padding: '1px 6px',
-                                  borderRadius: '3px',
+                                  background: isDark ? '#262626' : '#E5E5E0',
+                                  padding: '2px 8px',
+                                  border: `1px solid ${colors.cardBorder}`,
+                                  fontFamily: 'var(--font-mono)',
                                 }}>
                                   {seat.branch} {seat.year}
                                 </span>
                               </>
                             ) : (
                               <span style={{ 
-                                fontSize: '13px', 
+                                fontSize: '11px', 
                                 color: colors.textDim, 
                                 fontStyle: 'italic',
+                                fontFamily: 'var(--font-body)'
                               }}>
                                 Empty
                               </span>

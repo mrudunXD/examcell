@@ -100,6 +100,7 @@ export default function SeatingPage() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [draggedSeat, setDraggedSeat] = useState(null);
   const [dragOverCell, setDragOverCell] = useState(null); // { row, col }
+  const [viewMode, setViewMode] = useState('2d'); // '2d' or '3d'
 
   const handleDragStart = (seat) => {
     setDraggedSeat(seat);
@@ -348,66 +349,113 @@ export default function SeatingPage() {
             const { grid, rows, cols } = buildGrid(currentRoom.room, currentRoom.assignments);
             return (
               <div className="card" style={{ marginTop: 0, borderTop: '2px solid #111' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid #E5E5E0', paddingBottom: 12 }}>
                   <div>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>
                       Room {currentRoom.room.room_no}
                     </div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
                       {currentRoom.room.block} · {currentRoom.room.bench_rows} rows x {currentRoom.room.bench_cols} cols · capacity {currentRoom.room.capacity}
-                      {!isApproved && <span style={{ marginLeft: 8, color: '#166534', fontWeight: 600 }}>— 💡 Drag and drop seats to rearrange visually</span>}
+                      {viewMode === '2d' && !isApproved && <span style={{ marginLeft: 8, color: '#166534', fontWeight: 600 }}>— 💡 Drag and drop seats to rearrange visually</span>}
                     </div>
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textAlign: 'right' }}>
-                    <div style={{ color: '#166534', fontWeight: 600 }}>{currentRoom.assignments.length} seated</div>
-                    <div style={{ color: 'var(--np-n500)' }}>{currentRoom.room.capacity - currentRoom.assignments.length} empty</div>
+                  <div className="flex-row" style={{ gap: 12 }}>
+                    <div style={{ display: 'flex', border: '1px solid #111', background: '#F9F9F7' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('2d')}
+                        style={{
+                          padding: '4px 10px',
+                          border: 'none',
+                          background: viewMode === '2d' ? '#111111' : 'transparent',
+                          color: viewMode === '2d' ? '#F9F9F7' : '#525252',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 9,
+                          textTransform: 'uppercase',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        2D Plan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('3d')}
+                        style={{
+                          padding: '4px 10px',
+                          border: 'none',
+                          background: viewMode === '3d' ? '#111111' : 'transparent',
+                          color: viewMode === '3d' ? '#F9F9F7' : '#525252',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 9,
+                          textTransform: 'uppercase',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        3D View
+                      </button>
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textAlign: 'right', lineHeight: 1.2 }}>
+                      <div style={{ color: '#166534', fontWeight: 600 }}>{currentRoom.assignments.length} seated</div>
+                      <div style={{ color: 'var(--np-n500)' }}>{currentRoom.room.capacity - currentRoom.assignments.length} empty</div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Front label */}
-                <div style={{
-                  textAlign: 'center',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 9,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.12em',
-                  color: 'var(--np-n500)',
-                  borderBottom: '2px solid #111111',
-                  paddingBottom: 8,
-                  marginBottom: 14,
-                }}>
-                  Front of Classroom — Blackboard
-                </div>
-
-                <div className="bench-grid" style={{ overflowX: 'auto', paddingBottom: 8 }}>
-                  {Array.from({ length: rows }, (_, rowIdx) => (
-                    <div key={rowIdx} className="bench-row-grid">
-                      <div className="bench-row-label">R{rowIdx + 1}</div>
-                      {Array.from({ length: cols }, (_, colIdx) => {
-                        const row = rowIdx + 1;
-                        const col = colIdx + 1;
-                        const isDraggedOver = dragOverCell?.row === row && dragOverCell?.col === col;
-                        return (
-                          <BenchSeat
-                            key={colIdx}
-                            seat={grid[row]?.[col] || null}
-                            row={row}
-                            col={col}
-                            onSwapSelect={handleSwapSelect}
-                            swapSource={swapSource}
-                            isSwapMode={isSwapMode}
-                            isApproved={isApproved}
-                            onDragStart={handleDragStart}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                            onDragEnd={handleDragEnd}
-                            isDraggedOver={isDraggedOver}
-                          />
-                        );
-                      })}
+                {viewMode === '3d' ? (
+                  <IsometricRoom
+                    room={currentRoom.room}
+                    grid={grid}
+                    rows={rows}
+                    cols={cols}
+                  />
+                ) : (
+                  <>
+                    {/* Front label */}
+                    <div style={{
+                      textAlign: 'center',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 9,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.12em',
+                      color: 'var(--np-n500)',
+                      borderBottom: '2px solid #111111',
+                      paddingBottom: 8,
+                      marginBottom: 14,
+                    }}>
+                      Front of Classroom — Blackboard
                     </div>
-                  ))}
-                </div>
+
+                    <div className="bench-grid" style={{ overflowX: 'auto', paddingBottom: 8 }}>
+                      {Array.from({ length: rows }, (_, rowIdx) => (
+                        <div key={rowIdx} className="bench-row-grid">
+                          <div className="bench-row-label">R{rowIdx + 1}</div>
+                          {Array.from({ length: cols }, (_, colIdx) => {
+                            const row = rowIdx + 1;
+                            const col = colIdx + 1;
+                            const isDraggedOver = dragOverCell?.row === row && dragOverCell?.col === col;
+                            return (
+                              <BenchSeat
+                                key={colIdx}
+                                seat={grid[row]?.[col] || null}
+                                row={row}
+                                col={col}
+                                onSwapSelect={handleSwapSelect}
+                                swapSource={swapSource}
+                                isSwapMode={isSwapMode}
+                                isApproved={isApproved}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onDragEnd={handleDragEnd}
+                                isDraggedOver={isDraggedOver}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 {/* Student table */}
                 <div style={{ marginTop: 24, borderTop: '2px solid #111', paddingTop: 16 }}>
@@ -440,6 +488,293 @@ export default function SeatingPage() {
           })()}
         </>
       )}
+    </div>
+  );
+}
+
+// ── 3D CSS volumetric face components ─────────────────────────────────────────
+function Cube3D({ width, height, depth, color, label, labelColor = '#fff', transform = '' }) {
+  const frontColor = `color-mix(in srgb, ${color} 85%, black)`;
+  const rightColor = `color-mix(in srgb, ${color} 70%, black)`;
+  const leftColor = `color-mix(in srgb, ${color} 70%, black)`;
+  const backColor = `color-mix(in srgb, ${color} 55%, black)`;
+
+  return (
+    <div style={{
+      position: 'absolute',
+      width: `${width}px`,
+      height: `${height}px`,
+      transformStyle: 'preserve-3d',
+      transform: transform,
+    }}>
+      {/* Top Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${width}px`,
+        height: `${height}px`,
+        background: color,
+        border: '1px solid #111',
+        transform: `translateZ(${depth}px)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '7px',
+        fontWeight: 'bold',
+        color: labelColor,
+      }}>
+        {label}
+      </div>
+      {/* Front Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${width}px`,
+        height: `${depth}px`,
+        background: frontColor,
+        border: '1px solid #111',
+        transform: `rotateX(-90deg) translate3d(0, 0, ${height - depth}px)`,
+        transformOrigin: 'bottom',
+        bottom: 0,
+      }} />
+      {/* Right Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${depth}px`,
+        height: `${height}px`,
+        background: rightColor,
+        border: '1px solid #111',
+        transform: 'rotateY(90deg)',
+        transformOrigin: 'right',
+        right: 0,
+      }} />
+      {/* Left Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${depth}px`,
+        height: `${height}px`,
+        background: leftColor,
+        border: '1px solid #111',
+        transform: 'rotateY(-90deg)',
+        transformOrigin: 'left',
+        left: 0,
+      }} />
+      {/* Back Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${width}px`,
+        height: `${depth}px`,
+        background: backColor,
+        border: '1px solid #111',
+        transform: 'rotateX(90deg)',
+        transformOrigin: 'top',
+        top: 0,
+      }} />
+    </div>
+  );
+}
+
+// ── Isometric 3D Room Grid Renderer ────────────────────────────────────────────
+function IsometricRoom({ room, grid, rows, cols }) {
+  const [rotation, setRotation] = useState(-45);
+  const [zoom, setZoom] = useState(0.85);
+  const [hovered, setHovered] = useState(null);
+
+  const getBranchColor = (branch) => {
+    const b = (branch || '').toUpperCase();
+    if (b.includes('CSE') || b.includes('COMP')) return '#3b82f6';
+    if (b.includes('ECE') || b.includes('ENTC') || b.includes('ELEC')) return '#ea580c';
+    if (b.includes('ME') || b.includes('MECH')) return '#8b5cf6';
+    if (b.includes('CE') || b.includes('CIVIL')) return '#10b981';
+    return '#737373';
+  };
+
+  const cellW = 100;
+  const cellH = 100;
+  const floorW = cols * cellW + 40;
+  const floorH = rows * cellH + 40;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Controls & Tooltip Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F5F5F5', border: '1px solid #111', padding: '10px 16px' }}>
+        <div className="flex-row" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-sm" onClick={() => setRotation(r => r - 45)}>Rotate Left</button>
+          <button type="button" className="btn btn-sm" onClick={() => setRotation(r => r + 45)}>Rotate Right</button>
+          <button type="button" className="btn btn-sm" onClick={() => setZoom(z => Math.max(0.4, z - 0.05))}>Zoom Out</button>
+          <button type="button" className="btn btn-sm" onClick={() => setZoom(z => Math.min(1.4, z + 0.05))}>Zoom In</button>
+        </div>
+        
+        {/* Floating Tooltip info */}
+        <div style={{ minHeight: '38px', minWidth: '300px', display: 'flex', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+          {hovered ? (
+            <div style={{ borderLeft: '3px solid var(--np-red)', paddingLeft: 8 }}>
+              <strong>{hovered.student_name}</strong> · Roll: <span style={{ color: 'var(--np-red)' }}>{hovered.roll_no}</span> · PRN: {hovered.prn} · {hovered.branch} {hovered.year}
+            </div>
+          ) : (
+            <span style={{ color: '#888', fontStyle: 'italic' }}>Hover over an occupied seat to view details</span>
+          )}
+        </div>
+      </div>
+
+      {/* 3D Perspective Box */}
+      <div style={{
+        height: '520px',
+        overflow: 'hidden',
+        border: '2px solid #111',
+        background: '#e5e7eb',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        perspective: '1200px',
+        position: 'relative',
+      }}>
+        {/* Room 3D Wrapper */}
+        <div style={{
+          width: `${floorW}px`,
+          height: `${floorH}px`,
+          background: 'var(--np-bg)',
+          border: '4px solid var(--np-ink)',
+          transformStyle: 'preserve-3d',
+          transform: `rotateX(55deg) rotateZ(${rotation}deg) scale(${zoom})`,
+          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          position: 'relative',
+          backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23111111' fill-opacity='0.05' d='M0 0h1v1H0V0zm9 9h1v1H9V9z'%3E%3C/path%3E%3C/svg%3E\")",
+        }}>
+          {/* Blackboard vertically at the front */}
+          <div style={{
+            position: 'absolute',
+            top: -24,
+            left: 40,
+            right: 40,
+            height: 36,
+            background: '#0f172a',
+            border: '2.5px solid var(--np-ink)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-serif)',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            letterSpacing: '0.15em',
+            transform: 'rotateX(-90deg) translateZ(18px)',
+            transformOrigin: 'bottom',
+          }}>
+            FRONT - BLACKBOARD
+          </div>
+
+          {/* Grid Cells */}
+          {Array.from({ length: rows }, (_, rIdx) => {
+            const row = rIdx + 1;
+            return Array.from({ length: cols }, (_, cIdx) => {
+              const col = cIdx + 1;
+              const seat = grid[row]?.[col];
+              const cellLeft = (col - 1) * cellW + 20;
+              const cellTop = (row - 1) * cellH + 20;
+
+              return (
+                <div 
+                  key={`${row}-${col}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${cellLeft}px`,
+                    top: `${cellTop}px`,
+                    width: '80px',
+                    height: '80px',
+                    transformStyle: 'preserve-3d',
+                  }}
+                  onMouseEnter={() => seat && setHovered(seat)}
+                  onMouseLeave={() => seat && setHovered(null)}
+                >
+                  {/* Grid cell label on the floor */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: 2,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '7px',
+                    color: '#ccc',
+                  }}>
+                    R{row}C{col}
+                  </div>
+
+                  {/* 3D Desk */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    left: '8px',
+                    transformStyle: 'preserve-3d',
+                  }}>
+                    <Cube3D 
+                      width={64} 
+                      height={20} 
+                      depth={4} 
+                      color="#f1f5f9" 
+                      label="" 
+                      transform="translateZ(28px)" 
+                    />
+                    {/* Desk legs (left & right) */}
+                    <div style={{
+                      position: 'absolute',
+                      width: '2px',
+                      height: '20px',
+                      background: '#111',
+                      transform: 'rotateY(90deg) translateZ(2px)',
+                      left: '2px',
+                      top: 0,
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      width: '2px',
+                      height: '20px',
+                      background: '#111',
+                      transform: 'rotateY(90deg) translateZ(2px)',
+                      right: '2px',
+                      top: 0,
+                    }} />
+                  </div>
+
+                  {/* 3D Chair */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '36px',
+                    left: '18px',
+                    transformStyle: 'preserve-3d',
+                  }}>
+                    <Cube3D 
+                      width={44} 
+                      height={20} 
+                      depth={2} 
+                      color="#cbd5e1" 
+                      label="" 
+                      transform="translateZ(12px)"
+                    />
+                  </div>
+
+                  {/* 3D Student Block if seated */}
+                  {seat && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '30px',
+                      left: '22px',
+                      transformStyle: 'preserve-3d',
+                    }}>
+                      <Cube3D 
+                        width={36} 
+                        height={26} 
+                        depth={32} 
+                        color={getBranchColor(seat.branch)} 
+                        label={seat.prn.slice(-3)} 
+                        transform="translateZ(20px)"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })}
+        </div>
+      </div>
     </div>
   );
 }
