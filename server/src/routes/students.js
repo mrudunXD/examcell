@@ -11,7 +11,38 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 
 router.use(authenticate);
 
-// GET /api/students
+/**
+ * @openapi
+ * /students:
+ *   get:
+ *     summary: Retrieve list of active students
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: branch
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: string
+ *           enum: [FY, SY, TY, LY]
+ *       - in: query
+ *         name: section
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search query matching name, PRN, or roll number
+ *     responses:
+ *       200:
+ *         description: Array of student objects
+ */
 router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const { branch, year, search, section } = req.query;
@@ -28,7 +59,48 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   res.json(await db.prepare(query).all(...params));
 }));
 
-// POST /api/students
+/**
+ * @openapi
+ * /students:
+ *   post:
+ *     summary: Create a new student
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - prn
+ *               - roll_no
+ *               - branch
+ *               - year
+ *               - semester
+ *             properties:
+ *               name:
+ *                 type: string
+ *               prn:
+ *                 type: string
+ *               roll_no:
+ *                 type: string
+ *               branch:
+ *                 type: string
+ *               section:
+ *                 type: string
+ *               year:
+ *                 type: string
+ *                 enum: [FY, SY, TY, LY]
+ *               semester:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Student created successfully
+ */
 router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req, data) => data?.id, (req, data) => `Created student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
@@ -42,7 +114,38 @@ router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req
   res.status(201).json(await db.prepare('SELECT * FROM students WHERE id = ?').get(id));
 }));
 
-// PUT /api/students/:id
+/**
+ * @openapi
+ * /students/{id}:
+ *   put:
+ *     summary: Update an existing student
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - prn
+ *               - roll_no
+ *               - branch
+ *               - year
+ *               - semester
+ *     responses:
+ *       200:
+ *         description: Student updated successfully
+ */
 router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (req) => req.params.id, (req, data) => `Updated student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
@@ -54,7 +157,25 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (r
   res.json(await db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
 }));
 
-// DELETE /api/students/:id  (soft delete)
+/**
+ * @openapi
+ * /students/{id}:
+ *   delete:
+ *     summary: Soft delete a student
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Student deleted successfully
+ */
 router.delete('/:id', requireCoordinator, auditLog('DELETE_STUDENT', 'students', (req) => req.params.id, (req) => `Soft-deleted student ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
   await db.prepare("UPDATE students SET is_active=0 WHERE id=?").run(req.params.id);
