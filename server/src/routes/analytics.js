@@ -6,7 +6,19 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 const router = Router();
 router.use(authenticate, requireCoordinator);
 
-// GET faculty duty heatmap: faculty x cycles matrix
+/**
+ * @openapi
+ * /analytics/heatmap:
+ *   get:
+ *     summary: Retrieve faculty duty load counts across all cycles
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Matrix of faculty assignments count grouped by cycle
+ */
 router.get('/heatmap', asyncHandler(async (req, res) => {
   const db = getDb();
 
@@ -47,6 +59,26 @@ router.get('/heatmap', asyncHandler(async (req, res) => {
 }));
 
 // GET faculty load for a specific cycle
+/**
+ * @openapi
+ * /analytics/load/{cycleId}:
+ *   get:
+ *     summary: Retrieve faculty invigilation load distribution for a cycle
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cycleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Exam cycle ID
+ *     responses:
+ *       200:
+ *         description: List of faculty duty counts and average cycle workload
+ */
 router.get('/load/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
   const loads = await db.prepare(`
@@ -69,6 +101,26 @@ router.get('/load/:cycleId', asyncHandler(async (req, res) => {
 }));
 
 // GET live exam dashboard for a cycle
+/**
+ * @openapi
+ * /analytics/live/{cycleId}:
+ *   get:
+ *     summary: Get live dashboard state for an exam cycle
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cycleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Exam cycle ID
+ *     responses:
+ *       200:
+ *         description: Live counts of seated students, presence, and alerts
+ */
 router.get('/live/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
   const todayDate = new Date();
@@ -128,6 +180,19 @@ router.get('/live/:cycleId', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/analytics/historical — Aggregated historical trends and optimization metrics
+/**
+ * @openapi
+ * /analytics/historical:
+ *   get:
+ *     summary: Retrieve aggregate performance and quality metrics across all past cycles
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Historical trends, solver runs success rates, average solve times, and duty workload equity values.
+ */
 router.get('/historical', asyncHandler(async (req, res) => {
   const db = getDb();
   
