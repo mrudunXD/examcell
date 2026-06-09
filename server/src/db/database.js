@@ -1,8 +1,36 @@
 import pg from 'pg';
+
+// Parse PostgreSQL TIMESTAMP (without time zone) (OID 1114) as UTC Date
+pg.types.setTypeParser(1114, stringValue => {
+  return new Date(stringValue.replace(' ', 'T') + 'Z');
+});
 import { AsyncLocalStorage } from 'async_hooks';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+
+let dbLatencySamples = [];
+let dbSlowQueryLog = [];
+let dbChaosModeEnabled = false;
+
+export function setDbChaosMode(enabled) {
+  dbChaosModeEnabled = enabled;
+  console.log(`⚠️ Database Chaos Mode: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+}
+
+export function getDbChaosMode() {
+  return dbChaosModeEnabled;
+}
+
+export function getDbLatencyMetrics() {
+  if (dbLatencySamples.length === 0) return 0;
+  const sum = dbLatencySamples.reduce((s, x) => s + x, 0);
+  return Math.round(sum / dbLatencySamples.length);
+}
+
+export function getSlowQueryLog() {
+  return dbSlowQueryLog;
+}
 
 dotenv.config();
 
@@ -36,6 +64,8 @@ export async function initDb() {
 
   dbInstance = new PgDatabase(pool);
   await dbInstance.initSchema();
+  const { runMigrations } = await import('./migrations.js');
+  await runMigrations();
   await seedInitialData();
   return dbInstance;
 }
@@ -153,6 +183,7 @@ class PgDatabase {
         semester_type TEXT DEFAULT 'odd' CHECK(semester_type IN ('odd','even')),
         status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'finalised', 'archived')),
         created_by TEXT REFERENCES users(id),
+        version INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -167,6 +198,7 @@ class PgDatabase {
         exam_type TEXT DEFAULT 'regular' CHECK(exam_type IN ('regular','backlog')),
         exam_mode TEXT DEFAULT 'offline' CHECK(exam_mode IN ('offline','online')),
         status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'seating_generated', 'supervisors_assigned', 'finalised')),
+        version INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -229,6 +261,8 @@ class PgDatabase {
         entity TEXT NOT NULL,
         entity_id TEXT,
         details TEXT,
+        hash TEXT,
+        prev_hash TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -271,8 +305,20 @@ class PgDatabase {
         action_taken TEXT,
         severity TEXT DEFAULT 'low' CHECK(severity IN ('low','medium','high')),
         status TEXT DEFAULT 'open' CHECK(status IN ('open','resolved','escalated')),
+        evidence_image TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         resolved_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS replacement_requests (
+        id TEXT PRIMARY KEY,
+        duty_id TEXT NOT NULL REFERENCES supervisor_duties(id) ON DELETE CASCADE,
+        faculty_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reason TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TEXT,
+        resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL
       );
 
       CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
@@ -285,6 +331,40 @@ class PgDatabase {
       CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
       CREATE INDEX IF NOT EXISTS idx_incidents_slot ON incidents(slot_id);
       CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at);
+    `);
+
+    // Run dynamic migrations to add columns if they don't exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS solver_telemetry (
+        id TEXT PRIMARY KEY,
+        cycle_id TEXT REFERENCES exam_cycles(id) ON DELETE CASCADE,
+        solve_duration_ms INTEGER,
+        status TEXT,
+        constraints_count INTEGER,
+        optimization_score INTEGER,
+        infeasible_causes TEXT,
+        soft_penalties TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='exam_cycles' AND column_name='version') THEN
+          ALTER TABLE exam_cycles ADD COLUMN version INTEGER DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='exam_slots' AND column_name='version') THEN
+          ALTER TABLE exam_slots ADD COLUMN version INTEGER DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='incidents' AND column_name='evidence_image') THEN
+          ALTER TABLE incidents ADD COLUMN evidence_image TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='hash') THEN
+          ALTER TABLE audit_log ADD COLUMN hash TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='prev_hash') THEN
+          ALTER TABLE audit_log ADD COLUMN prev_hash TEXT;
+        END IF;
+      END $$;
     `);
   }
 }
@@ -357,13 +437,35 @@ class PgStatement {
   }
 
   async execute(params) {
+    if (dbChaosModeEnabled) {
+      throw new Error('PostgreSQL database connection timed out (Simulated Chaos)');
+    }
     const client = transactionContext.getStore() || this.pool;
     // Map params: convert JS Date objects to ISO strings if needed, and clean values
     const cleanParams = params.map(p => {
       if (p instanceof Date) return p.toISOString();
       return p;
     });
-    return await client.query(this.sql, cleanParams);
+    const start = Date.now();
+    try {
+      return await client.query(this.sql, cleanParams);
+    } finally {
+      const duration = Date.now() - start;
+      dbLatencySamples.push(duration);
+      if (dbLatencySamples.length > 100) {
+        dbLatencySamples.shift();
+      }
+      if (duration > 50) {
+        dbSlowQueryLog.push({
+          sql: this.sql,
+          duration,
+          timestamp: new Date().toISOString()
+        });
+        if (dbSlowQueryLog.length > 50) {
+          dbSlowQueryLog.shift();
+        }
+      }
+    }
   }
 
   async all(...params) {

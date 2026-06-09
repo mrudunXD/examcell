@@ -25,6 +25,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
+let serverTimeSkew = 0;
+function getSyncDate() {
+  return new Date(Date.now() + serverTimeSkew);
+}
+
+
 // Determine the current phase of an exam slot
 function getPhase(slot, now) {
   const [h, m] = (slot.start_time || '09:30').split(':').map(Number);
@@ -101,10 +107,11 @@ function playChime(type) {
 
 // ISOLATED COMPONENT: Renders only the top bar clock. Updates every 1s without triggering parent re-render.
 function TopBarClock({ isDark }) {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(getSyncDate());
 
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
+    const id = setInterval(() => setTime(getSyncDate()), 1000);
+
     return () => clearInterval(id);
   }, []);
 
@@ -138,17 +145,17 @@ function TopBarClock({ isDark }) {
 
 // ISOLATED COMPONENT: Renders slot details & updates its local countdown timer every 1s.
 function ExamCard({ slot, isDark, classroomId, onSelectRoom, chimesEnabled }) {
-  const [localNow, setLocalNow] = useState(new Date());
+  const [localNow, setLocalNow] = useState(getSyncDate());
 
   useEffect(() => {
-    const id = setInterval(() => setLocalNow(new Date()), 1000);
+    const id = setInterval(() => setLocalNow(getSyncDate()), 1000);
     return () => clearInterval(id);
   }, []);
 
   const playedMilestonesRef = useRef(null);
   if (playedMilestonesRef.current === null || playedMilestonesRef.current.slotId !== slot.id) {
     const past = new Set();
-    const initialCd = getCountdown(slot, new Date());
+    const initialCd = getCountdown(slot, getSyncDate());
     if (initialCd.phase === 'done') {
       past.add('start');
       past.add('end');
@@ -441,6 +448,26 @@ export default function KioskPage() {
   const [searchParams] = useSearchParams();
   const classroomId = searchParams.get('classroomId');
 
+  useEffect(() => {
+    const syncTime = async () => {
+      try {
+        const t0 = Date.now();
+        const { data } = await api.get('/public/server-time');
+        const t1 = Date.now();
+        const latency = (t1 - t0) / 2;
+        const serverMs = new Date(data.serverTime).getTime();
+        serverTimeSkew = (serverMs + latency) - t1;
+        console.log(`Time synchronized. Skew: ${serverTimeSkew}ms`);
+      } catch (err) {
+        console.warn('Failed to synchronize time with server:', err);
+      }
+    };
+    syncTime();
+    const interval = setInterval(syncTime, 300000);
+    return () => clearInterval(interval);
+  }, []);
+
+
   // Core Data State
   const [slots, setSlots] = useState([]);
   const [cycle, setCycle] = useState(null);
@@ -663,7 +690,7 @@ export default function KioskPage() {
 
   // Evaluate slots filter with fixed local reference
   const getFilteredSlots = () => {
-    const referenceNow = new Date();
+    const referenceNow = getSyncDate();
     const live = slots.filter(s => getPhase(s, referenceNow) === 'live');
     const upcoming = slots.filter(s => getPhase(s, referenceNow) === 'upcoming');
     const done = slots.filter(s => getPhase(s, referenceNow) === 'done');
@@ -1071,7 +1098,7 @@ export default function KioskPage() {
               </div>
             ) : (
               slots.map(slot => {
-                const phase = getPhase(slot, new Date());
+                const phase = getPhase(slot, getSyncDate());
                 const isActive = active.some(x => x.id === slot.id);
                 
                 let indicatorColor = '#3b82f6';

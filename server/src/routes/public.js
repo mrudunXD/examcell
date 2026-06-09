@@ -91,4 +91,12 @@ router.get('/seating/:roomAllocationId', asyncHandler(async (req, res) => {
   res.json({ classroom, assignments });
 }));
 
+// GET /api/public/server-time
+router.get('/server-time', asyncHandler(async (req, res) => {
+  res.json({
+    serverTime: new Date().toISOString(),
+    timezoneOffset: new Date().getTimezoneOffset()
+  });
+}));
+
 export default router;

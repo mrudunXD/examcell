@@ -5,10 +5,12 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
 import { generateSeating } from '../services/seatingEngine.js';
 import { assignSupervisors } from '../services/supervisorEngine.js';
+import { explainSlotDecision } from '../services/scheduleExplainer.js';
 import { broadcastUpdate } from '../services/socket.js';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getChaosState } from '../services/chaosEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,11 +84,34 @@ router.post('/', requireCoordinator, auditLog('CREATE_CYCLE', 'exam_cycles', (re
   res.status(201).json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(id));
 }));
 
-router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Updated cycle ${data?.name} (status: ${data?.status})`), asyncHandler(async (req, res) => {
+router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => req.auditDetails || `Updated cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { name, start_date, end_date, status, semester_type } = req.body;
-  await db.prepare("UPDATE exam_cycles SET name=?,start_date=?,end_date=?,status=?,semester_type=?,updated_at=datetime('now') WHERE id=?")
-    .run(name, start_date, end_date, status, semester_type || 'odd', req.params.id);
+  const { name, start_date, end_date, status, semester_type, version } = req.body;
+  if (version === undefined) {
+    return res.status(400).json({ error: 'version is required for concurrency protection' });
+  }
+
+  const oldCycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  if (!oldCycle) return res.status(404).json({ error: 'Cycle not found' });
+
+  const diffs = [];
+  if (oldCycle.name !== name) diffs.push(`Name: "${oldCycle.name}" -> "${name}"`);
+  if (oldCycle.start_date !== start_date) diffs.push(`Start Date: ${oldCycle.start_date} -> ${start_date}`);
+  if (oldCycle.end_date !== end_date) diffs.push(`End Date: ${oldCycle.end_date} -> ${end_date}`);
+  if (oldCycle.status !== status) diffs.push(`Status: ${oldCycle.status} -> ${status}`);
+  if (oldCycle.semester_type !== semester_type) diffs.push(`Semester Type: ${oldCycle.semester_type} -> ${semester_type}`);
+  req.auditDetails = `Updated cycle ${name}. Diffs: ${diffs.join(', ') || 'No changes'}`;
+
+  const result = await db.prepare("UPDATE exam_cycles SET name=?,start_date=?,end_date=?,status=?,semester_type=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND version=?")
+    .run(name, start_date, end_date, status, semester_type || 'odd', req.params.id, version);
+
+  if (result.changes === 0) {
+    return res.status(409).json({
+      error: 'Conflict',
+      message: 'This exam cycle has been modified by another admin. Please refresh the page and try again.'
+    });
+  }
+
   res.json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
 }));
 
@@ -161,6 +186,9 @@ router.post('/:id/duplicate', requireCoordinator, auditLog('DUPLICATE_CYCLE', 'e
 // POST /:id/auto-schedule — full automatic scheduling pipeline
 const runSolver = (inputData) => {
   return new Promise((resolve, reject) => {
+    if (getChaosState().solverChaosMode) {
+      return reject(new Error('Solver process execution timed out (Simulated Chaos)'));
+    }
     const pyPath = path.join(__dirname, '../services/scheduler.py');
     const solverProcess = spawn('python', [pyPath]);
     
@@ -274,8 +302,30 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     }
   };
 
+  const solverStart = Date.now();
   try {
     const result = await runSolver(inputData);
+    
+    try {
+      const duration = Date.now() - solverStart;
+      const telemetryId = crypto.randomUUID();
+      const constraintsCount = result.constraints_count || 0;
+      const objectiveValue = result.objective_value || 0;
+      const conflictsStr = result.status === 'FAIL' ? JSON.stringify(result.conflicts) : null;
+      
+      await db.prepare(`
+        INSERT INTO solver_telemetry (id, cycle_id, solve_duration_ms, status, constraints_count, optimization_score, infeasible_causes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(telemetryId, cycle.id, duration, result.status, constraintsCount, objectiveValue, conflictsStr);
+
+      // Save full run input payload
+      const runId = crypto.randomUUID();
+      await db.prepare('INSERT INTO solver_runs (id, cycle_id, input_payload) VALUES (?, ?, ?)')
+        .run(runId, cycle.id, JSON.stringify(inputData));
+    } catch (telemetryErr) {
+      console.error('⚠️ Failed to save solver telemetry/run payload:', telemetryErr.message);
+    }
+
     
     if (result.status === 'SUCCESS') {
       const createdCount = result.slots.length;
@@ -379,6 +429,16 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     }
   } catch (err) {
     console.error('❌ Auto-schedule error:', err.message);
+    try {
+      const duration = Date.now() - solverStart;
+      const telemetryId = crypto.randomUUID();
+      await db.prepare(`
+        INSERT INTO solver_telemetry (id, cycle_id, solve_duration_ms, status, constraints_count, optimization_score, infeasible_causes)
+        VALUES (?, ?, ?, 'FAIL', 0, 0, ?)
+      `).run(telemetryId, cycle.id, duration, err.message);
+    } catch (telemetryErr) {
+      console.error('⚠️ Failed to save error solver telemetry:', telemetryErr.message);
+    }
     res.status(500).json({ error: `Solver failed: ${err.message}` });
   }
 }));
@@ -588,9 +648,12 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
   res.status(201).json({ ...created, student_count: studentCount.cnt });
 }));
 
-router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
+router.put('/:cycleId/slots/:slotId', requireCoordinator, auditLog('UPDATE_SLOT', 'exam_slots', (req) => req.params.slotId, (req) => req.auditDetails || `Updated slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { subject_id, date, start_time, duration_mins, classroom_ids, exam_type, exam_mode } = req.body;
+  const { subject_id, date, start_time, duration_mins, classroom_ids, exam_type, exam_mode, version } = req.body;
+  if (version === undefined) {
+    return res.status(400).json({ error: 'version is required for concurrency protection' });
+  }
 
   const subject = await db.prepare('SELECT * FROM subjects WHERE id=?').get(subject_id);
   if (!subject) return res.status(404).json({ error: 'Subject not found' });
@@ -603,6 +666,7 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (re
   const oldSlot = await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
   if (!oldSlot) return res.status(404).json({ error: 'Slot not found' });
 
+  const oldSubject = await db.prepare('SELECT * FROM subjects WHERE id=?').get(oldSlot.subject_id);
   const oldRoomIds = await db.prepare('SELECT classroom_id FROM room_allocations WHERE slot_id=?').all(req.params.slotId).map(r => r.classroom_id);
   const subjectChanged = oldSlot.subject_id !== subject_id;
   const classroomsChanged = Array.isArray(classroom_ids) && (
@@ -610,23 +674,66 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (re
     !oldRoomIds.every(id => classroom_ids.includes(id))
   );
 
-  await db.transaction(async () => {
-    await db.prepare('UPDATE exam_slots SET subject_id=?,date=?,start_time=?,duration_mins=?,exam_type=?,exam_mode=? WHERE id=?')
-      .run(subject_id, date, start_time, parseInt(duration_mins), exam_type || 'regular', exam_mode || 'offline', req.params.slotId);
-
-    // Always sync/refresh the students in slot_students to match latest students in the database
-    await db.prepare('DELETE FROM slot_students WHERE slot_id=?').run(req.params.slotId);
-    const autoStudents = await getStudentsForSubject(db, subject);
-
-    const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
-    for (const s of autoStudents) await ssStmt.run(req.params.slotId, s.id);
-
-    if (Array.isArray(classroom_ids) && classroomsChanged) {
-      await db.prepare('DELETE FROM room_allocations WHERE slot_id=?').run(req.params.slotId);
-      const raStmt = await db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
-      for (const cid of classroom_ids) await raStmt.run(crypto.randomUUID(), req.params.slotId, cid);
+  const diffs = [];
+  if (oldSlot.subject_id !== subject_id) {
+    diffs.push(`Subject: "${oldSubject?.name} (${oldSubject?.code})" -> "${subject.name} (${subject.code})"`);
+  }
+  if (oldSlot.date !== date) diffs.push(`Date: ${oldSlot.date} -> ${date}`);
+  if (oldSlot.start_time !== start_time) diffs.push(`Start time: ${oldSlot.start_time} -> ${start_time}`);
+  if (oldSlot.duration_mins !== parseInt(duration_mins)) diffs.push(`Duration: ${oldSlot.duration_mins}m -> ${duration_mins}m`);
+  if (oldSlot.exam_type !== exam_type) diffs.push(`Type: ${oldSlot.exam_type} -> ${exam_type}`);
+  if (oldSlot.exam_mode !== exam_mode) diffs.push(`Mode: ${oldSlot.exam_mode} -> ${exam_mode}`);
+  
+  if (classroomsChanged) {
+    const oldRooms = await db.prepare(`
+      SELECT c.room_no FROM room_allocations ra
+      JOIN classrooms c ON c.id = ra.classroom_id
+      WHERE ra.slot_id = ?
+    `).all(req.params.slotId);
+    const oldRoomNos = oldRooms.map(r => r.room_no).join(', ') || 'None';
+    
+    let newRoomNos = 'None';
+    if (classroom_ids.length > 0) {
+      const newRooms = await db.prepare('SELECT room_no FROM classrooms WHERE id IN (' + classroom_ids.map(() => '?').join(',') + ')').all(...classroom_ids);
+      newRoomNos = newRooms.map(r => r.room_no).join(', ') || 'None';
     }
-  })();
+    
+    diffs.push(`Rooms: [${oldRoomNos}] -> [${newRoomNos}]`);
+  }
+  
+  req.auditDetails = `Slot for ${subject.code} (${subject.name}) updated. Diffs: ${diffs.join(', ') || 'No changes'}`;
+
+  try {
+    await db.transaction(async () => {
+      const updateResult = await db.prepare('UPDATE exam_slots SET subject_id=?,date=?,start_time=?,duration_mins=?,exam_type=?,exam_mode=?, version = version + 1 WHERE id=? AND version=?')
+        .run(subject_id, date, start_time, parseInt(duration_mins), exam_type || 'regular', exam_mode || 'offline', req.params.slotId, version);
+
+      if (updateResult.changes === 0) {
+        throw new Error('VERSION_CONFLICT');
+      }
+
+      // Always sync/refresh the students in slot_students to match latest students in the database
+      await db.prepare('DELETE FROM slot_students WHERE slot_id=?').run(req.params.slotId);
+      const autoStudents = await getStudentsForSubject(db, subject);
+
+      const ssStmt = await db.prepare('INSERT OR IGNORE INTO slot_students (slot_id, student_id) VALUES (?,?)');
+      for (const s of autoStudents) await ssStmt.run(req.params.slotId, s.id);
+
+      if (Array.isArray(classroom_ids) && classroomsChanged) {
+        await db.prepare('DELETE FROM room_allocations WHERE slot_id=?').run(req.params.slotId);
+        const raStmt = await db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?,?,?)');
+        for (const cid of classroom_ids) await raStmt.run(crypto.randomUUID(), req.params.slotId, cid);
+      }
+    })();
+  } catch (err) {
+    if (err.message === 'VERSION_CONFLICT') {
+      return res.status(409).json({
+        error: 'Conflict',
+        message: 'This exam slot has been modified by another admin. Please refresh the page and try again.'
+      });
+    }
+    throw err;
+  }
 
   // AUTO ALLOCATE SEATING AND SUPERVISORS IMMEDIATELY FOR OFFLINE EXAMS ON UPDATE
   if (exam_mode === 'offline' && Array.isArray(classroom_ids) && classroom_ids.length) {
@@ -669,6 +776,41 @@ router.get('/:cycleId/valid-subjects', asyncHandler(async (req, res) => {
     `SELECT * FROM subjects WHERE semester IN (${placeholders}) ORDER BY semester, code`
   ).all(...validSems);
   res.json(subjects);
+}));
+
+router.get('/:cycleId/slots/:slotId/explain', requireCoordinator, asyncHandler(async (req, res) => {
+  const explanation = await explainSlotDecision(req.params.cycleId, req.params.slotId);
+  res.json(explanation);
+}));
+
+// GET /api/exam-cycles/:id/solver-runs — list historical solver run payloads for cycle
+router.get('/:id/solver-runs', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const runs = await db.prepare('SELECT id, created_at FROM solver_runs WHERE cycle_id = ? ORDER BY created_at DESC').all(req.params.id);
+  res.json(runs);
+}));
+
+// POST /api/exam-cycles/:id/replay/:runId — Deterministic solver replay validation
+router.post('/:id/replay/:runId', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const run = await db.prepare('SELECT * FROM solver_runs WHERE id = ? AND cycle_id = ?').get(req.params.runId, req.params.id);
+  if (!run) return res.status(404).json({ error: 'Solver run not found' });
+
+  const inputData = JSON.parse(run.input_payload);
+  const solverStart = Date.now();
+  const result = await runSolver(inputData);
+  const duration = Date.now() - solverStart;
+
+  res.json({
+    originalRunId: run.id,
+    timestamp: run.created_at,
+    durationMs: duration,
+    status: result.status,
+    constraintsCount: result.constraints_count || 0,
+    objectiveValue: result.objective_value || 0,
+    slotsCount: result.slots?.length || 0,
+    result
+  });
 }));
 
 export default router;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle, Calendar, Loader, Copy, CalendarDays } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Grid3x3, UserCog, Wifi, Monitor, Users, AlertTriangle, Calendar, Loader, Copy, CalendarDays, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
@@ -15,7 +15,7 @@ const MODE_ACCENT   = { offline: '#111111', online: '#1d4ed8' };
 // ── Cycle Modal ──────────────────────────────────────────────────────────────
 function CycleModal({ cycle, onClose, onSave }) {
   const [form, setForm] = useState(cycle
-    ? { name: cycle.name, start_date: cycle.start_date, end_date: cycle.end_date, status: cycle.status, semester_type: cycle.semester_type || 'odd' }
+    ? { name: cycle.name, start_date: cycle.start_date, end_date: cycle.end_date, status: cycle.status, semester_type: cycle.semester_type || 'odd', version: cycle.version }
     : { name: '', start_date: '', end_date: '', semester_type: 'odd' }
   );
   const [saving, setSaving] = useState(false);
@@ -98,6 +98,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
     subject_id: slot.subject_id, date: slot.date, start_time: slot.start_time,
     duration_mins: slot.duration_mins, classroom_ids: slot.rooms?.map(r => r.classroom_id) || [],
     exam_type: slot.exam_type || 'regular', exam_mode: slot.exam_mode || 'offline',
+    version: slot.version
   } : { subject_id: '', date: '', start_time: '10:00', duration_mins: 180, classroom_ids: [], exam_type: 'regular', exam_mode: 'offline' });
   const [saving, setSaving] = useState(false);
   const [autoCount, setAutoCount] = useState(null);
@@ -303,6 +304,7 @@ export default function ExamCyclesPage() {
   const { user } = useAuthStore();
   const isCoord = user?.role === 'coordinator';
   const [scheduling, setScheduling] = useState({});
+  const [explainSlotId, setExplainSlotId] = useState(null);
 
   // Auto Schedule configurations
   const [autoScheduleModal, setAutoScheduleModal] = useState(null);
@@ -527,7 +529,8 @@ export default function ExamCyclesPage() {
                             </div>
                             <SlotList slots={backlog} cycleId={cycle.id} isCoord={isCoord}
                               onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
-                              onDel={(slotId) => delSlot(cycle.id, slotId)} />
+                              onDel={(slotId) => delSlot(cycle.id, slotId)}
+                              onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} />
                           </div>
                         )}
                         {/* Regular slots */}
@@ -540,7 +543,8 @@ export default function ExamCyclesPage() {
                             )}
                             <SlotList slots={regular} cycleId={cycle.id} isCoord={isCoord}
                               onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
-                              onDel={(slotId) => delSlot(cycle.id, slotId)} />
+                              onDel={(slotId) => delSlot(cycle.id, slotId)}
+                              onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} />
                           </div>
                         )}
                       </>
@@ -561,6 +565,13 @@ export default function ExamCyclesPage() {
           slot={editing}
           onClose={() => setModal(null)}
           onSave={() => loadSlots(slotCycleId)}
+        />
+      )}
+      {explainSlotId && slotCycleId && (
+        <ExplainModal
+          cycleId={slotCycleId}
+          slotId={explainSlotId}
+          onClose={() => setExplainSlotId(null)}
         />
       )}
       {autoScheduleModal && (
@@ -710,7 +721,7 @@ export default function ExamCyclesPage() {
   );
 }
 
-function SlotList({ slots, cycleId, isCoord, onEdit, onDel }) {
+function SlotList({ slots, cycleId, isCoord, onEdit, onDel, onExplain }) {
   return (
     <div style={{ border: '1px solid #E5E5E0' }}>
       {slots.map((slot, si) => (
@@ -750,6 +761,9 @@ function SlotList({ slots, cycleId, isCoord, onEdit, onDel }) {
             <Link to={`/attendance/${slot.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
               <Users size={11} strokeWidth={1.5} /> Attendance
             </Link>
+            <button className="btn btn-ghost btn-sm" onClick={() => onExplain(slot.id)} style={{ fontSize: 10 }}>
+              <Info size={11} strokeWidth={1.5} /> Explain
+            </button>
             {isCoord && <>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(slot)}><Pencil size={11} strokeWidth={1.5} /></button>
               <button className="btn btn-danger btn-icon btn-sm" onClick={() => onDel(slot.id)}><Trash2 size={11} strokeWidth={1.5} /></button>
@@ -758,6 +772,84 @@ function SlotList({ slots, cycleId, isCoord, onEdit, onDel }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ExplainModal({ cycleId, slotId, onClose }) {
+  const [explanation, setExplanation] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/exam-cycles/${cycleId}/slots/${slotId}/explain`)
+      .then(r => {
+        setExplanation(r.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        toast.error('Failed to load decision explanation');
+        onClose();
+      });
+  }, [cycleId, slotId]);
+
+  if (loading) {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal" style={{ maxWidth: 450, display: 'flex', justifyContent: 'center', padding: 40 }}>
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: '100%', maxWidth: 500, padding: 24 }}>
+        <h2 className="modal-title" style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', borderBottom: '2px solid var(--np-ink)', paddingBottom: 8, marginBottom: 16 }}>
+          Decision Explanation
+        </h2>
+        <div style={{ fontSize: 13, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
+            {explanation.subjectCode} — {explanation.subjectName}
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginBottom: 12 }}>
+            Branch: {explanation.branch} · Year: {explanation.year} · Date: {explanation.date} · Time: {explanation.startTime}
+          </div>
+          <div style={{ background: '#f5f5f4', borderLeft: '3px solid var(--np-ink)', padding: 12, fontFamily: 'var(--font-body)', fontStyle: 'italic', lineHeight: 1.5, marginBottom: 20 }}>
+            "{explanation.summary}"
+          </div>
+
+          <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: 10, color: 'var(--np-n500)', borderBottom: '1px solid var(--np-muted)', paddingBottom: 4, marginBottom: 10 }}>
+            Rule & Soft Constraint Validations
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {explanation.checks.map((c, idx) => (
+              <div key={idx} style={{ border: '1px solid var(--np-muted)', padding: '10px 12px', background: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: 12 }}>{c.rule}</span>
+                  <span style={{ 
+                    fontSize: 8, 
+                    fontWeight: 800, 
+                    padding: '2px 6px', 
+                    border: `1px solid ${c.status === 'PASS' ? '#166534' : '#991b1b'}`,
+                    background: c.status === 'PASS' ? '#dcfce7' : '#fee2e2',
+                    color: c.status === 'PASS' ? '#166534' : '#991b1b',
+                  }}>
+                    {c.status}
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--np-n600)', lineHeight: 1.4 }}>{c.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--np-muted)', paddingTop: 16 }}>
+          <button className="btn btn-primary btn-sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
     </div>
   );
 }

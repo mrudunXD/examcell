@@ -50,14 +50,14 @@ router.get('/', asyncHandler(async (req, res) => {
 // POST report a new incident
 router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.id, (req, data) => `Reported incident ${data?.type} (severity: ${data?.severity}) for slot ID: ${data?.slot_id}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { slot_id, room_allocation_id, type, description, student_prn, action_taken, severity } = req.body;
+  const { slot_id, room_allocation_id, type, description, student_prn, action_taken, severity, evidence_image } = req.body;
   if (!slot_id || !type || !description) return res.status(400).json({ error: 'slot_id, type, description required' });
 
   const id = crypto.randomUUID();
   await db.prepare(`
-    INSERT INTO incidents (id, slot_id, room_allocation_id, reported_by, type, description, student_prn, action_taken, severity)
-    VALUES (?,?,?,?,?,?,?,?,?)
-  `).run(id, slot_id, room_allocation_id || null, req.user.id, type, description, student_prn || null, action_taken || null, severity || 'low');
+    INSERT INTO incidents (id, slot_id, room_allocation_id, reported_by, type, description, student_prn, action_taken, severity, evidence_image)
+    VALUES (?,?,?,?,?,?,?,?,?,?)
+  `).run(id, slot_id, room_allocation_id || null, req.user.id, type, description, student_prn || null, action_taken || null, severity || 'low', evidence_image || null);
 
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(id);
   broadcastUpdate('INCIDENT_REPORTED', incident);

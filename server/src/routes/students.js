@@ -12,7 +12,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 router.use(authenticate);
 
 // GET /api/students
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const { branch, year, search, section } = req.query;
   let query = 'SELECT * FROM students WHERE is_active = 1';

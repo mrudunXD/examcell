@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
-  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu
+  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
@@ -25,6 +25,7 @@ const coordinatorNav = [
   { section: 'System' },
   { to: '/search',    icon: SearchIcon,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
+  { to: '/health',    icon: Activity,      label: 'System Health' },
 ];
 
 const facultyNav = [

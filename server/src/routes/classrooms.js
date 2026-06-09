@@ -23,8 +23,16 @@ router.post('/', requireCoordinator, auditLog('CREATE_CLASSROOM', 'classrooms', 
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_CLASSROOM', 'classrooms', (req) => req.params.id, (req, data) => `Updated classroom Room ${data?.room_no}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { room_no, block, capacity, bench_rows, bench_cols, is_online } = req.body;
-  await db.prepare('UPDATE classrooms SET room_no=?, block=?, capacity=?, bench_rows=?, bench_cols=?, is_online=? WHERE id=?').run(room_no, block, parseInt(capacity), parseInt(bench_rows), parseInt(bench_cols), is_online ? 1 : 0, req.params.id);
+  const { room_no, block, capacity, bench_rows, bench_cols, is_online, version } = req.body;
+  
+  if (version !== undefined) {
+    const result = await db.prepare('UPDATE classrooms SET room_no=?, block=?, capacity=?, bench_rows=?, bench_cols=?, is_online=?, version = version + 1 WHERE id=? AND version=?').run(room_no, block, parseInt(capacity), parseInt(bench_rows), parseInt(bench_cols), is_online ? 1 : 0, req.params.id, parseInt(version));
+    if (result.changes === 0) {
+      return res.status(409).json({ error: 'Conflict: Classroom was updated by another coordinator. Please refresh.' });
+    }
+  } else {
+    await db.prepare('UPDATE classrooms SET room_no=?, block=?, capacity=?, bench_rows=?, bench_cols=?, is_online=? WHERE id=?').run(room_no, block, parseInt(capacity), parseInt(bench_rows), parseInt(bench_cols), is_online ? 1 : 0, req.params.id);
+  }
   res.json(await db.prepare('SELECT * FROM classrooms WHERE id = ?').get(req.params.id));
 }));
 

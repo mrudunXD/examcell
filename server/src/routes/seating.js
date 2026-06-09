@@ -98,14 +98,15 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SEATING'
   res.json({ assigned: assignments.length, conflicts, message: `Seating generated for ${assignments.length} students across ${rooms.length} room(s).` });
 }));
 
-// PUT override a single seat
-router.put('/override', requireCoordinator, auditLog('OVERRIDE_SEATING', 'seating', (req) => req.body.assignment_id, (req) => `Moved seating assignment ${req.body.assignment_id} to Row ${req.body.bench_row}, Col ${req.body.bench_col}`), asyncHandler(async (req, res) => {
+// PUT change a single seat
+router.put('/change-seat', requireCoordinator, auditLog('CHANGE_SEAT', 'seating', (req) => req.body.assignment_id, (req) => `Moved seating assignment ${req.body.assignment_id} to Row ${req.body.bench_row}, Col ${req.body.bench_col}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { assignment_id, bench_row, bench_col } = req.body;
+  const { assignment_id, bench_row, bench_col, version } = req.body;
 
-  const assignment = await db.prepare("SELECT * FROM seat_assignments WHERE id=?").get(assignment_id);
-  if (!assignment) return res.status(404).json({ error: 'Seating assignment not found' });
+  const assignment = await db.prepare('SELECT * FROM seat_assignments WHERE id=?').get(assignment_id);
+  if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
 
+  // Check if seat is occupied
   const occupied = await db.prepare(`
     SELECT s.name
     FROM seat_assignments sa
@@ -117,26 +118,50 @@ router.put('/override', requireCoordinator, auditLog('OVERRIDE_SEATING', 'seatin
     return res.status(400).json({ error: `Seat Row ${bench_row}, Col ${bench_col} is already occupied by ${occupied.name}.` });
   }
 
-  await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, updated_at=datetime('now') WHERE id=?").run(bench_row, bench_col, assignment_id);
+  if (version !== undefined) {
+    const result = await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, version = version + 1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND version=?").run(bench_row, bench_col, assignment_id, parseInt(version));
+    if (result.changes === 0) {
+      return res.status(409).json({ error: 'Conflict: Seating assignment was modified by another coordinator. Please refresh.' });
+    }
+  } else {
+    await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(bench_row, bench_col, assignment_id);
+  }
   res.json({ success: true });
 }));
 
 // PUT swap two students' seats
 router.put('/swap', requireCoordinator, auditLog('SWAP_SEATING', 'seating', (req) => req.body.assignment_id_1, (req) => `Swapped seating assignments ${req.body.assignment_id_1} and ${req.body.assignment_id_2}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { assignment_id_1, assignment_id_2 } = req.body;
+  const { assignment_id_1, assignment_id_2, version_1, version_2 } = req.body;
 
   const a1 = await db.prepare('SELECT * FROM seat_assignments WHERE id=?').get(assignment_id_1);
   const a2 = await db.prepare('SELECT * FROM seat_assignments WHERE id=?').get(assignment_id_2);
   if (!a1 || !a2) return res.status(404).json({ error: 'Assignment not found' });
 
   const swap = await db.transaction(async () => {
-    // Use temporary position to avoid unique constraint
-    await db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=?").run(a1.id);
-    await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id);
-    await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
+    if (version_1 !== undefined && version_2 !== undefined) {
+      const res1 = await db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=? AND version=?").run(a1.id, parseInt(version_1));
+      if (res1.changes === 0) throw new Error('409: Seating assignment 1 modified by another user.');
+      
+      const res2 = await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=?, version = version + 1 WHERE id=? AND version=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id, parseInt(version_2));
+      if (res2.changes === 0) throw new Error('409: Seating assignment 2 modified by another user.');
+      
+      await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=?, version = version + 1 WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
+    } else {
+      await db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=?").run(a1.id);
+      await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id);
+      await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
+    }
   });
-  await swap();
+
+  try {
+    await swap();
+  } catch (err) {
+    if (err.message.startsWith('409:')) {
+      return res.status(409).json({ error: err.message.substring(5) });
+    }
+    throw err;
+  }
   res.json({ success: true });
 }));
 

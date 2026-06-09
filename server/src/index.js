@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import http from 'http';
@@ -24,6 +26,14 @@ import broadcastRouter from './routes/broadcasts.js';
 import incidentRouter from './routes/incidents.js';
 import analyticsRouter from './routes/analytics.js';
 import publicRouter from './routes/public.js';
+import healthRouter from './routes/health.js';
+import backupRouter from './routes/backups.js';
+import replacementRouter from './routes/replacements.js';
+import { initAutoBackupScheduler } from './services/autoBackup.js';
+import { initAlertingMonitor } from './services/alerting.js';
+
+
+
 
 import { initDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -33,6 +43,30 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Add CSP and secure HTTP headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "ws://localhost:5000", "http://localhost:5000", "ws://localhost:5173"]
+    }
+  }
+}));
+
+// Apply DDoS and reconnect storm rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 1000, // Safe limit accommodating localhost tests
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again after a minute.' }
+});
+app.use('/api', apiLimiter);
 
 // Initialize DB
 initDb();
@@ -65,8 +99,12 @@ app.use('/api/search', searchRouter);
 app.use('/api/broadcasts', broadcastRouter);
 app.use('/api/incidents', incidentRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/health', healthRouter);
+app.use('/api/backups', backupRouter);
+app.use('/api/replacements', replacementRouter);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+
 
 app.use(errorHandler);
 
@@ -75,6 +113,8 @@ initSocket(server);
 
 server.listen(PORT, () => {
   console.log(`\n🎓 MIT WPU Exam Management Server running on http://localhost:${PORT}\n`);
+  initAutoBackupScheduler();
+  initAlertingMonitor();
 });
 
 export default app;

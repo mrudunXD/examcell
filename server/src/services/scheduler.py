@@ -48,6 +48,8 @@ def solve():
             return "AI"
         if code_upper.startswith("DS"):
             return "DS"
+        if code_upper.startswith("CSE"):
+            return "CSE"
         if code_upper.startswith("CYB") or code_upper.startswith("CS"):
             return "Cyber Security"
         if code_upper.startswith("IOT"):
@@ -60,8 +62,6 @@ def solve():
             return "CE"
         if code_upper.startswith("ECE"):
             return "ECE"
-        if code_upper.startswith("CSE"):
-            return "CSE"
         return current_branch
 
     for s in subjects:
@@ -553,7 +553,8 @@ def solve():
         "status": "SUCCESS",
         "slots": list(output_slots_map.values()),
         "invigilators": output_invigilators,
-        "objective_value": solver1.ObjectiveValue()
+        "objective_value": int(solver1.ObjectiveValue()),
+        "constraints_count": len(model1.Proto().constraints)
     }))
 
 def run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject_group_map, teaches_map, classrooms, slots, dates, is_cca):
@@ -737,7 +738,9 @@ def run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject
 
     print(json.dumps({
         "status": "FAIL",
-        "conflicts": conflicts
+        "conflicts": conflicts,
+        "constraints_count": len(model.Proto().constraints) if 'model' in locals() else 0,
+        "objective_value": 0
     }))
 
 if __name__ == "__main__":

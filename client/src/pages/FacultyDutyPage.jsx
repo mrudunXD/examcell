@@ -14,20 +14,234 @@ import {
   CheckSquare, 
   ChevronLeft, 
   ChevronRight, 
-  Calendar 
+  Calendar,
+  Search,
+  QrCode,
+  Upload,
+  X,
+  Camera,
+  CornerDownRight,
+  RefreshCw,
+  Plus,
+  Zap,
+  TrendingUp
 } from 'lucide-react';
+import io from 'socket.io-client';
 import api from '../lib/api.js';
 import { formatDate, formatTime, formatDateTime } from '../lib/format.js';
 import { useAppStore, useAuthStore } from '../store/index.js';
 import toast from 'react-hot-toast';
 
-function IncidentModal({ duty, onClose, onReported }) {
+// ── QR Scanner Modal (Simulated) ───────────────────────────────────────────
+function QrScannerModal({ roomStudents, onScanSuccess, onClose }) {
+  const [selectedPrn, setSelectedPrn] = useState('');
+  const [manualInput, setManualInput] = useState('');
+  const [scanning, setScanning] = useState(false);
+
+  const handleSimulateScan = () => {
+    let prnToScan = selectedPrn;
+    if (manualInput.trim()) {
+      prnToScan = manualInput.trim();
+    }
+    
+    if (!prnToScan) {
+      toast.error('Please select a student or enter a PRN');
+      return;
+    }
+
+    setScanning(true);
+    // Simulate camera decode latency
+    setTimeout(() => {
+      setScanning(false);
+      const student = roomStudents.find(s => s.prn === prnToScan || s.roll_no === prnToScan);
+      if (student) {
+        onScanSuccess(student.student_id);
+        toast.success(`Scan Success: ${student.student_name} marked Present!`, { icon: '🎯' });
+        setManualInput('');
+        onClose();
+      } else {
+        toast.error(`PRN/Roll No "${prnToScan}" not found in this classroom.`);
+      }
+    }, 800);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: '450px' }}>
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <QrCode size={20} /> Simulated Hall Ticket QR Scanner
+        </h2>
+        
+        {/* Viewfinder box */}
+        <div style={{
+          height: 180,
+          border: '3px dashed var(--np-ink)',
+          background: '#111',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          overflow: 'hidden',
+          marginBottom: 16
+        }}>
+          <Camera size={32} style={{ opacity: 0.5, marginBottom: 8 }} />
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', opacity: 0.8 }}>
+            {scanning ? 'Decoding barcode...' : 'Viewfinder Active'}
+          </span>
+          {/* Laser line effect */}
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: 'var(--np-red)',
+            boxShadow: '0 0 8px var(--np-red)',
+            animation: 'scannerLaser 2s infinite linear'
+          }} />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="form-group">
+            <label className="form-label">Select Student to Simulate QR Scan</label>
+            <select className="select" value={selectedPrn} onChange={e => { setSelectedPrn(e.target.value); setManualInput(''); }}>
+              <option value="">-- Choose Student --</option>
+              {roomStudents.map(s => (
+                <option key={s.student_id} value={s.prn}>
+                  {s.student_name} ({s.roll_no} - {s.prn})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 11, fontFamily: 'var(--font-mono)', opacity: 0.5 }}>- OR ENTER MANUALLY -</div>
+
+          <div className="form-group">
+            <label className="form-label">Type Student PRN / Roll No</label>
+            <input 
+              className="input" 
+              placeholder="e.g. 1032210123" 
+              value={manualInput} 
+              onChange={e => { setManualInput(e.target.value); setSelectedPrn(''); }}
+            />
+          </div>
+
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={scanning}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={handleSimulateScan} disabled={scanning}>
+              {scanning ? 'Scanning...' : 'Simulate Scan'}
+            </button>
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @keyframes scannerLaser {
+          0% { top: 0%; }
+          50% { top: 100%; }
+          100% { top: 0%; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Replacement Request Modal ─────────────────────────────────────────────
+function ReplacementRequestModal({ duties, onClose, onSubmitSuccess }) {
+  const [dutyId, setDutyId] = useState('');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!dutyId) {
+      toast.error('Please select a duty to substitute');
+      return;
+    }
+    if (!reason.trim()) {
+      toast.error('Please provide a reason');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.post('/replacements', { duty_id: dutyId, reason: reason.trim() });
+      toast.success('Replacement request submitted successfully');
+      if (onSubmitSuccess) onSubmitSuccess();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to submit request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ShieldAlert size={20} color="var(--np-red)" /> Request Invigilator Replacement
+        </h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label">Select Duty to Replace *</label>
+            <select className="select" value={dutyId} onChange={e => setDutyId(e.target.value)} required>
+              <option value="">-- Choose Duty --</option>
+              {duties.map(d => (
+                <option key={d.id} value={d.id}>
+                  {formatDate(d.date)} | Room {d.room_no} - {d.subject_code} ({formatTime(d.start_time)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Reason for Absence / Inability to Attend *</label>
+            <textarea 
+              className="textarea" 
+              style={{ minHeight: 100 }}
+              placeholder="Detail why you require replacement (medical, personal, clash, etc.)"
+              value={reason} 
+              onChange={e => setReason(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="alert alert-warning" style={{ fontSize: 11 }}>
+            <Info size={14} /> Submitted requests are forwarded to the Exam Coordinators immediately. You are still legally responsible for the duty until replaced.
+          </div>
+
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--np-muted)' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button type="submit" className="btn btn-danger" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Request Replacement'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Incident Modal with Malpractice Evidence ───────────────────────────────────────────
+function IncidentModal({ duty, studentPrnPrefill, onClose, onReported }) {
   const [type, setType] = useState('malpractice');
   const [severity, setSeverity] = useState('low');
   const [description, setDescription] = useState('');
-  const [studentPrn, setStudentPrn] = useState('');
+  const [studentPrn, setStudentPrn] = useState(studentPrnPrefill || '');
   const [actionTaken, setActionTaken] = useState('');
+  const [evidenceImage, setEvidenceImage] = useState(null); // base64 string
   const [submitting, setSubmitting] = useState(false);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEvidenceImage(reader.result); // Base64 data URI
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,6 +259,7 @@ function IncidentModal({ duty, onClose, onReported }) {
         student_prn: studentPrn.trim() || null,
         action_taken: actionTaken.trim() || null,
         severity,
+        evidence_image: evidenceImage
       });
       toast.success('Incident reported successfully');
       if (onReported) onReported();
@@ -59,11 +274,11 @@ function IncidentModal({ duty, onClose, onReported }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
-        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626' }}>
-          <AlertTriangle size={20} /> Report Exam Incident
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--np-red)' }}>
+          <AlertTriangle size={20} /> Report Exam Incident / Malpractice
         </h2>
-        <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
-          Room: {duty.room_no} | {duty.subject_code} — {duty.subject_name}
+        <p style={{ fontSize: 13, color: 'var(--np-n600)', marginBottom: 16 }}>
+          Room: Room {duty.room_no} | {duty.subject_code} — {duty.subject_name}
         </p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="grid-2">
@@ -88,7 +303,7 @@ function IncidentModal({ duty, onClose, onReported }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Student PRN (Optional)</label>
+            <label className="form-label">Student PRN / Roll No (Optional)</label>
             <input 
               className="input" 
               placeholder="e.g. 1032210123" 
@@ -100,9 +315,9 @@ function IncidentModal({ duty, onClose, onReported }) {
           <div className="form-group">
             <label className="form-label">Description / Details *</label>
             <textarea 
-              className="input" 
-              style={{ minHeight: 80, resize: 'vertical' }}
-              placeholder="Provide exact details of the incident..." 
+              className="textarea" 
+              style={{ minHeight: 80 }}
+              placeholder="Provide exact details of the incident (e.g. what materials were found, what occurred)..." 
               value={description} 
               onChange={e => setDescription(e.target.value)}
               required
@@ -113,16 +328,48 @@ function IncidentModal({ duty, onClose, onReported }) {
             <label className="form-label">Action Taken (Optional)</label>
             <input 
               className="input" 
-              placeholder="e.g. Confiscated paper, moved seat, warned" 
+              placeholder="e.g. Confiscated paper, warned student, changed seat" 
               value={actionTaken} 
               onChange={e => setActionTaken(e.target.value)} 
             />
           </div>
 
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          {/* Evidence photo upload */}
+          <div className="form-group" style={{ border: '1px dashed var(--np-muted)', padding: 12 }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Upload size={12} /> Malpractice Evidence Upload (Optional)
+            </label>
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+              style={{ fontSize: 11, marginTop: 4 }} 
+            />
+            {evidenceImage && (
+              <div style={{ marginTop: 10, position: 'relative', width: 'fit-content' }}>
+                <img 
+                  src={evidenceImage} 
+                  alt="Evidence Preview" 
+                  style={{ maxHeight: 120, border: '1px solid var(--np-ink)', display: 'block' }} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setEvidenceImage(null)}
+                  style={{
+                    position: 'absolute', top: -6, right: -6, background: 'var(--np-red)', color: '#fff',
+                    border: '1.5px solid var(--np-ink)', padding: 2, display: 'flex', alignItems: 'center'
+                  }}
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--np-muted)' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
-            <button type="submit" className="btn className=btn-danger" disabled={submitting} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>
-              {submitting ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : 'Report Incident'}
+            <button type="submit" className="btn btn-danger" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Report Incident'}
             </button>
           </div>
         </form>
@@ -131,7 +378,7 @@ function IncidentModal({ duty, onClose, onReported }) {
   );
 }
 
-// Visual calendar layout component mapping duties
+// ── Visual duty calendar component ───────────────────────────────────────────
 function DutyCalendar({ duties, onSelectDuty }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (duties.length > 0) {
@@ -211,7 +458,6 @@ function DutyCalendar({ duties, onSelectDuty }) {
                 border: hasDuties 
                   ? `1.5px solid ${dayDuties.some(d => d.role === 'primary') ? '#111' : '#a3a3a3'}` 
                   : (isToday ? '1.5px solid #3b82f6' : '1px solid #E5E5E0'),
-                borderRadius: '8px',
                 position: 'relative',
                 cursor: hasDuties ? 'pointer' : 'default',
                 transition: 'all 0.2s',
@@ -225,8 +471,7 @@ function DutyCalendar({ duties, onSelectDuty }) {
                 <div style={{
                   width: 6,
                   height: 6,
-                  borderRadius: '50%',
-                  background: dayDuties.some(d => d.role === 'primary') ? '#D6001C' : '#3b82f6',
+                  background: dayDuties.some(d => d.role === 'primary') ? 'var(--np-red)' : '#3b82f6',
                   marginTop: 2,
                 }} />
               )}
@@ -238,11 +483,12 @@ function DutyCalendar({ duties, onSelectDuty }) {
   );
 }
 
+// ── Main Page Component ───────────────────────────────────────────────────
 export default function FacultyDutyPage() {
   const { activeCycleId } = useAppStore();
   const { user } = useAuthStore();
   
-  // Dashboard states
+  // Dashboard lists
   const [duties, setDuties] = useState([]);
   const [cycles, setCycles] = useState([]);
   const [selectedCycle, setSelectedCycle] = useState(activeCycleId || '');
@@ -251,13 +497,31 @@ export default function FacultyDutyPage() {
   // Reported Incidents & Broadcast states
   const [broadcasts, setBroadcasts] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [replacements, setReplacements] = useState([]);
+  const [liveRooms, setLiveRooms] = useState([]);
   
   // View states
-  const [activeTab, setActiveTab] = useState('duties'); // 'duties' | 'broadcasts' | 'incidents'
+  const [activeTab, setActiveTab] = useState('duties'); // 'duties' | 'live_status' | 'broadcasts' | 'incidents' | 'assistant'
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   
   // Modals
   const [reportingDuty, setReportingDuty] = useState(null);
+  const [replacementPrefillStudent, setReplacementPrefillStudent] = useState('');
+  const [showReplacementModal, setShowReplacementModal] = useState(false);
+
+  // ── Exam Assistant Console States ────────────────────────────────────────
+  const [assistantRoomAllocationId, setAssistantRoomAllocationId] = useState(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantData, setAssistantData] = useState(null);
+  const [localRecords, setLocalRecords] = useState([]); // local mutable attendance list
+  const [searchPRN, setSearchPRN] = useState('');
+  const [selectedSeatStudent, setSelectedSeatStudent] = useState(null);
+  const [assistantModeTab, setAssistantModeTab] = useState('grid'); // 'grid' | 'list'
+  const [showQrModal, setShowQrModal] = useState(false);
+  
+  // Live Timer states
+  const [timerText, setTimerText] = useState('Exam Countdown Loading...');
+  const [timerProgress, setTimerProgress] = useState(0);
 
   const fetchDuties = useCallback(() => {
     if (!selectedCycle) return;
@@ -282,6 +546,21 @@ export default function FacultyDutyPage() {
     } catch {}
   }, []);
 
+  const fetchReplacements = useCallback(async () => {
+    try {
+      const { data } = await api.get('/replacements/my-requests');
+      setReplacements(data);
+    } catch {}
+  }, []);
+
+  const fetchLiveRooms = useCallback(async () => {
+    try {
+      const { data } = await api.get('/supervisors/live-rooms');
+      setLiveRooms(data);
+    } catch {}
+  }, []);
+
+  // Initialize
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
       setCycles(r.data);
@@ -289,19 +568,156 @@ export default function FacultyDutyPage() {
     });
     fetchBroadcasts();
     fetchIncidents();
-  }, [fetchBroadcasts, fetchIncidents, selectedCycle]);
+    fetchReplacements();
+    fetchLiveRooms();
+  }, [fetchBroadcasts, fetchIncidents, fetchReplacements, fetchLiveRooms, selectedCycle]);
 
   useEffect(() => {
     fetchDuties();
   }, [selectedCycle, fetchDuties]);
 
+  // Real-time sockets integration
+  useEffect(() => {
+    const socketUrl = window.location.origin.includes('5173')
+      ? 'http://localhost:5000'
+      : window.location.origin;
+    const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      console.log('📡 Faculty Portal WebSocket connected');
+    });
+
+    socket.on('EMERGENCY_BROADCAST', (broadcast) => {
+      toast((t) => (
+        <div style={{ cursor: 'pointer' }} onClick={() => { toast.dismiss(t.id); setActiveTab('broadcasts'); }}>
+          <div style={{ fontWeight: 800, color: broadcast.priority === 'critical' ? '#dc2626' : '#1e3a8a' }}>
+            🚨 Emergency Notice: {broadcast.title}
+          </div>
+          <div style={{ fontSize: '11px', marginTop: 4 }}>{broadcast.message}</div>
+        </div>
+      ), { duration: 8000 });
+      fetchBroadcasts();
+    });
+
+    socket.on('INCIDENT_UPDATED', () => {
+      fetchIncidents();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fetchBroadcasts, fetchIncidents]);
+
+  // Launch Active Invigilation console
+  const launchAssistant = async (roomAllocationId) => {
+    setAssistantLoading(true);
+    setAssistantRoomAllocationId(roomAllocationId);
+    try {
+      const { data } = await api.get(`/supervisors/room-details/${roomAllocationId}`);
+      setAssistantData(data);
+      setLocalRecords(data.assignments);
+      setActiveTab('assistant');
+      toast.success('Exam Assistant Console loaded');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to load Exam Assistant Mode');
+    } finally {
+      setAssistantLoading(false);
+    }
+  };
+
+  // Timer Tick implementation
+  useEffect(() => {
+    if (activeTab !== 'assistant' || !assistantData?.roomAllocation) return;
+
+    const tick = () => {
+      const ra = assistantData.roomAllocation;
+      const start = new Date(`${ra.date}T${ra.start_time}`);
+      const duration = ra.duration_mins || 120;
+      const end = new Date(start.getTime() + duration * 60000);
+      const now = new Date();
+
+      if (now < start) {
+        const diffMs = start - now;
+        const hrs = Math.floor(diffMs / 3600000);
+        const mins = Math.floor((diffMs % 3600000) / 60000);
+        const secs = Math.floor((diffMs % 60000) / 1000);
+        setTimerText(`Starts in ${hrs}h ${mins}m ${secs}s`);
+        setTimerProgress(0);
+      } else if (now >= start && now <= end) {
+        const total = end - start;
+        const elapsed = now - start;
+        const percent = Math.min(100, Math.round((elapsed / total) * 100));
+        
+        const diffMs = end - now;
+        const hrs = Math.floor(diffMs / 3600000);
+        const mins = Math.floor((diffMs % 3600000) / 60000);
+        const secs = Math.floor((diffMs % 60000) / 1000);
+        setTimerText(`Ends in ${hrs}h ${mins}m ${secs}s`);
+        setTimerProgress(percent);
+      } else {
+        setTimerText('Exam Completed');
+        setTimerProgress(100);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [activeTab, assistantData]);
+
+  // Mark Acknowledge Duty
   const acknowledge = async (dutyId) => {
     try {
       await api.post(`/supervisors/acknowledge/${dutyId}`);
-      toast.success('Duty acknowledged');
+      toast.success('Duty assignment accepted');
       setDuties(prev => prev.map(d => d.id === dutyId ? { ...d, acknowledged: 1 } : d));
     } catch (err) { 
       toast.error(err.response?.data?.error || 'Failed to acknowledge duty'); 
+    }
+  };
+
+  // Mark single attendance in Real-time
+  const handleMarkAttendance = async (studentId, status, notes = '') => {
+    setLocalRecords(prev => prev.map(r => r.student_id === studentId ? { ...r, attendance_status: status, attendance_notes: notes } : r));
+    setAssistantData(prev => ({
+      ...prev,
+      assignments: prev.assignments.map(r => r.student_id === studentId ? { ...r, attendance_status: status, attendance_notes: notes } : r)
+    }));
+
+    try {
+      await api.post(`/attendance/${assistantData.roomAllocation.slot_id}`, {
+        records: [{
+          student_id: studentId,
+          room_allocation_id: assistantRoomAllocationId,
+          status,
+          notes: notes || null
+        }]
+      });
+    } catch (err) {
+      toast.error('Failed to sync attendance in real-time');
+    }
+  };
+
+  // Distress signal to coordinator
+  const sendDistressAlert = async () => {
+    if (!window.confirm('⚠️ Send immediate Technical/Distress emergency call to the exam coordinator?')) return;
+    try {
+      await api.post('/incidents', {
+        slot_id: assistantData.roomAllocation.slot_id,
+        room_allocation_id: assistantRoomAllocationId,
+        type: 'technical',
+        description: '🚨 DISTRESS CALL: Invigilator requested urgent technical/administrative assistance in the room.',
+        severity: 'high'
+      });
+      toast.success('Distress signal broadcasted to Exam Cell');
+      fetchIncidents();
+      if (assistantData) {
+        // Refresh local incidents list
+        const res = await api.get(`/supervisors/room-details/${assistantRoomAllocationId}`);
+        setAssistantData(prev => ({ ...prev, incidents: res.data.incidents }));
+      }
+    } catch {
+      toast.error('Failed to send distress alert');
     }
   };
 
@@ -309,7 +725,7 @@ export default function FacultyDutyPage() {
     try {
       await api.post(`/broadcasts/${id}/read`);
       setBroadcasts(prev => prev.map(b => b.id === id ? { ...b, is_read: 1 } : b));
-      toast.success('Notice marked as read');
+      toast.success('Notice read');
     } catch { 
       toast.error('Failed to mark read'); 
     }
@@ -328,204 +744,284 @@ export default function FacultyDutyPage() {
     }
   };
 
-  // Math counts for badges
+  // Math counts for badges & analytics
+  const todayStr = new Date().toISOString().split('T')[0];
   const pendingAckCount = duties.filter(d => !d.acknowledged).length;
   const unreadBroadcastCount = broadcasts.filter(b => !b.is_read).length;
 
+  const completedDutiesCount = duties.filter(d => d.date < todayStr).length;
+  const upcomingDutiesCount = duties.filter(d => d.date >= todayStr).length;
+  const activeDutyToday = duties.find(d => d.date === todayStr);
+
   return (
-    <div className="fade-in" style={{ maxWidth: 850, margin: '0 auto', paddingBottom: 48 }}>
+    <div className="fade-in" style={{ maxWidth: activeTab === 'assistant' ? '1200px' : '900px', margin: '0 auto', paddingBottom: 48 }}>
       
-      {/* Profile & Workload Header Summary Card */}
-      <div className="faculty-profile-card card">
-        <div className="faculty-profile-meta">
-          <div className="faculty-profile-details" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ 
-              width: 52, height: 52, borderRadius: '50%', background: '#111', 
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' 
-            }}>
-              <User size={26} />
+      {/* ── Active Banner Bulletin 🚨 ── */}
+      {activeDutyToday && activeTab !== 'assistant' && (
+        <div style={{
+          border: '3px solid var(--np-red)',
+          background: '#fff1f1',
+          padding: '16px 24px',
+          marginBottom: 24,
+          boxShadow: '4px 4px 0 0 var(--np-ink)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: 'var(--np-red)', color: '#fff', padding: 8, display: 'flex', alignItems: 'center' }}>
+              <QrCode size={24} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 800 }}>
-                {user?.name || 'Faculty Member'}
-              </h2>
-              <p style={{ margin: '2px 0 0 0', fontSize: 13, color: '#666', fontWeight: 500 }}>
-                {user?.email} · <strong style={{ color: '#111' }}>{user?.department}</strong>
+              <h4 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--np-ink)' }}>
+                Active Invigilation Console Available Today!
+              </h4>
+              <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--np-n600)', fontFamily: 'var(--font-mono)' }}>
+                Room {activeDutyToday.room_no} | {activeDutyToday.subject_code} ({formatTime(activeDutyToday.start_time)})
               </p>
             </div>
           </div>
-          
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button className="btn btn-ghost btn-sm" onClick={downloadDutySheet} style={{ border: '1px solid #e5e5e0' }} disabled={!selectedCycle}>
-              <UserCheck size={13} strokeWidth={1.5} /> Duty Slip PDF
-            </button>
-          </div>
+          <button 
+            onClick={() => launchAssistant(activeDutyToday.room_allocation_id)} 
+            className="btn btn-primary animate-pulse"
+            style={{ backgroundColor: 'var(--np-red)', borderColor: 'var(--np-ink)', color: '#fff' }}
+          >
+            Launch Exam Assistant Console
+          </button>
         </div>
+      )}
 
-        {/* Stats grid section */}
-        <div className="faculty-stats-grid">
-          {[
-            { label: 'Assigned Duties', val: duties.length, color: '#111' },
-            { label: 'Pending Ack', val: pendingAckCount, color: pendingAckCount > 0 ? '#d97706' : '#16a34a' },
-            { label: 'Unread Notices', val: unreadBroadcastCount, color: unreadBroadcastCount > 0 ? '#ef4444' : '#16a34a' },
-            { label: 'Reported Cases', val: incidents.length, color: '#6b7280' }
-          ].map((stat, i) => (
-            <div key={i} style={{ 
-              background: '#fff', 
-              padding: '14px 16px', 
-              borderRadius: 8, 
-              border: '1px solid #E5E5E0',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '26px', fontWeight: 900, color: stat.color }}>{stat.val}</div>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#666', marginTop: 4, fontWeight: 700 }}>
-                {stat.label}
+      {/* ── PROFILE & ANALYTICS PANELS (only show outside assistant mode) ── */}
+      {activeTab !== 'assistant' && (
+        <div className="card" style={{ padding: 24, marginBottom: 28, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ 
+                width: 56, height: 56, background: 'var(--np-ink)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' 
+              }}>
+                <User size={28} />
+              </div>
+              <div>
+                <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 800 }}>
+                  {user?.name || 'Faculty Member'}
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--np-n600)', fontFamily: 'var(--font-mono)' }}>
+                  {user?.email} · <span style={{ textTransform: 'uppercase', fontWeight: 700 }}>{user?.department}</span>
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Selector and Tab row */}
-      <div className="faculty-tab-nav-row">
-        {/* Navigation Tabs */}
-        <div className="faculty-tabs-list flex-row">
-          {[
-            { id: 'duties', label: 'My Duties', badge: pendingAckCount },
-            { id: 'broadcasts', label: 'Announcements', badge: unreadBroadcastCount },
-            { id: 'incidents', label: 'My Incidents', badge: null }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: 6,
-                background: activeTab === tab.id ? '#fff' : 'transparent',
-                color: activeTab === tab.id ? '#111' : '#666',
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.2s',
-              }}
-            >
-              <span>{tab.label}</span>
-              {tab.badge ? (
-                <span style={{ 
-                  background: tab.id === 'broadcasts' ? '#ef4444' : '#d97706',
-                  color: '#fff', 
-                  fontSize: 10, 
-                  fontWeight: 800, 
-                  padding: '2px 6px', 
-                  borderRadius: 10 
-                }}>
-                  {tab.badge}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
-        {/* Cycle selector (Only relevant for duties tab) */}
-        {activeTab === 'duties' && cycles.length > 0 && (
-          <div className="faculty-selectors flex-row">
-            <select 
-              className="select" 
-              value={selectedCycle} 
-              onChange={e => setSelectedCycle(e.target.value)}
-              style={{ padding: '6px 12px', fontSize: 13, width: 200 }}
-            >
-              {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-
-            {/* Toggle Calendar View */}
-            <div className="flex-row" style={{ gap: 2, background: '#F4F4F0', padding: 2, borderRadius: 6 }}>
+            
+            <div style={{ display: 'flex', gap: 8 }}>
               <button 
-                onClick={() => setViewMode('list')}
-                className={`btn btn-sm ${viewMode === 'list' ? 'btn-ink' : 'btn-ghost'}`}
-                style={{ padding: '6px 10px', fontSize: 11 }}
+                onClick={() => setShowReplacementModal(true)} 
+                className="btn btn-warning"
+                disabled={duties.length === 0}
               >
-                List
+                Request Replacement
               </button>
               <button 
-                onClick={() => setViewMode('calendar')}
-                className={`btn btn-sm ${viewMode === 'calendar' ? 'btn-ink' : 'btn-ghost'}`}
-                style={{ padding: '6px 10px', fontSize: 11 }}
+                className="btn btn-ghost" 
+                onClick={downloadDutySheet} 
+                style={{ border: '1px solid var(--np-ink)' }} 
+                disabled={!selectedCycle}
               >
-                Calendar
+                Duty Slip PDF
               </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Main Tab Contents */}
+          {/* Neobrutalist Analytics Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginTop: 24, borderTop: '2px solid var(--np-ink)', paddingTop: 20 }}>
+            {[
+              { label: 'Assigned Duties', val: duties.length, sub: 'Total cycle load', icon: CalendarDays },
+              { label: 'Upcoming Duties', val: upcomingDutiesCount, sub: 'Future schedule list', icon: Clock },
+              { label: 'Completed Duties', val: completedDutiesCount, sub: 'Archive classroom history', icon: CheckCircle },
+              { label: 'Substitute Alerts', val: replacements.length, sub: 'Inability requests submitted', icon: ShieldAlert }
+            ].map((stat, i) => (
+              <div key={i} style={{ 
+                background: 'var(--np-bg)', 
+                padding: 16, 
+                border: '1px solid var(--np-ink)',
+                boxShadow: '2px 2px 0 0 var(--np-ink)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '28px', fontWeight: 900, fontFamily: 'var(--font-mono)' }}>{stat.val}</span>
+                  <stat.icon size={16} style={{ color: 'var(--np-n500)' }} />
+                </div>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginTop: 6 }}>
+                  {stat.label}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--np-n500)', marginTop: 2 }}>
+                  {stat.sub}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── TABS BAR (outside assistant mode) ── */}
+      {activeTab !== 'assistant' && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          {/* Nav Tabs */}
+          <div style={{ display: 'flex', gap: 6, background: 'var(--np-muted)', padding: 4 }}>
+            {[
+              { id: 'duties', label: 'Duty timetable', badge: pendingAckCount },
+              { id: 'live_status', label: 'Live campus status', badge: null },
+              { id: 'broadcasts', label: 'Notices Board', badge: unreadBroadcastCount },
+              { id: 'incidents', label: 'Incidents log', badge: null }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  background: activeTab === tab.id ? 'var(--np-ink)' : 'transparent',
+                  color: activeTab === tab.id ? 'var(--np-bg)' : 'var(--np-n600)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.1s'
+                }}
+              >
+                <span>{tab.label}</span>
+                {tab.badge ? (
+                  <span style={{ 
+                    background: tab.id === 'broadcasts' ? 'var(--np-red)' : '#d97706',
+                    color: '#fff', 
+                    fontSize: 10, 
+                    fontWeight: 800, 
+                    padding: '1px 6px'
+                  }}>
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
+          {/* Cycle selector (relevant for duties tab) */}
+          {activeTab === 'duties' && cycles.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select 
+                className="select" 
+                value={selectedCycle} 
+                onChange={e => setSelectedCycle(e.target.value)}
+                style={{ padding: '6px 12px', fontSize: 13, width: 220 }}
+              >
+                {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+
+              {/* Toggle Calendar/List View */}
+              <div style={{ display: 'flex', gap: 2, background: 'var(--np-muted)', padding: 2 }}>
+                <button 
+                  onClick={() => setViewMode('list')}
+                  className="btn btn-sm"
+                  style={{ 
+                    background: viewMode === 'list' ? 'var(--np-ink)' : 'transparent',
+                    color: viewMode === 'list' ? 'var(--np-bg)' : 'var(--np-n600)',
+                    border: 'none',
+                    minHeight: 24
+                  }}
+                >
+                  List
+                </button>
+                <button 
+                  onClick={() => setViewMode('calendar')}
+                  className="btn btn-sm"
+                  style={{ 
+                    background: viewMode === 'calendar' ? 'var(--np-ink)' : 'transparent',
+                    color: viewMode === 'calendar' ? 'var(--np-bg)' : 'var(--np-n600)',
+                    border: 'none',
+                    minHeight: 24
+                  }}
+                >
+                  Calendar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB CONTENT: DUTY TIMETABLE ── */}
       {activeTab === 'duties' && (
         <>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
           ) : duties.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: 64 }}>
-              <CalendarDays size={36} strokeWidth={1} color="#A3A3A3" style={{ marginBottom: 12 }} />
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Duties Assigned</div>
-              <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 14 }}>
-                You have no supervisor duties assigned for this cycle.
+            <div className="card" style={{ textAlign: 'center', padding: 64, border: '2px solid var(--np-ink)' }}>
+              <CalendarDays size={40} strokeWidth={1} color="var(--np-n400)" style={{ marginBottom: 12 }} />
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>No Duties Allocated</div>
+              <p style={{ fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 14 }}>
+                You have no scheduled duties in this cycle.
               </p>
             </div>
           ) : viewMode === 'calendar' ? (
             <DutyCalendar 
               duties={duties} 
               onSelectDuty={(duty) => {
-                toast(`Assigned to ${duty.subject_code} in Room ${duty.room_no}`, { icon: '📝' });
+                toast(`Subject: ${duty.subject_name}\nRoom: Room ${duty.room_no} (${duty.block})\nDate: ${formatDate(duty.date)}\nTime: ${formatTime(duty.start_time)}`, { icon: '📝', duration: 4000 });
               }}
             />
           ) : (
-            <div className="faculty-duties-list">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {duties.map((duty) => (
                 <div
                   key={duty.id}
-                  className={`faculty-duty-card ${duty.role === 'primary' ? 'primary' : 'co'}`}
+                  className="card"
+                  style={{
+                    border: '2px solid var(--np-ink)',
+                    borderLeft: `8px solid ${duty.role === 'primary' ? 'var(--np-ink)' : 'var(--np-n400)'}`,
+                    boxShadow: '4px 4px 0 0 var(--np-ink)',
+                    background: '#fff',
+                    padding: 24
+                  }}
                 >
                   {/* Duty Header */}
-                  <div className="faculty-duty-card-header">
-                    <div className="faculty-duty-badges flex-row">
-                      <span className="badge badge-ink" style={{
-                        background: duty.role === 'primary' ? '#111111' : 'transparent',
-                        color: duty.role === 'primary' ? '#F9F9F7' : '#525252',
-                        borderColor: duty.role === 'primary' ? '#111111' : '#E5E5E0',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: '4px 10px'
-                      }}>
-                        {duty.role === 'primary' ? 'Primary Invigilator' : 'Co-Supervisor'}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <span className="badge badge-ink" style={{ fontSize: 10 }}>
+                        {duty.role === 'primary' ? 'Primary Supervisor' : 'Co-Supervisor'}
                       </span>
                       {duty.acknowledged ? (
-                        <span className="badge badge-success" style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px' }}>Acknowledged</span>
+                        <span className="badge badge-success" style={{ fontSize: 10 }}>Acknowledge Accepted</span>
                       ) : (
-                        <span className="badge badge-warning" style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', background: '#fffbeb', color: '#b45309', borderColor: '#fde68a' }}>Awaiting Ack</span>
+                        <span className="badge badge-warning" style={{ fontSize: 10 }}>Awaiting Acceptance</span>
                       )}
                     </div>
                     
-                    <div className="faculty-duty-actions flex-row">
+                    <div style={{ display: 'flex', gap: 8 }}>
                       {!duty.acknowledged && (
                         <button className="btn btn-success btn-sm" onClick={() => acknowledge(duty.id)}>
-                          <CheckCircle size={12} strokeWidth={1.5} /> Acknowledge
+                          Accept Duty
                         </button>
                       )}
                       
-                      {/* Interactive Mark Attendance button */}
-                      <Link 
-                        to={`/attendance/${duty.slot_id}?roomAllocationId=${duty.room_allocation_id}`}
-                        className="btn btn-ink btn-sm" 
-                        style={{ gap: 4, display: 'inline-flex', alignItems: 'center', fontSize: 11 }}
-                      >
-                        <CheckSquare size={12} /> Mark Attendance
-                      </Link>
+                      {duty.date === todayStr ? (
+                        <button 
+                          onClick={() => launchAssistant(duty.room_allocation_id)} 
+                          className="btn btn-primary btn-sm"
+                          style={{ background: 'var(--np-red)', color: '#fff' }}
+                        >
+                          Launch Console
+                        </button>
+                      ) : (
+                        <Link 
+                          to={`/attendance/${duty.slot_id}?roomAllocationId=${duty.room_allocation_id}`}
+                          className="btn btn-ghost btn-sm" 
+                          style={{ border: '1px solid var(--np-ink)' }}
+                        >
+                          Attendance
+                        </Link>
+                      )}
 
                       <button className="btn btn-danger btn-sm" onClick={() => setReportingDuty(duty)}>
                         Report Incident
@@ -533,28 +1029,28 @@ export default function FacultyDutyPage() {
                     </div>
                   </div>
 
-                  {/* Subject Details */}
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 800, marginBottom: 16, lineHeight: 1.25 }}>
+                  {/* Subject Name */}
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 800, marginBottom: 16 }}>
                     {duty.subject_code} — {duty.subject_name}
                   </div>
 
-                  {/* Specifications grid */}
-                  <div className="faculty-specs-grid">
+                  {/* Specs Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                     {[
                       { icon: CalendarDays, label: 'Date', val: formatDate(duty.date) },
-                      { icon: Clock,        label: 'Duration', val: `${formatTime(duty.start_time)} · ${duty.duration_mins} mins` },
-                      { icon: MapPin,       label: 'Room Allocation', val: `Room ${duty.room_no} (${duty.block || 'Main Block'})` },
+                      { icon: Clock,        label: 'Timings', val: `${formatTime(duty.start_time)} (${duty.duration_mins} mins)` },
+                      { icon: MapPin,       label: 'Room', val: `Room ${duty.room_no} (${duty.block || 'Main Block'})` },
                       duty.co_supervisor_name
-                        ? { icon: UserCheck, label: 'Invigilation Team', val: `${duty.co_supervisor_name} (Co)` }
-                        : null,
+                        ? { icon: UserCheck, label: 'Co-invigilator', val: duty.co_supervisor_name }
+                        : null
                     ].filter(Boolean).map(({ icon: Icon, label, val }) => (
                       <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                        <div style={{ border: '1px solid #E5E5E0', padding: 6, flexShrink: 0, borderRadius: 4, background: '#fcfcf9' }}>
-                          <Icon size={14} strokeWidth={1.5} color="#525252" />
+                        <div style={{ border: '1px solid var(--np-ink)', padding: 6, background: 'var(--np-bg)' }}>
+                          <Icon size={14} color="var(--np-ink)" />
                         </div>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--np-n500)', fontWeight: 700 }}>{label}</div>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, marginTop: 2 }}>{val}</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n500)', fontWeight: 700 }}>{label}</div>
+                          <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{val}</div>
                         </div>
                       </div>
                     ))}
@@ -563,60 +1059,131 @@ export default function FacultyDutyPage() {
               ))}
             </div>
           )}
+
+          {/* Replacement Log Panel */}
+          {replacements.length > 0 && (
+            <div className="card" style={{ marginTop: 32, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>
+                My Replacement Requests Log
+              </h3>
+              <table style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Room</th>
+                    <th>Reason / Detail</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {replacements.map(r => (
+                    <tr key={r.id}>
+                      <td style={{ fontWeight: 600 }}>{formatDate(r.date)} {formatTime(r.start_time)}</td>
+                      <td>Room {r.room_no}</td>
+                      <td>{r.reason}</td>
+                      <td>
+                        <span className={`badge ${
+                          r.status === 'approved' ? 'badge-success' : (r.status === 'rejected' ? 'badge-danger' : 'badge-warning')
+                        }`}>
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 
-      {activeTab === 'broadcasts' && (
-        <div className="card" style={{ padding: 28 }}>
+      {/* ── TAB CONTENT: LIVE CAMPUS STATUS ── */}
+      {activeTab === 'live_status' && (
+        <div className="card" style={{ padding: 24, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
           <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 20 }}>
-            Announcements & Alerts
+            Live Classroom Status Board (Active Today)
+          </h3>
+          <p style={{ fontSize: 12, color: 'var(--np-n500)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>
+            Institution-wide real-time invigilation state tracker
+          </p>
+
+          {liveRooms.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--np-n500)', fontStyle: 'italic' }}>
+              No active exams scheduled today across the campus.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {liveRooms.map((room, i) => (
+                <div key={i} style={{
+                  border: '1.5px solid var(--np-ink)',
+                  padding: 16,
+                  background: 'var(--np-bg)',
+                  boxShadow: '2px 2px 0 0 var(--np-ink)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontWeight: 800, fontSize: 16 }}>Room {room.room_no}</span>
+                    <span className={`badge ${
+                      room.slot_status === 'finalised' 
+                        ? 'badge-success' 
+                        : (room.slot_status === 'draft' ? 'badge-neutral' : 'badge-ink')
+                    }`}>
+                      {room.slot_status === 'finalised' ? 'Completed' : 'Active / In Progress'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{room.subject_code} — {room.subject_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)', marginTop: 8 }}>
+                    Block: {room.block || 'Main Block'} | Start: {formatTime(room.start_time)} ({room.duration_mins}m)
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB CONTENT: BROADCAST NOTICES ── */}
+      {activeTab === 'broadcasts' && (
+        <div className="card" style={{ padding: 24, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
+          <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 20 }}>
+            Announcements & Emergency Banners
           </h3>
           {broadcasts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--np-n500)', fontStyle: 'italic' }}>
               <Bell size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
-              <div>No announcements from the Exam Cell.</div>
+              <div>No broadcasts from the Exam Coordinator.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {broadcasts.map(b => (
                 <div key={b.id} style={{
                   padding: 20,
-                  border: `1.5px solid ${b.priority === 'critical' ? '#fecaca' : (b.priority === 'urgent' ? '#fde68a' : '#E5E5E0')}`,
-                  background: b.priority === 'critical' ? '#fff5f5' : (b.priority === 'urgent' ? '#fffbeb' : '#fff'),
-                  borderLeft: `5px solid ${b.priority === 'critical' ? '#ef4444' : (b.priority === 'urgent' ? '#f59e0b' : '#3b82f6')}`,
-                  borderRadius: 12,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.01)',
-                  position: 'relative',
+                  border: `1.5px solid var(--np-ink)`,
+                  background: b.priority === 'critical' ? '#fff1f1' : (b.priority === 'urgent' ? '#fffbeb' : '#fff'),
+                  borderLeft: `8px solid ${b.priority === 'critical' ? 'var(--np-red)' : (b.priority === 'urgent' ? '#f59e0b' : '#3b82f6')}`,
+                  position: 'relative'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ fontWeight: 800, fontSize: 16, color: '#111' }}>{b.title}</div>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>{b.title}</div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{
-                        fontSize: 9,
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        background: b.priority === 'critical' ? '#ef4444' : (b.priority === 'urgent' ? '#f59e0b' : '#3b82f6'),
-                        color: '#fff',
-                        letterSpacing: '0.05em'
-                      }}>{b.priority}</span>
+                      <span className={`badge ${
+                        b.priority === 'critical' ? 'badge-danger' : (b.priority === 'urgent' ? 'badge-warning' : 'badge-neutral')
+                      }`}>{b.priority}</span>
                       
                       {!b.is_read ? (
                         <button 
                           onClick={() => markBroadcastRead(b.id)}
-                          className="btn btn-ink btn-sm" 
-                          style={{ padding: '2px 8px', fontSize: 10, height: 'auto', borderRadius: 4 }}
+                          className="btn btn-sm btn-ghost" 
+                          style={{ padding: '2px 8px', fontSize: 10, height: 'auto', border: '1px solid var(--np-ink)' }}
                         >
                           Mark Read
                         </button>
                       ) : (
-                        <span style={{ fontSize: 10, color: '#15803d', fontWeight: 700 }}>✓ Read</span>
+                        <span style={{ fontSize: 10, color: '#166534', fontWeight: 700 }}>✓ Read</span>
                       )}
                     </div>
                   </div>
-                  <p style={{ margin: 0, fontSize: 14, color: '#333', lineHeight: 1.5 }}>{b.message}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#777', marginTop: 12, borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10 }}>
+                  <p style={{ margin: 0, fontSize: 14, color: '#333', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>{b.message}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#777', marginTop: 12, borderTop: '1px solid var(--np-muted)', paddingTop: 10 }}>
                     <span>Sent by: <strong>{b.sent_by_name || 'Exam Coordinator'}</strong></span>
                     <span>{formatDateTime(b.created_at)}</span>
                   </div>
@@ -627,55 +1194,60 @@ export default function FacultyDutyPage() {
         </div>
       )}
 
+      {/* ── TAB CONTENT: INCIDENTS LOG ── */}
       {activeTab === 'incidents' && (
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card" style={{ padding: 24, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
           <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 20 }}>
-            Incident Reporting Log
+            Incident Logging Log
           </h3>
           {incidents.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--np-n500)', fontStyle: 'italic' }}>
               <ShieldAlert size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
-              <div>You have not filed any incidents for this cycle.</div>
+              <div>No incidents filed by you.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {incidents.map(inc => (
                 <div key={inc.id} style={{
                   padding: 20,
-                  border: '1.5px solid #E5E5E0',
-                  borderRadius: 12,
-                  background: '#fff',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.01)'
+                  border: '1.5px solid var(--np-ink)',
+                  background: '#fff'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 900,
-                      textTransform: 'uppercase',
-                      padding: '4px 10px',
-                      borderRadius: 12,
-                      background: inc.status === 'resolved' ? '#d1fae5' : (inc.status === 'escalated' ? '#fee2e2' : '#fef3c7'),
-                      color: inc.status === 'resolved' ? '#065f46' : (inc.status === 'escalated' ? '#991b1b' : '#92400e'),
-                      letterSpacing: '0.05em'
-                    }}>{inc.status}</span>
+                    <span className={`badge ${
+                      inc.status === 'resolved' ? 'badge-success' : (inc.status === 'escalated' ? 'badge-danger' : 'badge-warning')
+                    }`}>{inc.status}</span>
                     <span style={{ fontSize: 12, color: '#666', fontWeight: 500 }}>
                       {formatDate(inc.created_at)}
                     </span>
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6, color: '#111' }}>
-                    {inc.type.toUpperCase()} · Severity: <span style={{ color: inc.severity === 'high' ? '#ef4444' : '#111' }}>{inc.severity.toUpperCase()}</span>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>
+                    {inc.type.toUpperCase()} · Severity: <span style={{ color: inc.severity === 'high' ? 'var(--np-red)' : 'inherit' }}>{inc.severity.toUpperCase()}</span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 14, color: '#444', lineHeight: 1.5 }}>{inc.description}</p>
+                  <p style={{ margin: 0, fontSize: 14, color: '#333', lineHeight: 1.4 }}>{inc.description}</p>
                   
                   {inc.student_prn && (
-                    <div style={{ fontSize: 12, color: '#555', marginTop: 10, background: '#f4f4f0', padding: '4px 8px', borderRadius: 4, display: 'inline-block' }}>
-                      Affected Student PRN: <strong>{inc.student_prn}</strong>
+                    <div style={{ fontSize: 11, color: '#111', marginTop: 10, background: 'var(--np-muted)', padding: '4px 8px', display: 'inline-block', fontFamily: 'var(--font-mono)' }}>
+                      Affected PRN: <strong>{inc.student_prn}</strong>
                     </div>
                   )}
+
+                  {/* Malpractice photo representation */}
+                  {inc.evidence_image && (
+                    <div style={{ marginTop: 12 }}>
+                      <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--np-n600)', marginBottom: 4 }}>Evidence Attachment:</span>
+                      <img 
+                        src={inc.evidence_image} 
+                        alt="Evidence photo" 
+                        style={{ maxHeight: 150, border: '2px solid var(--np-ink)' }} 
+                      />
+                    </div>
+                  )}
+
                   {inc.action_taken && (
-                    <div style={{ marginTop: 14, padding: '12px 16px', background: '#f9fafb', borderRadius: 8, fontSize: 13, borderLeft: '4px solid #6b7280' }}>
-                      <strong>Coordinator Actions / Resolution:</strong>
-                      <div style={{ marginTop: 4, color: '#374151', lineHeight: 1.4 }}>{inc.action_taken}</div>
+                    <div style={{ marginTop: 14, padding: '12px 16px', background: 'var(--np-bg)', borderLeft: '4px solid var(--np-ink)', fontSize: 13 }}>
+                      <strong>Coordinator Remarks:</strong>
+                      <div style={{ marginTop: 4, color: 'var(--np-n700)' }}>{inc.action_taken}</div>
                     </div>
                   )}
                 </div>
@@ -685,168 +1257,436 @@ export default function FacultyDutyPage() {
         </div>
       )}
 
+      {/* ── ACTIVE INVIGILATION PANEL (Faculty Exam Assistant Mode Console) ── */}
+      {activeTab === 'assistant' && assistantData && (
+        <div className="fade-in">
+          {/* Back Header Strip */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid var(--np-ink)', paddingBottom: 12 }}>
+            <button className="btn btn-ghost" onClick={() => { setActiveTab('duties'); setSelectedSeatStudent(null); }} style={{ border: '1px solid var(--np-ink)' }}>
+              ← Return Dashboard
+            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-warning" onClick={() => setShowQrModal(true)}>
+                <QrCode size={13} /> QR Attendance Scan
+              </button>
+              <button className="btn btn-danger" onClick={sendDistressAlert}>
+                🚨 Call Coordinator / SOS
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, alignItems: 'start' }}>
+            
+            {/* Left Console: Controls & Timer */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              
+              {/* Active Timer Card */}
+              <div className="card-invert" style={{ border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', padding: 20 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', opacity: 0.7 }}>Invigilation Assistant Mode</div>
+                <div style={{ fontSize: 28, fontWeight: 900, margin: '8px 0', fontFamily: 'var(--font-mono)' }}>{timerText}</div>
+                {/* Progress bar */}
+                <div style={{ width: '100%', height: 12, background: 'rgba(255,255,255,0.2)', border: '1px solid #fff' }}>
+                  <div style={{ height: '100%', width: `${timerProgress}%`, background: 'var(--np-red)', transition: 'width 1s ease' }} />
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+                  Room {assistantData.roomAllocation.room_no} | Timings: {formatTime(assistantData.roomAllocation.start_time)} ({assistantData.roomAllocation.duration_mins}m)
+                </div>
+              </div>
+
+              {/* Occupancy Analytics */}
+              <div className="card" style={{ padding: 20, border: '2px solid var(--np-ink)' }}>
+                <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
+                  Room Occupancy Stats
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--np-n500)' }}>Assigned Capacity</span>
+                    <span style={{ fontWeight: 700 }}>{assistantData.roomAllocation.assigned_count} students</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--np-n500)' }}>Present</span>
+                    <span style={{ fontWeight: 700, color: '#166534' }}>
+                      {localRecords.filter(r => r.attendance_status === 'present').length}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--np-n500)' }}>Late Entries</span>
+                    <span style={{ fontWeight: 700, color: '#b45309' }}>
+                      {localRecords.filter(r => r.attendance_status === 'late').length}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--np-n500)' }}>Absent</span>
+                    <span style={{ fontWeight: 700, color: 'var(--np-red)' }}>
+                      {localRecords.filter(r => r.attendance_status === 'absent' || !r.attendance_status).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invigilation Team */}
+              <div className="card" style={{ padding: 20, border: '2px solid var(--np-ink)' }}>
+                <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
+                  Invigilation Team
+                </div>
+                {assistantData.team.map((t, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: idx < assistantData.team.length - 1 ? '1px solid var(--np-muted)' : 'none' }}>
+                    <div style={{ width: 30, height: 30, background: 'var(--np-ink)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+                      {t.faculty_name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 12 }}>{t.faculty_name}</div>
+                      <div style={{ fontSize: 10, color: 'var(--np-n500)' }}>{t.role === 'primary' ? 'Primary' : 'Co-supervisor'} · {t.department}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Local Incident Board */}
+              <div className="card" style={{ padding: 20, border: '2px solid var(--np-ink)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 14 }}>Incidents Filed Today</span>
+                  <button 
+                    onClick={() => setReportingDuty({
+                      slot_id: assistantData.roomAllocation.slot_id,
+                      room_allocation_id: assistantRoomAllocationId,
+                      room_no: assistantData.roomAllocation.room_no,
+                      subject_code: assistantData.roomAllocation.subject_code,
+                      subject_name: assistantData.roomAllocation.subject_name
+                    })}
+                    className="btn btn-danger btn-sm"
+                    style={{ minHeight: 22 }}
+                  >
+                    + File Case
+                  </button>
+                </div>
+                {assistantData.incidents.length === 0 ? (
+                  <span style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--np-n500)' }}>No incidents logged for this room today.</span>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 150, overflowY: 'auto' }}>
+                    {assistantData.incidents.map(inc => (
+                      <div key={inc.id} style={{ border: '1px solid var(--np-muted)', padding: '6px 10px', background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 700 }}>
+                          <span style={{ color: 'var(--np-red)' }}>{inc.type.toUpperCase()}</span>
+                          <span>{inc.status}</span>
+                        </div>
+                        <p style={{ fontSize: 11, margin: '4px 0 0 0', color: 'var(--np-n600)' }}>{inc.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Console: Seating Grid, Lists & Filters */}
+            <div>
+              {/* Filter and View toggles */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 8, background: 'var(--np-muted)', padding: 2 }}>
+                  <button 
+                    onClick={() => setAssistantModeTab('grid')} 
+                    className="btn btn-sm"
+                    style={{
+                      background: assistantModeTab === 'grid' ? 'var(--np-ink)' : 'transparent',
+                      color: assistantModeTab === 'grid' ? 'var(--np-bg)' : 'var(--np-n600)',
+                      border: 'none', minHeight: 26
+                    }}
+                  >
+                    Seating Layout Map
+                  </button>
+                  <button 
+                    onClick={() => setAssistantModeTab('list')} 
+                    className="btn btn-sm"
+                    style={{
+                      background: assistantModeTab === 'list' ? 'var(--np-ink)' : 'transparent',
+                      color: assistantModeTab === 'list' ? 'var(--np-bg)' : 'var(--np-n600)',
+                      border: 'none', minHeight: 26
+                    }}
+                  >
+                    Student Attendance List
+                  </button>
+                </div>
+
+                <div className="flex-row" style={{ minWidth: 260 }}>
+                  <Search size={14} style={{ color: 'var(--np-n400)', marginRight: -24, zIndex: 1 }} />
+                  <input 
+                    className="input"
+                    placeholder="Search PRN, roll, or student name..."
+                    style={{ paddingLeft: 28, fontSize: 12, minHeight: 32 }}
+                    value={searchPRN}
+                    onChange={e => setSearchPRN(e.target.value)}
+                  />
+                  {searchPRN && (
+                    <button onClick={() => setSearchPRN('')} style={{ border: 'none', background: 'transparent', marginLeft: -24, cursor: 'pointer' }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Seating Grid View */}
+              {assistantModeTab === 'grid' && (
+                <>
+                  {/* Seating Grid Render */}
+                  {(() => {
+                    const rows = assistantData.roomAllocation.bench_rows || 6;
+                    const cols = assistantData.roomAllocation.bench_cols || 4;
+                    const grid = [];
+                    const seatMap = {};
+
+                    localRecords.forEach(a => {
+                      if (!seatMap[a.bench_row]) seatMap[a.bench_row] = {};
+                      seatMap[a.bench_row][a.bench_col] = a;
+                    });
+
+                    for (let r = 1; r <= rows; r++) {
+                      const rowSeats = [];
+                      for (let c = 1; c <= cols; c++) {
+                        const student = seatMap[r]?.[c];
+                        const isSearched = searchPRN && student && (
+                          student.prn.toLowerCase().includes(searchPRN.toLowerCase()) ||
+                          student.roll_no.toLowerCase().includes(searchPRN.toLowerCase()) ||
+                          student.student_name.toLowerCase().includes(searchPRN.toLowerCase())
+                        );
+                        
+                        rowSeats.push(
+                          <div 
+                            key={`${r}-${c}`}
+                            onClick={() => student && setSelectedSeatStudent(student)}
+                            style={{
+                              border: isSearched ? '3px solid var(--np-red)' : '1px solid var(--np-ink)',
+                              background: !student 
+                                ? '#f5f5f0' 
+                                : (student.attendance_status === 'present' 
+                                    ? '#dcfce7' 
+                                    : (student.attendance_status === 'late' ? '#fef3c7' : '#fee2e2')),
+                              padding: '8px 10px',
+                              minHeight: 74,
+                              cursor: student ? 'pointer' : 'default',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              position: 'relative',
+                              transition: 'all 0.15s'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)' }}>
+                              <span>R{r}-C{c}</span>
+                              {student && (
+                                <span style={{ 
+                                  fontWeight: 800, 
+                                  color: student.attendance_status === 'present' ? '#166534' : (student.attendance_status === 'late' ? '#b45309' : '#b91c1c') 
+                                }}>
+                                  {student.attendance_status?.toUpperCase() || 'ABSENT'}
+                                </span>
+                              )}
+                            </div>
+                            {student ? (
+                              <div>
+                                <div style={{ fontWeight: 800, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {student.student_name}
+                                </div>
+                                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--np-n600)', marginTop: 2 }}>
+                                  PRN: {student.prn}
+                                </div>
+                                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--np-red)', fontWeight: 600 }}>
+                                  Roll: {student.roll_no}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center', color: 'var(--np-n400)', fontSize: 10, margin: 'auto 0' }}>—</div>
+                            )}
+                          </div>
+                        );
+                      }
+                      grid.push(
+                        <div key={r} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10, marginBottom: 10 }}>
+                          {rowSeats}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div style={{ background: '#fff', border: '2px solid var(--np-ink)', padding: 20, overflowX: 'auto', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+                        <div style={{ borderBottom: '2px solid var(--np-ink)', paddingBottom: 8, marginBottom: 16, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          📢 FRONT OF CLASSROOM (BLACKBOARD)
+                        </div>
+                        {grid}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+
+              {/* Student Attendance List View */}
+              {assistantModeTab === 'list' && (
+                <div style={{ border: '2px solid var(--np-ink)', background: '#fff', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+                  <table style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th>Seat</th>
+                        <th>Roll No</th>
+                        <th>Student Name & PRN</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {localRecords
+                        .filter(r => !searchPRN || 
+                          r.prn.toLowerCase().includes(searchPRN.toLowerCase()) ||
+                          r.roll_no.toLowerCase().includes(searchPRN.toLowerCase()) ||
+                          r.student_name.toLowerCase().includes(searchPRN.toLowerCase())
+                        )
+                        .map(r => (
+                          <tr key={r.student_id}>
+                            <td style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>R{r.bench_row}-C{r.bench_col}</td>
+                            <td style={{ fontWeight: 600 }}>{r.roll_no}</td>
+                            <td>
+                              <div style={{ fontWeight: 800 }}>{r.student_name}</div>
+                              <div style={{ fontSize: 10, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)' }}>PRN: {r.prn}</div>
+                            </td>
+                            <td>
+                              <span className={`badge ${
+                                r.attendance_status === 'present' ? 'badge-success' : (r.attendance_status === 'late' ? 'badge-warning' : 'badge-danger')
+                              }`}>
+                                {r.attendance_status || 'absent'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <button className="btn btn-sm btn-success" onClick={() => handleMarkAttendance(r.student_id, 'present')} style={{ padding: '2px 6px', minHeight: 22 }}>P</button>
+                                <button className="btn btn-sm btn-warning" onClick={() => handleMarkAttendance(r.student_id, 'late')} style={{ padding: '2px 6px', minHeight: 22 }}>L</button>
+                                <button className="btn btn-sm btn-danger" onClick={() => handleMarkAttendance(r.student_id, 'absent')} style={{ padding: '2px 6px', minHeight: 22 }}>A</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SEAT DETAILS QUICK ACTION DRAWER ── */}
+      {selectedSeatStudent && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSelectedSeatStudent(null)}>
+          <div className="modal" style={{ maxWidth: '400px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--np-ink)', paddingBottom: 10, marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800 }}>Student Seat Details</h3>
+              <button onClick={() => setSelectedSeatStudent(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, marginBottom: 20 }}>
+              <div>
+                <strong>Name:</strong> {selectedSeatStudent.student_name}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div><strong>PRN:</strong> {selectedSeatStudent.prn}</div>
+                <div><strong>Roll No:</strong> {selectedSeatStudent.roll_no}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div><strong>Branch:</strong> {selectedSeatStudent.branch}</div>
+                <div><strong>Year:</strong> {selectedSeatStudent.year} ({selectedSeatStudent.semester} sem)</div>
+              </div>
+              <div>
+                <strong>Seat Location:</strong> Row {selectedSeatStudent.bench_row}, Column {selectedSeatStudent.bench_col}
+              </div>
+              <div>
+                <strong>Current Status:</strong>{' '}
+                <span className={`badge ${
+                  selectedSeatStudent.attendance_status === 'present' ? 'badge-success' : (selectedSeatStudent.attendance_status === 'late' ? 'badge-warning' : 'badge-danger')
+                }`}>
+                  {selectedSeatStudent.attendance_status || 'absent'}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions block */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '2px solid var(--np-ink)', paddingTop: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--np-n500)' }}>Quick Mark Attendance</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                <button 
+                  className="btn btn-success" 
+                  onClick={() => { handleMarkAttendance(selectedSeatStudent.student_id, 'present'); setSelectedSeatStudent(null); }}
+                  style={{ minHeight: 30 }}
+                >
+                  Present
+                </button>
+                <button 
+                  className="btn btn-warning" 
+                  onClick={() => { handleMarkAttendance(selectedSeatStudent.student_id, 'late'); setSelectedSeatStudent(null); }}
+                  style={{ minHeight: 30 }}
+                >
+                  Late
+                </button>
+                <button 
+                  className="btn btn-danger" 
+                  onClick={() => { handleMarkAttendance(selectedSeatStudent.student_id, 'absent'); setSelectedSeatStudent(null); }}
+                  style={{ minHeight: 30 }}
+                >
+                  Absent
+                </button>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setReportingDuty({
+                    slot_id: assistantData.roomAllocation.slot_id,
+                    room_allocation_id: assistantRoomAllocationId,
+                    room_no: assistantData.roomAllocation.room_no,
+                    subject_code: assistantData.roomAllocation.subject_code,
+                    subject_name: assistantData.roomAllocation.subject_name
+                  });
+                  setReplacementPrefillStudent(selectedSeatStudent.prn);
+                  setSelectedSeatStudent(null);
+                }}
+                className="btn btn-danger"
+                style={{ marginTop: 8, background: 'var(--np-red)', color: '#fff' }}
+              >
+                ⚠️ File Malpractice Incident
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODALS INTEGRATION ── */}
       {reportingDuty && (
         <IncidentModal 
           duty={reportingDuty} 
-          onClose={() => setReportingDuty(null)} 
-          onReported={fetchIncidents}
+          studentPrnPrefill={replacementPrefillStudent}
+          onClose={() => { setReportingDuty(null); setReplacementPrefillStudent(''); }} 
+          onReported={async () => {
+            fetchIncidents();
+            if (assistantData) {
+              const res = await api.get(`/supervisors/room-details/${assistantRoomAllocationId}`);
+              setAssistantData(prev => ({ ...prev, incidents: res.data.incidents }));
+            }
+          }}
         />
       )}
 
-      <style>{`
-        .faculty-profile-card {
-          padding: 24px 32px;
-          margin-bottom: 28px;
-          background: #fcfcf9;
-          border: 1.5px solid #111;
-          border-radius: 16px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.03);
-        }
-        .faculty-profile-meta {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-        .faculty-stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-          gap: 16px;
-          margin-top: 24px;
-          border-top: 1px solid #E5E5E0;
-          padding-top: 20px;
-        }
-        .faculty-tab-nav-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .faculty-tabs-list {
-          gap: 6px;
-          background: #F4F4F0;
-          padding: 4px;
-          border-radius: 8px;
-        }
-        .faculty-duties-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .faculty-duty-card {
-          border: 1.5px solid #E5E5E0;
-          padding: 24px 28px;
-          background: #fff;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-        }
-        .faculty-duty-card.primary {
-          border-left: 5px solid #111111;
-        }
-        .faculty-duty-card.co {
-          border-left: 5px solid #c2c2bc;
-        }
-        .faculty-duty-card-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          gap: 12px;
-        }
-        .faculty-duty-badges {
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-        .faculty-duty-actions {
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-        .faculty-specs-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 16px;
-        }
+      {showQrModal && assistantData && (
+        <QrScannerModal 
+          roomStudents={localRecords}
+          onScanSuccess={(studentId) => handleMarkAttendance(studentId, 'present')}
+          onClose={() => setShowQrModal(false)}
+        />
+      )}
 
-        @media (max-width: 768px) {
-          .faculty-profile-card {
-            padding: 16px 20px;
-            margin-bottom: 20px;
-          }
-          .faculty-profile-meta {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-          }
-          .faculty-tab-nav-row {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .faculty-selectors {
-            width: 100%;
-            justify-content: space-between;
-          }
-          .faculty-selectors select {
-            flex: 1;
-            max-width: none !important;
-          }
-          .faculty-duty-card {
-            padding: 16px 20px;
-          }
-          .faculty-duty-card-header {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .faculty-duty-actions {
-            width: 100%;
-            justify-content: flex-start;
-          }
-          .faculty-specs-grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .faculty-stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-          }
-          .faculty-tabs-list {
-            width: 100%;
-            justify-content: space-between;
-          }
-          .faculty-tabs-list button {
-            flex: 1;
-            font-size: 11px !important;
-            padding: 8px 10px !important;
-            justify-content: center;
-          }
-          .faculty-duty-actions {
-            justify-content: stretch;
-          }
-          .faculty-duty-actions button, .faculty-duty-actions a {
-            flex: 1;
-            justify-content: center;
-            font-size: 10px !important;
-            padding: 6px 10px !important;
-          }
-          .duty-calendar-card {
-            padding: 16px !important;
-          }
-          .duty-calendar-grid {
-            gap: 4px !important;
-          }
-          .duty-calendar-cell {
-            height: 38px !important;
-          }
-          .duty-calendar-cell span {
-            font-size: 11px !important;
-          }
-        }
-      `}</style>
+      {showReplacementModal && (
+        <ReplacementRequestModal 
+          duties={duties.filter(d => d.date >= todayStr)}
+          onClose={() => setShowReplacementModal(false)}
+          onSubmitSuccess={fetchReplacements}
+        />
+      )}
     </div>
   );
 }

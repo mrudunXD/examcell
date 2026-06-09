@@ -4,12 +4,18 @@ import { getDb } from '../db/database.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'mitwpu_exam_secret_2026_change_in_prod';
 
 export async function authenticate(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  let token = req.query.token;
+  if (!token) {
+    const header = req.headers.authorization;
+    if (header && header.startsWith('Bearer ')) {
+      token = header.slice(7);
+    }
+  }
+
+  if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }
 
-  const token = header.slice(7);
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const db = getDb();
