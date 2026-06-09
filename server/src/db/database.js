@@ -321,6 +321,35 @@ class PgDatabase {
         resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL
       );
 
+      CREATE TABLE IF NOT EXISTS invigilator_logs (
+        id TEXT PRIMARY KEY,
+        slot_id TEXT NOT NULL REFERENCES exam_slots(id) ON DELETE CASCADE,
+        room_allocation_id TEXT NOT NULL REFERENCES room_allocations(id) ON DELETE CASCADE,
+        logged_by TEXT REFERENCES users(id),
+        type TEXT NOT NULL CHECK(type IN ('toilet_out', 'toilet_in', 'extra_booklet', 'relief_handover', 'other')),
+        student_id TEXT REFERENCES students(id) ON DELETE SET NULL,
+        details TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS faculty_leaves (
+        id TEXT PRIMARY KEY,
+        faculty_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        shift_id TEXT,
+        reason TEXT,
+        UNIQUE(faculty_id, date, shift_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS subject_constraints (
+        id TEXT PRIMARY KEY,
+        subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+        type TEXT NOT NULL CHECK(type IN ('excluded_date', 'fixed_slot')),
+        date TEXT NOT NULL,
+        shift_id TEXT,
+        UNIQUE(subject_id, type, date, shift_id)
+      );
+
       CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
       CREATE INDEX IF NOT EXISTS idx_students_year ON students(year);
       CREATE INDEX IF NOT EXISTS idx_exam_slots_cycle ON exam_slots(cycle_id);

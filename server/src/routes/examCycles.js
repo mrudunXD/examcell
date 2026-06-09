@@ -256,6 +256,8 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
   const classrooms = await db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
   const faculty = await db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
   const students = await db.prepare("SELECT id, name, prn, roll_no, branch, year, semester, section FROM students WHERE is_active=1").all();
+  const leaves = await db.prepare("SELECT * FROM faculty_leaves").all();
+  const subjectConstraints = await db.prepare("SELECT * FROM subject_constraints").all();
 
   const solverShifts = custom_shifts || [
     { id: '1', name: 'Shift 1', start_time: '09:30', duration_mins: 180 },
@@ -294,6 +296,8 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     classrooms,
     faculty,
     teaches,
+    faculty_leaves: leaves,
+    subject_constraints: subjectConstraints,
     settings: {
       time_limit_seconds: 30,
       shifts: solverShifts,

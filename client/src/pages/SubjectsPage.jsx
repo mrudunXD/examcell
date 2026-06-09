@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Lock } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
@@ -83,6 +83,183 @@ function SubjectModal({ subject, onClose, onSave }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function SubjectConstraintsModal({ subject, onClose }) {
+  const [constraints, setConstraints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [type, setType] = useState('excluded_date');
+  const [date, setDate] = useState('');
+  const [shiftId, setShiftId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchConstraints = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/subject-constraints');
+      setConstraints(data.filter(c => c.subject_id === subject.id));
+    } catch {
+      toast.error('Failed to load constraints');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchConstraints(); }, [subject.id]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!date) return;
+    setSaving(true);
+    try {
+      const payload = {
+        subject_id: subject.id,
+        type,
+        date,
+        shift_id: shiftId || null
+      };
+      await api.post('/subject-constraints', payload);
+      toast.success('Subject constraint added');
+      setDate('');
+      setShiftId('');
+      fetchConstraints();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add constraint');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Remove this scheduling constraint?')) return;
+    try {
+      await api.delete(`/subject-constraints/${id}`);
+      toast.success('Constraint removed');
+      fetchConstraints();
+    } catch {
+      toast.error('Failed to delete constraint');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-lg" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, maxWidth: '800px', border: '4px solid #111111', boxShadow: '8px 8px 0 0 #111111' }}>
+        
+        {/* Left Panel: Active Constraints List */}
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: 'var(--np-red)', textTransform: 'uppercase' }}>
+            {subject.code}
+          </span>
+          <h3 style={{ fontFamily: 'var(--font-serif)', margin: '2px 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
+            Constraints: {subject.name}
+          </h3>
+
+          <div style={{ flex: 1, maxHeight: '340px', overflowY: 'auto' }} className="custom-scrollbar">
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+            ) : constraints.length === 0 ? (
+              <div style={{ fontStyle: 'italic', color: '#666', fontSize: 13, padding: 12 }}>
+                No scheduling locks or lockout dates registered for this subject.
+              </div>
+            ) : (
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #111', fontWeight: 'bold' }}>
+                    <th style={{ padding: 4 }}>Type</th>
+                    <th style={{ padding: 4 }}>Date</th>
+                    <th style={{ padding: 4 }}>Shift</th>
+                    <th style={{ padding: 4 }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {constraints.map((c) => (
+                    <tr key={c.id} style={{ borderBottom: '1px solid #E5E5E0' }}>
+                      <td style={{ padding: '6px 4px' }}>
+                        <span style={{ 
+                          fontSize: 9, 
+                          background: c.type === 'fixed_slot' ? '#dcfce7' : '#fee2e2', 
+                          color: c.type === 'fixed_slot' ? '#166534' : '#991b1b', 
+                          border: `1px solid ${c.type === 'fixed_slot' ? '#166534' : '#991b1b'}`, 
+                          padding: '1px 4px', 
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase'
+                        }}>
+                          {c.type === 'fixed_slot' ? 'Lock Date' : 'Lockout'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{c.date}</td>
+                      <td style={{ padding: '6px 4px' }}>
+                        {c.shift_id ? `Shift ${c.shift_id}` : 'Full Day'}
+                      </td>
+                      <td style={{ padding: '6px 4px' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.id)} style={{ color: 'var(--np-red)', padding: '2px 4px' }}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel: Add Constraint Form */}
+        <div>
+          <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
+            Add Constraint Rule
+          </h3>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Constraint Type *</label>
+              <select 
+                className="select" 
+                value={type} 
+                onChange={e => setType(e.target.value)}
+                style={{ fontSize: 12 }}
+              >
+                <option value="excluded_date">Lockout Date (Avoid scheduling here)</option>
+                <option value="fixed_slot">Lock to Slot (Force schedule on this slot)</option>
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Date *</label>
+              <input 
+                type="date" 
+                className="input" 
+                value={date} 
+                onChange={e => setDate(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Shift Duration</label>
+              <select 
+                className="select" 
+                value={shiftId} 
+                onChange={e => setShiftId(e.target.value)}
+                style={{ fontSize: 12 }}
+              >
+                <option value="">Full Day (All Shifts)</option>
+                <option value="1">Shift 1 (Morning)</option>
+                <option value="2">Shift 2 (Afternoon)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+                {saving ? 'Saving...' : 'Add Constraint'}
+              </button>
+            </div>
+          </form>
+        </div>
+
       </div>
     </div>
   );
@@ -223,6 +400,9 @@ export default function SubjectsPage() {
               {isCoord && (
                 <td>
                   <div className="flex-row" style={{ gap: 4 }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(s); setModal('constraints'); }} title="Lock or Exclude scheduling slots">
+                      <Lock size={12} strokeWidth={1.5} /> Lock
+                    </button>
                     <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('form'); }}><Pencil size={12} strokeWidth={1.5} /></button>
                     <button className="btn btn-danger btn-icon btn-sm" onClick={() => del(s.id)}><Trash2 size={12} strokeWidth={1.5} /></button>
                   </div>
@@ -330,6 +510,9 @@ export default function SubjectsPage() {
       )}
 
       {isCoord && modal === 'form' && <SubjectModal subject={editing} onClose={() => setModal(null)} onSave={loadSubjects} />}
+      {isCoord && modal === 'constraints' && editing && (
+        <SubjectConstraintsModal subject={editing} onClose={() => setModal(null)} />
+      )}
     </div>
   );
 }

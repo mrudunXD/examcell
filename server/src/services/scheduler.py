@@ -17,6 +17,8 @@ def solve():
     faculty = input_data.get("faculty", [])
     teaches = input_data.get("teaches", [])
     settings = input_data.get("settings", {})
+    faculty_leaves = input_data.get("faculty_leaves", [])
+    subject_constraints = input_data.get("subject_constraints", [])
 
     time_limit = settings.get("time_limit_seconds", 30)
     shifts = settings.get("shifts", [
@@ -295,6 +297,17 @@ def solve():
                         if v1["code"] != v2["code"]: # different subjects
                             model1.Add(z[v1["id"], r["id"], t["id"]] + z[v2["id"], r["id"], t["id"]] <= 1)
 
+    # 10. Subject scheduling constraints (lockout or fixed slots)
+    for v in virtual_subjects:
+        for t in slots:
+            for c in subject_constraints:
+                if c["subject_id"] == v["orig_id"]:
+                    if c["type"] == "excluded_date" and c["date"] == t["date"]:
+                        model1.Add(x[v["id"], t["id"]] == 0)
+                    elif c["type"] == "fixed_slot" and c["date"] == t["date"]:
+                        if c.get("shift_id") is None or str(c["shift_id"]) == str(t["shift"]):
+                            model1.Add(x[v["id"], t["id"]] == 1)
+
     # --- Soft Constraints & Penalties ---
     penalties = []
 
@@ -408,7 +421,7 @@ def solve():
 
     if status1 not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         # Fail safe: Run relaxed solver to analyze conflicts
-        run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject_group_map, teaches_map, classrooms, slots, dates, is_cca)
+        run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject_group_map, teaches_map, classrooms, slots, dates, is_cca, faculty_leaves, subject_constraints)
         return
 
     # Extract solved schedule
@@ -451,6 +464,15 @@ def solve():
     for f in faculty:
         for t in slots:
             model2.Add(sum(inv[f["id"], r["id"], t["id"]] for r in classrooms) <= 1)
+
+    # 1b. Faculty availability leaves restriction
+    for f in faculty:
+        for t in slots:
+            for l in faculty_leaves:
+                if l["faculty_id"] == f["id"] and l["date"] == t["date"]:
+                    if l.get("shift_id") is None or str(l["shift_id"]) == str(t["shift"]):
+                        for r in classrooms:
+                            model2.Add(inv[f["id"], r["id"], t["id"]] == 0)
 
     # 2. Subject restriction: Faculty cannot invigilate subjects they teach
     for f in faculty:
@@ -557,7 +579,7 @@ def solve():
         "constraints_count": len(model1.Proto().constraints)
     }))
 
-def run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject_group_map, teaches_map, classrooms, slots, dates, is_cca):
+def run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject_group_map, teaches_map, classrooms, slots, dates, is_cca, faculty_leaves, subject_constraints):
     model = cp_model.CpModel()
 
     # Variables
@@ -591,6 +613,17 @@ def run_relaxed_solver(virtual_subjects, student_groups, group_subjects, subject
     # 2. Subject assigned to exactly one room (Hard)
     for v in virtual_subjects:
         model.Add(sum(y[v["id"], r["id"]] for r in classrooms) == 1)
+
+    # Subject scheduling constraints (lockout or fixed slots)
+    for v in virtual_subjects:
+        for t in slots:
+            for c in subject_constraints:
+                if c["subject_id"] == v["orig_id"]:
+                    if c["type"] == "excluded_date" and c["date"] == t["date"]:
+                        model.Add(x[v["id"], t["id"]] == 0)
+                    elif c["type"] == "fixed_slot" and c["date"] == t["date"]:
+                        if c.get("shift_id") is None or str(c["shift_id"]) == str(t["shift"]):
+                            model.Add(x[v["id"], t["id"]] == 1)
 
     # 3. Branch & Semester Parity (Relaxed)
     for g, g_subjs in group_subjects.items():

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, BookOpen, Check, UserCheck } from 'lucide-react';
+import { Plus, Pencil, Trash2, BookOpen, Check, CalendarDays } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
@@ -140,6 +140,173 @@ function SubjectAssignModal({ faculty, allSubjects, onClose, onSave }) {
   );
 }
 
+function LeavesModal({ facultyList, onClose }) {
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ faculty_id: '', date: '', shift_id: '', reason: '' });
+  const [saving, setSaving] = useState(false);
+
+  const fetchLeaves = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/faculty-leaves');
+      setLeaves(data);
+    } catch { toast.error('Failed to load leaves'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchLeaves(); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.faculty_id || !form.date) return;
+    setSaving(true);
+    try {
+      const payload = {
+        faculty_id: form.faculty_id,
+        date: form.date,
+        shift_id: form.shift_id || null,
+        reason: form.reason || null
+      };
+      await api.post('/faculty-leaves', payload);
+      toast.success('Faculty leave added successfully');
+      setForm({ faculty_id: '', date: '', shift_id: '', reason: '' });
+      fetchLeaves();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add leave');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Remove this leave record?')) return;
+    try {
+      await api.delete(`/faculty-leaves/${id}`);
+      toast.success('Leave record removed');
+      fetchLeaves();
+    } catch {
+      toast.error('Failed to delete leave record');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-lg" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: '800px', border: '4px solid #111111', boxShadow: '8px 8px 0 0 #111111' }}>
+        
+        {/* Left Side: View Leaves List */}
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
+            Active Leaves & Absences
+          </h3>
+          <div style={{ flex: 1, maxHeight: '340px', overflowY: 'auto' }} className="custom-scrollbar">
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+            ) : leaves.length === 0 ? (
+              <div style={{ fontStyle: 'italic', color: '#666', fontSize: 13, padding: 12 }}>No leaves recorded.</div>
+            ) : (
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #111', fontWeight: 'bold' }}>
+                    <th style={{ padding: 4 }}>Faculty</th>
+                    <th style={{ padding: 4 }}>Date</th>
+                    <th style={{ padding: 4 }}>Shift</th>
+                    <th style={{ padding: 4 }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaves.map((l) => (
+                    <tr key={l.id} style={{ borderBottom: '1px solid #E5E5E0' }}>
+                      <td style={{ padding: '6px 4px', fontWeight: 600 }}>{l.faculty_name}</td>
+                      <td style={{ padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{l.date}</td>
+                      <td style={{ padding: '6px 4px' }}>
+                        <span style={{ fontSize: 9, background: l.shift_id ? '#fffbeb' : '#fee2e2', color: l.shift_id ? '#92400e' : '#991b1b', border: `1px solid ${l.shift_id ? '#92400e' : '#991b1b'}`, padding: '1px 4px', fontWeight: 'bold' }}>
+                          {l.shift_id ? `Shift ${l.shift_id}` : 'Full Day'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '6px 4px' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(l.id)} style={{ color: 'var(--np-red)', padding: '2px 4px' }}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Add Leave Form */}
+        <div>
+          <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
+            Log Faculty Leave
+          </h3>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Select Faculty *</label>
+              <select 
+                className="select" 
+                value={form.faculty_id} 
+                onChange={e => setForm({ ...form, faculty_id: e.target.value })}
+                required
+                style={{ fontSize: 12 }}
+              >
+                <option value="">-- Choose Faculty --</option>
+                {facultyList.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Leave Date *</label>
+              <input 
+                type="date" 
+                className="input" 
+                value={form.date} 
+                onChange={e => setForm({ ...form, date: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Shift Duration</label>
+              <select 
+                className="select" 
+                value={form.shift_id} 
+                onChange={e => setForm({ ...form, shift_id: e.target.value })}
+                style={{ fontSize: 12 }}
+              >
+                <option value="">Full Day (Unavailable completely)</option>
+                <option value="1">Shift 1 Only (Morning)</option>
+                <option value="2">Shift 2 Only (Afternoon)</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Reason / Notes</label>
+              <input 
+                type="text" 
+                className="input" 
+                placeholder="e.g. Health leave, conference..." 
+                value={form.reason} 
+                onChange={e => setForm({ ...form, reason: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+                {saving ? 'Saving...' : 'Add Leave'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function FacultyPage() {
   const [faculty, setFaculty] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -173,9 +340,14 @@ export default function FacultyPage() {
           <p className="page-subtitle">{faculty.length} faculty accounts</p>
         </div>
         {isCoord && (
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
-            <Plus size={13} strokeWidth={1.5} /> Add Faculty
-          </button>
+          <div className="flex-row" style={{ gap: 8 }}>
+            <button className="btn btn-ghost" onClick={() => setModal('leaves')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <CalendarDays size={13} strokeWidth={1.5} /> Leaves & Availability
+            </button>
+            <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
+              <Plus size={13} strokeWidth={1.5} /> Add Faculty
+            </button>
+          </div>
         )}
       </div>
 
@@ -230,6 +402,9 @@ export default function FacultyPage() {
       {isCoord && modal === 'form' && <FacultyModal faculty={editing} onClose={() => setModal(null)} onSave={fetch} />}
       {isCoord && modal === 'subjects' && editing && (
         <SubjectAssignModal faculty={editing} allSubjects={subjects} onClose={() => setModal(null)} onSave={fetch} />
+      )}
+      {isCoord && modal === 'leaves' && (
+        <LeavesModal facultyList={faculty} onClose={() => setModal(null)} />
       )}
     </div>
   );

@@ -29,6 +29,9 @@ import publicRouter from './routes/public.js';
 import healthRouter from './routes/health.js';
 import backupRouter from './routes/backups.js';
 import replacementRouter from './routes/replacements.js';
+import attendanceLogsRouter from './routes/attendanceLogs.js';
+import facultyLeavesRouter from './routes/facultyLeaves.js';
+import subjectConstraintsRouter from './routes/subjectConstraints.js';
 import { initAutoBackupScheduler } from './services/autoBackup.js';
 import { initAlertingMonitor } from './services/alerting.js';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -139,6 +142,9 @@ v1Router.use('/analytics', analyticsRouter);
 v1Router.use('/health', healthRouter);
 v1Router.use('/backups', backupRouter);
 v1Router.use('/replacements', replacementRouter);
+v1Router.use('/attendance-logs', attendanceLogsRouter);
+v1Router.use('/faculty-leaves', facultyLeavesRouter);
+v1Router.use('/subject-constraints', subjectConstraintsRouter);
 
 app.use('/api/v1', v1Router);
 app.use('/api', v1Router); // Client compatibility alias

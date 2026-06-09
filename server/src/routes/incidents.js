@@ -73,7 +73,7 @@ router.patch('/:id', requireCoordinator, auditLog('RESOLVE_INCIDENT', 'incidents
     UPDATE incidents SET 
       status = COALESCE(?, status),
       action_taken = COALESCE(?, action_taken),
-      resolved_at = CASE WHEN ? = 'resolved' THEN ? ELSE resolved_at END
+      resolved_at = CASE WHEN ? = 'resolved' THEN ?::text ELSE resolved_at END
     WHERE id = ?
   `).run(status, action_taken, status, now, req.params.id);
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(req.params.id);
