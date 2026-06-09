@@ -1,10 +1,20 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { getDb } from '../db/database.js';
 import { authenticate, generateToken } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
+
+// H3: Strict brute-force protection on login
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' }
+});
 
 /**
  * @openapi
@@ -25,10 +35,8 @@ const router = Router();
  *             properties:
  *               email:
  *                 type: string
- *                 example: admin@mitwpu.edu.in
  *               password:
  *                 type: string
- *                 example: admin123
  *     responses:
  *       200:
  *         description: Login successful
@@ -57,7 +65,7 @@ const router = Router();
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 

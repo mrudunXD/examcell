@@ -53,6 +53,22 @@ router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.i
   const { slot_id, room_allocation_id, type, description, student_prn, action_taken, severity, evidence_image } = req.body;
   if (!slot_id || !type || !description) return res.status(400).json({ error: 'slot_id, type, description required' });
 
+  // H9: Faculty can only report incidents for slots they are assigned to
+  if (req.user.role === 'faculty') {
+    const assigned = await db.prepare(`
+      SELECT 1 FROM supervisor_duties sd
+      JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+      WHERE sd.faculty_id = ? AND ra.slot_id = ?
+    `).get(req.user.id, slot_id);
+    if (!assigned) return res.status(403).json({ error: 'You are not assigned as a supervisor for this exam slot.' });
+  }
+
+  // H10: Validate evidence_image — must be null or a valid base64-encoded image (max 2MB)
+  if (evidence_image) {
+    const validImage = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]{1,2796202}$/.test(evidence_image);
+    if (!validImage) return res.status(400).json({ error: 'evidence_image must be a valid base64-encoded JPEG, PNG, or WebP image (max 2MB).' });
+  }
+
   const id = crypto.randomUUID();
   await db.prepare(`
     INSERT INTO incidents (id, slot_id, room_allocation_id, reported_by, type, description, student_prn, action_taken, severity, evidence_image)

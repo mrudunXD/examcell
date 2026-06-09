@@ -98,15 +98,20 @@ router.post('/:slotId', verifyAttendanceAccess, auditLog('SAVE_ATTENDANCE', 'att
       marked_at=datetime('now'), notes=excluded.notes
   `);
 
+  const VALID_STATUSES = new Set(['present', 'absent', 'late']);
   let count = 0;
   const upsert = await db.transaction(async (recs) => {
     for (const r of recs) {
+      const status = r.status || 'present';
+      if (!VALID_STATUSES.has(status)) {
+        throw Object.assign(new Error(`Invalid attendance status "${status}". Must be present, absent, or late.`), { status: 400 });
+      }
       await stmt.run(
         crypto.randomUUID(),
         req.params.slotId,
         r.student_id,
         r.room_allocation_id || null,
-        r.status || 'present',
+        status,
         req.user.id,
         r.notes || null
       );

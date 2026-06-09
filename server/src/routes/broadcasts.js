@@ -31,6 +31,9 @@ router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (r
   const db = getDb();
   const { title, message, priority = 'normal' } = req.body;
   if (!title || !message) return res.status(400).json({ error: 'title and message required' });
+  // M5: Enforce length limits to prevent memory exhaustion
+  if (title.length > 200) return res.status(400).json({ error: 'title must be 200 characters or fewer' });
+  if (message.length > 2000) return res.status(400).json({ error: 'message must be 2000 characters or fewer' });
 
   const id = crypto.randomUUID();
   await db.prepare('INSERT INTO broadcasts (id, title, message, sent_by, priority) VALUES (?,?,?,?,?)')

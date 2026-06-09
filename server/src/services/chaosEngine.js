@@ -1,31 +1,19 @@
-import { setDbChaosMode } from '../db/database.js';
-import { triggerKioskDisconnectStorm } from './socket.js';
-
-let solverChaosModeEnabled = false;
+/**
+ * C7 — Chaos engine DISABLED for production.
+ * This file intentionally exports safe no-ops so that existing imports
+ * in examCycles.js (getChaosState) continue to compile without errors,
+ * but chaos injection is permanently disabled.
+ */
 
 export function getChaosState() {
-  return {
-    solverChaosMode: solverChaosModeEnabled
-  };
+  return { solverChaosMode: false };
 }
 
-export function setSolverChaosMode(enabled) {
-  solverChaosModeEnabled = enabled;
-  console.log(`⚠️ Solver Chaos Mode: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+export function setSolverChaosMode(_enabled) {
+  // No-op: chaos injection is disabled in production
 }
 
-export function triggerChaos(type, enabled = true) {
-  switch (type) {
-    case 'db_drop':
-      setDbChaosMode(enabled);
-      return { success: true, message: `Database chaos mode set to ${enabled}` };
-    case 'solver_timeout':
-      setSolverChaosMode(enabled);
-      return { success: true, message: `Solver chaos mode set to ${enabled}` };
-    case 'socket_storm':
-      triggerKioskDisconnectStorm();
-      return { success: true, message: 'Kiosk disconnect storm triggered' };
-    default:
-      throw new Error(`Unknown chaos injection type: ${type}`);
-  }
+export function triggerChaos(_type, _enabled) {
+  // No-op: chaos injection is disabled in production
+  throw new Error('Chaos injection is not available in production.');
 }

@@ -1,15 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { getDb } from '../db/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mitwpu_exam_secret_2026_change_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set.');
 
 export async function authenticate(req, res, next) {
-  let token = req.query.token;
-  if (!token) {
-    const header = req.headers.authorization;
-    if (header && header.startsWith('Bearer ')) {
-      token = header.slice(7);
-    }
+  let token;
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    token = header.slice(7);
   }
 
   if (!token) {

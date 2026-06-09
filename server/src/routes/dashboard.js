@@ -4,7 +4,7 @@ import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
-router.use(authenticate);
+router.use(authenticate, requireCoordinator);
 
 // GET dashboard summary for a cycle
 router.get('/:cycleId', asyncHandler(async (req, res) => {

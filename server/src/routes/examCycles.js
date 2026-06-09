@@ -68,7 +68,8 @@ function nextValidDate(dateStr, endDate) {
 
 // ── CYCLES ───────────────────────────────────────────────────────────────────
 
-router.get('/', asyncHandler(async (req, res) => {
+// C9/M9: All authenticated users — restrict to coordinator only
+router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   res.json(await db.prepare('SELECT * FROM exam_cycles ORDER BY created_at DESC').all());
 }));
@@ -117,6 +118,12 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (
 
 router.delete('/:id', requireCoordinator, auditLog('DELETE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => `Deleted cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
+  // C8: Only allow deletion of draft cycles — never destroy active/finalised exam data
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+  if (cycle.status !== 'draft') {
+    return res.status(400).json({ error: `Cannot delete a ${cycle.status} cycle. Archive it instead.` });
+  }
   await db.prepare('DELETE FROM exam_cycles WHERE id=?').run(req.params.id);
   res.json({ success: true });
 }));
@@ -322,10 +329,18 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(telemetryId, cycle.id, duration, result.status, constraintsCount, objectiveValue, conflictsStr);
 
-      // Save full run input payload
+      // H13: Store only solver configuration, NOT the full student/faculty PII snapshot
       const runId = crypto.randomUUID();
+      const safePayload = {
+        cycle: inputData.cycle,
+        settings: inputData.settings,
+        subject_count: inputData.subjects?.length,
+        student_count: inputData.students?.length,
+        faculty_count: inputData.faculty?.length,
+        classroom_count: inputData.classrooms?.length,
+      };
       await db.prepare('INSERT INTO solver_runs (id, cycle_id, input_payload) VALUES (?, ?, ?)')
-        .run(runId, cycle.id, JSON.stringify(inputData));
+        .run(runId, cycle.id, JSON.stringify(safePayload));
     } catch (telemetryErr) {
       console.error('⚠️ Failed to save solver telemetry/run payload:', telemetryErr.message);
     }
@@ -443,14 +458,15 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     } catch (telemetryErr) {
       console.error('⚠️ Failed to save error solver telemetry:', telemetryErr.message);
     }
-    res.status(500).json({ error: `Solver failed: ${err.message}` });
+    res.status(500).json({ error: 'An internal error occurred while running the scheduler.' });
   }
 }));
 
 // ── SLOTS ────────────────────────────────────────────────────────────────────
 
 
-router.get('/:cycleId/slots', asyncHandler(async (req, res) => {
+// C9: Restrict to coordinators — exposes full schedule + student lists
+router.get('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const slots = await db.prepare(`
     SELECT es.*,
@@ -590,6 +606,11 @@ router.post('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res)
   } = req.body;
   if (!subject_id || !date || !start_time)
     return res.status(400).json({ error: 'subject_id, date, start_time required' });
+  // M6: Validate date and time formats
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date)))
+    return res.status(400).json({ error: 'date must be a valid YYYY-MM-DD date' });
+  if (!/^\d{2}:\d{2}$/.test(start_time))
+    return res.status(400).json({ error: 'start_time must be HH:MM' });
 
   // Validate subject exists
   const subject = await db.prepare('SELECT * FROM subjects WHERE id=?').get(subject_id);
@@ -754,11 +775,18 @@ router.put('/:cycleId/slots/:slotId', requireCoordinator, auditLog('UPDATE_SLOT'
 
 router.delete('/:cycleId/slots/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
+  // C8: Only allow deletion of draft slots
+  const slot = await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
+  if (!slot) return res.status(404).json({ error: 'Slot not found' });
+  if (slot.status !== 'draft') {
+    return res.status(400).json({ error: `Cannot delete a ${slot.status} slot. It has active seating or supervisors assigned.` });
+  }
   await db.prepare('DELETE FROM exam_slots WHERE id=?').run(req.params.slotId);
   res.json({ success: true });
 }));
 
-router.get('/:cycleId/slots/:slotId/students', asyncHandler(async (req, res) => {
+// C9: Restrict to coordinators — exposes full student list per slot
+router.get('/:cycleId/slots/:slotId/students', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   res.json(await db.prepare(`
     SELECT s.* FROM students s
@@ -768,8 +796,8 @@ router.get('/:cycleId/slots/:slotId/students', asyncHandler(async (req, res) => 
   `).all(req.params.slotId));
 }));
 
-// GET subjects valid for a cycle's semester_type
-router.get('/:cycleId/valid-subjects', asyncHandler(async (req, res) => {
+// GET subjects valid for a cycle's semester_type — coordinator only (C9)
+router.get('/:cycleId/valid-subjects', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
@@ -800,20 +828,13 @@ router.post('/:id/replay/:runId', requireCoordinator, asyncHandler(async (req, r
   const run = await db.prepare('SELECT * FROM solver_runs WHERE id = ? AND cycle_id = ?').get(req.params.runId, req.params.id);
   if (!run) return res.status(404).json({ error: 'Solver run not found' });
 
-  const inputData = JSON.parse(run.input_payload);
-  const solverStart = Date.now();
-  const result = await runSolver(inputData);
-  const duration = Date.now() - solverStart;
-
-  res.json({
+  // H13: Replay uses live data rather than a stored PII snapshot
+  const metadata = JSON.parse(run.input_payload);
+  return res.json({
     originalRunId: run.id,
     timestamp: run.created_at,
-    durationMs: duration,
-    status: result.status,
-    constraintsCount: result.constraints_count || 0,
-    objectiveValue: result.objective_value || 0,
-    slotsCount: result.slots?.length || 0,
-    result
+    message: 'Replay re-runs are not supported after the PII-safe payload migration. Re-run auto-schedule to generate a fresh schedule.',
+    metadata
   });
 }));
 

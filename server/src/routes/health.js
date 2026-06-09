@@ -5,9 +5,9 @@ import { getAutoBackupStatus } from '../services/autoBackup.js';
 import { verifyAuditLogChain } from '../services/auditVerification.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { triggerChaos } from '../services/chaosEngine.js';
 import { getActiveAlerts, resolveAlert } from '../services/alerting.js';
 import os from 'os';
+// C7: chaosEngine import removed — chaos injection is disabled in production
 
 const router = Router();
 router.use(authenticate, requireCoordinator);
@@ -83,14 +83,6 @@ router.get('/metrics', asyncHandler(async (req, res) => {
       }
     }
   });
-}));
-
-// POST /api/health/chaos/trigger
-router.post('/chaos/trigger', asyncHandler(async (req, res) => {
-  const { type, enabled } = req.body;
-  if (!type) return res.status(400).json({ error: 'chaos type required' });
-  const result = triggerChaos(type, enabled);
-  res.json(result);
 }));
 
 // GET /api/health/alerts — fetch active unresolved system alerts

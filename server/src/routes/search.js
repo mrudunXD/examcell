@@ -31,11 +31,13 @@ router.get('/', asyncHandler(async (req, res) => {
     LIMIT 10
   `).all(term, term, term);
 
-  const cycles = await db.prepare(`
-    SELECT id, name, start_date, end_date, status, semester_type
-    FROM exam_cycles WHERE name LIKE ?
-    LIMIT 5
-  `).all(term);
+  const cycles = req.user.role === 'coordinator'
+    ? await db.prepare(`
+        SELECT id, name, start_date, end_date, status, semester_type
+        FROM exam_cycles WHERE name LIKE ?
+        LIMIT 5
+      `).all(term)
+    : []; // H19: Faculty must not see cycle data — they can only see their own duties via /supervisors/my-duties
 
   res.json({ students, subjects, faculty, cycles });
 }));

@@ -48,6 +48,8 @@ router.post('/', auditLog('REQUEST_REPLACEMENT', 'replacement_requests', (req, d
   const db = getDb();
   const { duty_id, reason } = req.body;
   if (!duty_id || !reason) return res.status(400).json({ error: 'duty_id and reason are required' });
+  // M11: Cap reason length
+  if (reason.length > 500) return res.status(400).json({ error: 'reason must be 500 characters or fewer.' });
 
   // Verify duty belongs to faculty
   const duty = await db.prepare('SELECT id FROM supervisor_duties WHERE id = ? AND faculty_id = ?').get(duty_id, req.user.id);

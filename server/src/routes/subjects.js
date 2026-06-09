@@ -24,7 +24,8 @@ function inferBranchFromCode(code, currentBranch) {
 const router = Router();
 router.use(authenticate);
 
-router.get('/', asyncHandler(async (req, res) => {
+// M16: Restrict subject listing to coordinators — subjects expose exam structure details
+router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   res.json(await db.prepare('SELECT * FROM subjects ORDER BY semester, code').all());
 }));
@@ -56,6 +57,11 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (r
 
 router.delete('/:id', requireCoordinator, auditLog('DELETE_SUBJECT', 'subjects', (req) => req.params.id, (req) => `Deleted subject ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const db = getDb();
+  // M14: Block deletion if subject is referenced by exam slots — avoids a raw FK error
+  const inUse = await db.prepare('SELECT COUNT(*) as cnt FROM exam_slots WHERE subject_id = ?').get(req.params.id);
+  if (inUse && inUse.cnt > 0) {
+    return res.status(400).json({ error: `Cannot delete: subject is used by ${inUse.cnt} exam slot(s). Remove those slots first.` });
+  }
   await db.prepare('DELETE FROM subjects WHERE id=?').run(req.params.id);
   res.json({ success: true });
 }));

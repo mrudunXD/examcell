@@ -6,8 +6,8 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 const router = Router();
 router.use(authenticate);
 
-// GET conflicts for a cycle
-router.get('/:cycleId', asyncHandler(async (req, res) => {
+// GET conflicts for a cycle — coordinator only (H14)
+router.get('/:cycleId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const conflicts = await db.prepare(`
     SELECT c.*,

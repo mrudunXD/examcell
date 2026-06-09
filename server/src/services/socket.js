@@ -21,8 +21,13 @@ export function initSocket(server) {
       // Allow unauthenticated connections (like public kiosks) but without user context
       return next();
     }
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      // C10: Never fall back to a hardcoded secret — reject the connection
+      return next(new Error('Server misconfiguration: JWT_SECRET not set'));
+    }
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'jwt_secret_key');
+      const decoded = jwt.verify(token, secret);
       socket.user = decoded;
       next();
     } catch (err) {

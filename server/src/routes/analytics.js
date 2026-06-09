@@ -123,9 +123,9 @@ router.get('/load/:cycleId', asyncHandler(async (req, res) => {
  */
 router.get('/live/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
-  const todayDate = new Date();
-  const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
-  const now = new Date().toTimeString().slice(0, 5); // HH:MM
+  // M12: Use IST (UTC+5:30) consistently — same formula used across live-rooms and kiosk endpoints
+  const today = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16); // HH:MM in IST
 
   const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });

@@ -223,6 +223,7 @@ class PgDatabase {
         bench_row INTEGER NOT NULL,
         bench_col INTEGER NOT NULL,
         is_approved INTEGER DEFAULT 0,
+        version INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(student_id, room_allocation_id),
@@ -392,6 +393,10 @@ class PgDatabase {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='prev_hash') THEN
           ALTER TABLE audit_log ADD COLUMN prev_hash TEXT;
+        END IF;
+        -- M10: Add version column to seat_assignments if missing (needed for optimistic concurrency)
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='seat_assignments' AND column_name='version') THEN
+          ALTER TABLE seat_assignments ADD COLUMN version INTEGER DEFAULT 1;
         END IF;
       END $$;
     `);

@@ -8,8 +8,8 @@ import { generateSeating } from '../services/seatingEngine.js';
 const router = Router();
 router.use(authenticate);
 
-// GET seating for a slot
-router.get('/:slotId', asyncHandler(async (req, res) => {
+// GET seating for a slot — coordinator only (H7: prevents faculty reading seating before official release)
+router.get('/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const slot = await db.prepare(`
     SELECT es.*, s.code as subject_code, s.name as subject_name

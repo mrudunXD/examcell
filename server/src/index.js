@@ -36,6 +36,7 @@ import { initAutoBackupScheduler } from './services/autoBackup.js';
 import { initAlertingMonitor } from './services/alerting.js';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { authenticate, requireCoordinator } from './middleware/auth.js';
 
 
 
@@ -66,12 +67,21 @@ app.use(helmet({
 // Apply DDoS and reconnect storm rate limiting
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 1000, // Safe limit accommodating localhost tests
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again after a minute.' }
 });
 app.use('/api', apiLimiter);
+
+// Strict rate limiter for login endpoint (H3)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' }
+});
 
 // Initialize DB
 initDb();
@@ -82,8 +92,7 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Static exports dir
-app.use('/exports', express.static(path.join(__dirname, '../exports')));
+// NOTE: /exports static directory removed (C6) — PDFs are streamed directly, never served statically.
 
 // Routes
 // Swagger OpenAPI configuration options
@@ -93,7 +102,7 @@ const swaggerOptions = {
     info: {
       title: 'MIT WPU Exam Management System API',
       version: '1.0.0',
-      description: 'API contract documentation for the Exam Cell platform, supporting scheduling, room allocation, seating plans, invigilator rotations, and live telemetry.',
+      description: 'API contract documentation for the Exam Cell platform.',
     },
     servers: [
       {
@@ -106,16 +115,18 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// C4: Swagger behind coordinator auth — no public access
+app.use('/api-docs', authenticate, requireCoordinator, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Prometheus telemetry metrics exporter
-app.get('/metrics', async (req, res) => {
+// C5: Prometheus metrics behind coordinator auth
+app.get('/metrics', authenticate, requireCoordinator, async (req, res) => {
   try {
     const { getPrometheusMetrics, getMetricsContentType } = await import('./services/metrics.js');
     res.set('Content-Type', getMetricsContentType());
     res.end(await getPrometheusMetrics());
   } catch (err) {
-    res.status(500).end(err.message);
+    console.error('Metrics error:', err);
+    res.status(500).end('An internal error occurred.');
   }
 });
 

@@ -51,7 +51,8 @@ export async function createBackup() {
 
   const filename = `backup_${Date.now()}.json`;
   const filepath = path.join(BACKUP_DIR, filename);
-  fs.writeFileSync(filepath, JSON.stringify(backup, null, 2), 'utf-8');
+  // M13: Write with owner-only permissions (0600) so backup files aren't world-readable
+  fs.writeFileSync(filepath, JSON.stringify(backup, null, 2), { encoding: 'utf-8', mode: 0o600 });
   
   return { filename, filepath, timestamp: backup.timestamp };
 }
@@ -80,6 +81,9 @@ export async function restoreBackup(backupData) {
     throw new Error('Invalid backup data format');
   }
 
+  // C11/C12: Whitelist table names and column names — never interpolate attacker-supplied strings into SQL
+  const ALLOWED_TABLES = new Set(TABLES);
+
   // Deletion in reverse order of foreign key dependencies
   const deletionOrder = [
     'replacement_requests',
@@ -105,9 +109,17 @@ export async function restoreBackup(backupData) {
     'users'
   ];
 
+  // Validate that no unexpected keys are in the backup before we touch the DB
+  for (const table of Object.keys(backupData.tables)) {
+    if (!ALLOWED_TABLES.has(table)) {
+      throw new Error(`Backup contains unknown table "${table}" — restore aborted.`);
+    }
+  }
+
   await db.transaction(async () => {
     // Delete all records from each table
     for (const table of deletionOrder) {
+      // Safe: table is from our own constant, not from user input
       await db.prepare(`DELETE FROM ${table}`).run();
     }
 
@@ -116,7 +128,14 @@ export async function restoreBackup(backupData) {
       const rows = backupData.tables[table];
       if (!rows || !rows.length) continue;
 
+      // C11/C12: Validate all column names against a simple identifier pattern
       const keys = Object.keys(rows[0]);
+      for (const col of keys) {
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col)) {
+          throw new Error(`Backup contains invalid column name "${col}" in table "${table}" — restore aborted.`);
+        }
+      }
+
       const placeholders = keys.map(() => '?').join(', ');
       const cols = keys.join(', ');
 

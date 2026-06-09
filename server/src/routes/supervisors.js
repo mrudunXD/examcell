@@ -11,7 +11,8 @@ router.use(authenticate);
 // GET /api/supervisors/live-rooms — today's active/completed exam slots and rooms
 router.get('/live-rooms', asyncHandler(async (req, res) => {
   const db = getDb();
-  const today = new Date().toISOString().split('T')[0];
+  // H11: Use IST consistently (UTC+5:30) to match the kiosk endpoint
+  const today = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
   const rooms = await db.prepare(`
     SELECT ra.id as room_allocation_id, c.room_no, c.block,
       es.date, es.start_time, es.duration_mins, es.status as slot_status,
@@ -94,8 +95,8 @@ router.get('/room-details/:roomAllocationId', asyncHandler(async (req, res) => {
   });
 }));
 
-// GET supervisors for a slot
-router.get('/:slotId', asyncHandler(async (req, res) => {
+// GET supervisors for a slot — coordinator only (H16)
+router.get('/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   const duties = await db.prepare(`
     SELECT sd.*, u.name as faculty_name, u.department,

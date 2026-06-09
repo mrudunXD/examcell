@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-09T03:37:01.174Z",
+  "timestamp": "2026-06-09T10:26:49.012Z",
   "tables": {
     "users": [
       {
@@ -93191,6 +93191,61 @@
         "created_at": "2026-06-09T03:25:27.165Z",
         "hash": "7794c4158cc377f0ea3696dc2f445b9b6508e23716fd033251fabaa585e3fa5a",
         "prev_hash": "GENESIS_HASH"
+      },
+      {
+        "id": "d3c90c42-4c95-45d9-aec3-b86712bc58bf",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "DELETE_BACKUP",
+        "entity": "system",
+        "entity_id": "system",
+        "details": "Deleted database backup backup_1780976424034.json",
+        "created_at": "2026-06-09T03:40:37.612Z",
+        "hash": "5e60d5a9d59a71c75669839344672f376d042e903199f2178c73757a8f87c9b9",
+        "prev_hash": "GENESIS_HASH"
+      },
+      {
+        "id": "298780a4-d76a-4925-b275-b2e8f26e2edd",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "RESOLVE_INCIDENT",
+        "entity": "incidents",
+        "entity_id": "d0a07300-50a1-4c59-a74f-a44064232717",
+        "details": "Updated incident ID: d0a07300-50a1-4c59-a74f-a44064232717 (status: resolved)",
+        "created_at": "2026-06-09T04:12:00.599Z",
+        "hash": "89236891a9166df9e5c3ff301c3f788d34ef5d34f21e3602268108812ab4686d",
+        "prev_hash": "GENESIS_HASH"
+      },
+      {
+        "id": "ac376413-1596-4535-a145-6a945f6d250e",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "RESOLVE_INCIDENT",
+        "entity": "incidents",
+        "entity_id": "d0a07300-50a1-4c59-a74f-a44064232717",
+        "details": "Updated incident ID: d0a07300-50a1-4c59-a74f-a44064232717 (status: resolved)",
+        "created_at": "2026-06-09T04:34:19.590Z",
+        "hash": "b9e6d02706fdd54d5a8b21a3f72a19308131fef8adc444902fefb417be3b7e30",
+        "prev_hash": "89236891a9166df9e5c3ff301c3f788d34ef5d34f21e3602268108812ab4686d"
+      },
+      {
+        "id": "5bf82e16-6e1f-4b1c-9f17-8465df64ca83",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "1bb564ac-42ef-4731-a0ce-603ffaf33efd",
+        "details": "Sent broadcast: meow (priority: normal)",
+        "created_at": "2026-06-09T09:03:47.569Z",
+        "hash": "2064b669319fa5a7c434ba13685b4bf90d86ea447d4b9b466c239f1cfd970f5e",
+        "prev_hash": "b9e6d02706fdd54d5a8b21a3f72a19308131fef8adc444902fefb417be3b7e30"
+      },
+      {
+        "id": "c04bb540-0302-4cc2-8c52-95e962c6c2a2",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "150e09ab-1462-4e02-abde-d7ecb598cbcf",
+        "details": "Sent broadcast: idk (priority: critical)",
+        "created_at": "2026-06-09T09:05:18.727Z",
+        "hash": "e8256442e36462d2b9e9789bc0933949923902fbb61f0c9dd39b16c194b7278f",
+        "prev_hash": "2064b669319fa5a7c434ba13685b4bf90d86ea447d4b9b466c239f1cfd970f5e"
       }
     ],
     "attendance": [
@@ -93213,6 +93268,22 @@
         "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
         "priority": "critical",
         "created_at": "2026-06-09T08:04:25.058Z"
+      },
+      {
+        "id": "1bb564ac-42ef-4731-a0ce-603ffaf33efd",
+        "title": "meow",
+        "message": "meow",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "normal",
+        "created_at": "2026-06-09T14:33:47.542Z"
+      },
+      {
+        "id": "150e09ab-1462-4e02-abde-d7ecb598cbcf",
+        "title": "idk",
+        "message": "Good luck loosers",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "critical",
+        "created_at": "2026-06-09T14:35:18.707Z"
       }
     ],
     "broadcast_reads": [],
@@ -93225,16 +93296,33 @@
         "type": "malpractice",
         "description": "Simulated load test malpractice warning",
         "student_prn": "1032210001",
-        "action_taken": null,
+        "action_taken": "Student warned and copy paper confiscated",
         "severity": "high",
-        "status": "open",
+        "status": "resolved",
         "created_at": "2026-06-09T08:55:27.145Z",
-        "resolved_at": null,
+        "resolved_at": "2026-06-09T04:34:19.559Z",
         "evidence_image": null
       }
     ],
     "solver_telemetry": [],
     "solver_runs": [],
-    "system_alerts": []
+    "system_alerts": [
+      {
+        "id": "a2d2325a-f538-4b3c-8c96-c2798941b1da",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 113ms.",
+        "resolved": 0,
+        "created_at": "2026-06-09T14:32:59.748Z"
+      },
+      {
+        "id": "2e982dc9-932a-4bf0-bdf0-b012701b6704",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 95ms.",
+        "resolved": 0,
+        "created_at": "2026-06-09T14:33:29.750Z"
+      }
+    ]
   }
 }

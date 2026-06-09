@@ -31,7 +31,11 @@ router.post('/restore', auditLog('RESTORE_BACKUP', 'system', () => 'system', (re
   const { filename } = req.body;
   if (!filename) return res.status(400).json({ error: 'filename is required' });
 
-  const filepath = path.join(BACKUP_DIR, filename);
+  const safeFilename = path.basename(filename);
+  const filepath = path.join(BACKUP_DIR, safeFilename);
+  if (!filepath.startsWith(BACKUP_DIR + path.sep)) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
   if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Backup file not found' });
 
   const backupData = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
@@ -52,8 +56,11 @@ router.post('/restore-upload', auditLog('RESTORE_BACKUP_UPLOAD', 'system', () =>
 
 // GET /api/backups/download/:filename - Download backup file
 router.get('/download/:filename', asyncHandler(async (req, res) => {
-  const { filename } = req.params;
+  const filename = path.basename(req.params.filename); // strips all path traversal sequences
   const filepath = path.join(BACKUP_DIR, filename);
+  if (!filepath.startsWith(BACKUP_DIR + path.sep) && filepath !== BACKUP_DIR) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
   if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Backup file not found' });
 
   res.download(filepath, filename);
@@ -61,8 +68,11 @@ router.get('/download/:filename', asyncHandler(async (req, res) => {
 
 // DELETE /api/backups/:filename - Delete a backup file
 router.delete('/:filename', auditLog('DELETE_BACKUP', 'system', () => 'system', (req) => `Deleted database backup ${req.params.filename}`), asyncHandler(async (req, res) => {
-  const { filename } = req.params;
+  const filename = path.basename(req.params.filename);
   const filepath = path.join(BACKUP_DIR, filename);
+  if (!filepath.startsWith(BACKUP_DIR + path.sep)) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
   if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Backup file not found' });
 
   fs.unlinkSync(filepath);

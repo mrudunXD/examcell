@@ -7,7 +7,8 @@ import { auditLog } from '../middleware/auditLog.js';
 const router = Router();
 router.use(authenticate);
 
-router.get('/', asyncHandler(async (req, res) => {
+// M15: Restrict room listing to coordinators — faculty don't need to enumerate all rooms/layouts
+router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
   res.json(await db.prepare('SELECT * FROM classrooms WHERE is_active=1 ORDER BY block, room_no').all());
 }));

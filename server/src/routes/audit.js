@@ -9,7 +9,7 @@ router.use(authenticate, requireCoordinator);
 // GET /api/audit — recent audit log entries
 router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
-  const limit = parseInt(req.query.limit) || 50;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const logs = await db.prepare(`
     SELECT al.*, u.name as user_name
     FROM audit_log al

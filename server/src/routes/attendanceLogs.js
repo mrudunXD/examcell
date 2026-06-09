@@ -61,6 +61,19 @@ router.post('/:slotId', verifyAttendanceAccess, asyncHandler(async (req, res) =>
     return res.status(400).json({ error: 'room_allocation_id, type, and details are required' });
   }
 
+  // H18: Verify the room_allocation_id actually belongs to this slot — prevent cross-slot log injection
+  const validRoom = await db.prepare(
+    'SELECT 1 FROM room_allocations WHERE id = ? AND slot_id = ?'
+  ).get(room_allocation_id, req.params.slotId);
+  if (!validRoom) {
+    return res.status(400).json({ error: 'room_allocation_id does not belong to this slot.' });
+  }
+
+  // H20: Cap details length to prevent DoS via oversized log entries
+  if (details.length > 1000) {
+    return res.status(400).json({ error: 'details must be 1000 characters or fewer.' });
+  }
+
   const id = crypto.randomUUID();
   await db.prepare(`
     INSERT INTO invigilator_logs (id, slot_id, room_allocation_id, logged_by, type, student_id, details)

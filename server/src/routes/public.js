@@ -18,13 +18,9 @@ router.get('/kiosk-init', asyncHandler(async (req, res) => {
 router.get('/kiosk/:cycleId', asyncHandler(async (req, res) => {
   const db = getDb();
   const { classroomId } = req.query;
-  
-  // Format today's date in YYYY-MM-DD local format
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const todayLocal = `${yyyy}-${mm}-${dd}`;
+
+  // H11: Use IST consistently (UTC+5:30) to match the live-rooms endpoint
+  const todayLocal = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   // Get cycle info
   const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
