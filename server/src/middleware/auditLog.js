@@ -9,8 +9,8 @@ export function auditLog(action, entity, entityId, details) {
         try {
           const db = getDb();
           
-          // 1. Fetch the hash of the latest audit log entry
-          const lastLog = await db.prepare('SELECT hash FROM audit_log ORDER BY created_at DESC, id DESC LIMIT 1').get();
+          // 1. Fetch the hash of the latest audit log entry that was hashed
+          const lastLog = await db.prepare('SELECT hash FROM audit_log WHERE hash IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1').get();
           const prevHash = lastLog?.hash || 'GENESIS_HASH';
           
           const id = crypto.randomUUID();

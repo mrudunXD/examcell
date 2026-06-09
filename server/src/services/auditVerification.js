@@ -16,6 +16,11 @@ export async function verifyAuditLogChain() {
       continue;
     }
 
+    // If log starts a new chain (e.g. after an unhashed migration entry), reset expected hash
+    if (log.prev_hash === 'GENESIS_HASH') {
+      expectedPrevHash = 'GENESIS_HASH';
+    }
+
     // 1. Check link to previous hash
     if (log.prev_hash !== expectedPrevHash) {
       isTampered = true;
