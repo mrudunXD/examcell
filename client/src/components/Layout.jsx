@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
-  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity
+  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
@@ -22,6 +22,7 @@ const coordinatorNav = [
   { section: 'Exam Management' },
   { to: '/exam-cycles', icon: CalendarDays, label: 'Exam Cycles' },
   { to: '/heatmap',     icon: BarChart3,    label: 'Faculty Heatmap' },
+  { to: '/analytics',   icon: TrendingUp,   label: 'Historical Analytics' },
   { section: 'System' },
   { to: '/search',    icon: SearchIcon,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },

@@ -31,6 +31,8 @@ import backupRouter from './routes/backups.js';
 import replacementRouter from './routes/replacements.js';
 import { initAutoBackupScheduler } from './services/autoBackup.js';
 import { initAlertingMonitor } from './services/alerting.js';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 
 
@@ -81,27 +83,65 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/exports', express.static(path.join(__dirname, '../exports')));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/public', publicRouter);
-app.use('/api/students', studentRoutes);
-app.use('/api/subjects', subjectRoutes);
-app.use('/api/classrooms', classroomRoutes);
-app.use('/api/faculty', facultyRoutes);
-app.use('/api/exam-cycles', examCycleRoutes);
-app.use('/api/seating', seatingRoutes);
-app.use('/api/supervisors', supervisorRoutes);
-app.use('/api/conflicts', conflictRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/audit', auditRoutes);
-app.use('/api/attendance', attendanceRouter);
-app.use('/api/search', searchRouter);
-app.use('/api/broadcasts', broadcastRouter);
-app.use('/api/incidents', incidentRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/health', healthRouter);
-app.use('/api/backups', backupRouter);
-app.use('/api/replacements', replacementRouter);
+// Swagger OpenAPI configuration options
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'MIT WPU Exam Management System API',
+      version: '1.0.0',
+      description: 'API contract documentation for the Exam Cell platform, supporting scheduling, room allocation, seating plans, invigilator rotations, and live telemetry.',
+    },
+    servers: [
+      {
+        url: 'http://localhost:5000/api/v1',
+        description: 'V1 API Server',
+      },
+    ],
+  },
+  apis: ['./src/routes/*.js'],
+};
+
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Prometheus telemetry metrics exporter
+app.get('/metrics', async (req, res) => {
+  try {
+    const { getPrometheusMetrics, getMetricsContentType } = await import('./services/metrics.js');
+    res.set('Content-Type', getMetricsContentType());
+    res.end(await getPrometheusMetrics());
+  } catch (err) {
+    res.status(500).end(err.message);
+  }
+});
+
+// Versioned Ingress Router
+const v1Router = express.Router();
+v1Router.use('/auth', authRoutes);
+v1Router.use('/public', publicRouter);
+v1Router.use('/students', studentRoutes);
+v1Router.use('/subjects', subjectRoutes);
+v1Router.use('/classrooms', classroomRoutes);
+v1Router.use('/faculty', facultyRoutes);
+v1Router.use('/exam-cycles', examCycleRoutes);
+v1Router.use('/seating', seatingRoutes);
+v1Router.use('/supervisors', supervisorRoutes);
+v1Router.use('/conflicts', conflictRoutes);
+v1Router.use('/export', exportRoutes);
+v1Router.use('/dashboard', dashboardRoutes);
+v1Router.use('/audit', auditRoutes);
+v1Router.use('/attendance', attendanceRouter);
+v1Router.use('/search', searchRouter);
+v1Router.use('/broadcasts', broadcastRouter);
+v1Router.use('/incidents', incidentRouter);
+v1Router.use('/analytics', analyticsRouter);
+v1Router.use('/health', healthRouter);
+v1Router.use('/backups', backupRouter);
+v1Router.use('/replacements', replacementRouter);
+
+app.use('/api/v1', v1Router);
+app.use('/api', v1Router); // Client compatibility alias
 
 
 

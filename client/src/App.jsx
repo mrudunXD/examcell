@@ -22,6 +22,7 @@ import LiveDashboardPage from './pages/LiveDashboardPage.jsx';
 import HeatmapPage from './pages/HeatmapPage.jsx';
 import KioskPage from './pages/KioskPage.jsx';
 import SystemHealthPage from './pages/SystemHealthPage.jsx';
+import HistoricalAnalyticsPage from './pages/HistoricalAnalyticsPage.jsx';
 
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="my-duties" element={<ProtectedRoute><FacultyDutyPage /></ProtectedRoute>} />
           <Route path="live-dashboard" element={<ProtectedRoute role="coordinator"><LiveDashboardPage /></ProtectedRoute>} />
           <Route path="heatmap" element={<ProtectedRoute role="coordinator"><HeatmapPage /></ProtectedRoute>} />
+          <Route path="analytics" element={<ProtectedRoute role="coordinator"><HistoricalAnalyticsPage /></ProtectedRoute>} />
           <Route path="health" element={<ProtectedRoute role="coordinator"><SystemHealthPage /></ProtectedRoute>} />
         </Route>
         <Route path="kiosk/:cycleId" element={<KioskPage />} />

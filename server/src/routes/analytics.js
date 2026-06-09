@@ -127,4 +127,135 @@ router.get('/live/:cycleId', asyncHandler(async (req, res) => {
   res.json({ cycle, today, now, todaySlots, upcomingSlots, openIncidents });
 }));
 
+// GET /api/analytics/historical — Aggregated historical trends and optimization metrics
+router.get('/historical', asyncHandler(async (req, res) => {
+  const db = getDb();
+  
+  // Get all cycles
+  const cycles = await db.prepare(`
+    SELECT id, name, status, start_date, end_date 
+    FROM exam_cycles 
+    ORDER BY start_date DESC
+  `).all();
+
+  const cycleMetrics = [];
+  
+  for (const cycle of cycles) {
+    // 1. Slots count
+    const slotsRow = await db.prepare('SELECT COUNT(*) as cnt FROM exam_slots WHERE cycle_id = ?').get(cycle.id);
+    const totalSlots = parseInt(slotsRow?.cnt || 0);
+
+    // 2. Seated students count
+    const seatedRow = await db.prepare(`
+      SELECT COUNT(sa.id) as cnt 
+      FROM seat_assignments sa 
+      JOIN room_allocations ra ON sa.room_allocation_id = ra.id 
+      JOIN exam_slots es ON ra.slot_id = es.id 
+      WHERE es.cycle_id = ?
+    `).get(cycle.id);
+    const totalSeated = parseInt(seatedRow?.cnt || 0);
+
+    // 3. Classrooms count
+    const roomsRow = await db.prepare(`
+      SELECT COUNT(DISTINCT classroom_id) as cnt 
+      FROM room_allocations ra 
+      JOIN exam_slots es ON ra.slot_id = es.id 
+      WHERE es.cycle_id = ?
+    `).get(cycle.id);
+    const totalRooms = parseInt(roomsRow?.cnt || 0);
+
+    // 4. Conflicts count
+    const conflictsRow = await db.prepare('SELECT COUNT(*) as cnt FROM conflicts WHERE cycle_id = ?').get(cycle.id);
+    const totalConflicts = parseInt(conflictsRow?.cnt || 0);
+
+    // 5. Incidents count
+    const incidentsRow = await db.prepare(`
+      SELECT COUNT(i.id) as cnt 
+      FROM incidents i 
+      JOIN exam_slots es ON i.slot_id = es.id 
+      WHERE es.cycle_id = ?
+    `).get(cycle.id);
+    const totalIncidents = parseInt(incidentsRow?.cnt || 0);
+
+    // 6. Solver telemetry metrics
+    const telemetryRow = await db.prepare(`
+      SELECT 
+        AVG(solve_duration_ms) as avg_duration, 
+        AVG(constraints_count) as avg_constraints, 
+        AVG(optimization_score) as avg_score, 
+        COUNT(*) as runs_count 
+      FROM solver_telemetry 
+      WHERE cycle_id = ? AND status = 'SUCCESS'
+    `).get(cycle.id);
+
+    // 7. Duties metrics
+    const dutiesRows = await db.prepare(`
+      SELECT sd.faculty_id, COUNT(*) as duty_count 
+      FROM supervisor_duties sd 
+      JOIN room_allocations ra ON sd.room_allocation_id = ra.id 
+      JOIN exam_slots es ON ra.slot_id = es.id 
+      WHERE es.cycle_id = ?
+      GROUP BY sd.faculty_id
+    `).all(cycle.id);
+
+    const totalDuties = dutiesRows.reduce((sum, row) => sum + parseInt(row.duty_count), 0);
+    const assignedFacultyCount = dutiesRows.length;
+    
+    let avgDuties = 0;
+    let maxDuties = 0;
+    let minDuties = 0;
+    if (assignedFacultyCount > 0) {
+      const counts = dutiesRows.map(r => parseInt(r.duty_count));
+      avgDuties = Math.round((totalDuties / assignedFacultyCount) * 10) / 10;
+      maxDuties = Math.max(...counts);
+      minDuties = Math.min(...counts);
+    }
+
+    cycleMetrics.push({
+      id: cycle.id,
+      name: cycle.name,
+      status: cycle.status,
+      startDate: cycle.start_date,
+      endDate: cycle.end_date,
+      totalSlots,
+      totalSeated,
+      totalRooms,
+      totalConflicts,
+      totalIncidents,
+      solverRuns: parseInt(telemetryRow?.runs_count || 0),
+      avgSolveDurationMs: Math.round(parseFloat(telemetryRow?.avg_duration || 0)),
+      avgConstraints: Math.round(parseFloat(telemetryRow?.avg_constraints || 0)),
+      avgOptimizationScore: Math.round(parseFloat(telemetryRow?.avg_score || 0)),
+      totalDuties,
+      assignedFacultyCount,
+      avgDuties,
+      maxDuties,
+      minDuties
+    });
+  }
+
+  // Overall system telemetry summary
+  const allTimeTelemetry = await db.prepare(`
+    SELECT 
+      COUNT(*) as total_runs,
+      SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) as success_runs,
+      SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) as fail_runs,
+      AVG(solve_duration_ms) as avg_duration
+    FROM solver_telemetry
+  `).get();
+
+  const allTimeIncidents = await db.prepare('SELECT COUNT(*) as cnt FROM incidents').get();
+
+  res.json({
+    cycles: cycleMetrics,
+    overall: {
+      totalRuns: parseInt(allTimeTelemetry?.total_runs || 0),
+      successRuns: parseInt(allTimeTelemetry?.success_runs || 0),
+      failRuns: parseInt(allTimeTelemetry?.fail_runs || 0),
+      avgDuration: Math.round(parseFloat(allTimeTelemetry?.avg_duration || 0)),
+      totalIncidents: parseInt(allTimeIncidents?.cnt || 0)
+    }
+  });
+}));
+
 export default router;
