@@ -4,6 +4,7 @@ dotenv.config();
 import pg from 'pg';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mitwpu_exam_secret_2026_change_in_prod';
 const PGHOST = process.env.PGHOST || 'localhost';
@@ -15,7 +16,7 @@ const PGDATABASE = process.env.PGDATABASE || 'exam_management';
 async function testAll() {
   console.log('🚀 Starting direct endpoint validation against http://localhost:5000...');
 
-  // Connect directly to PG to fetch coordinator user
+  // Connect directly to PG to fetch coordinator user and perform test seeds
   const pool = new pg.Pool({
     host: PGHOST,
     port: PGPORT,
@@ -37,9 +38,6 @@ async function testAll() {
   } catch (err) {
     console.error('❌ Failed to connect to database:', err.message);
     process.exit(1);
-  } finally {
-    if (client) client.release();
-    await pool.end();
   }
 
   // Sign JWT
@@ -102,6 +100,52 @@ async function testAll() {
     console.error('❌ FAIL: GET /api/analytics/historical failed with error:', err.message);
     failed = true;
   }
+
+  // 4. Test PATCH /api/incidents/:id to resolve it (Fix validation check)
+  try {
+    // Check if there is any incident in the database
+    let incident = await client.query("SELECT id FROM incidents LIMIT 1");
+    let incidentId;
+    
+    if (incident.rows.length === 0) {
+      // Find a slot ID to seed a dummy incident
+      const slot = await client.query("SELECT id FROM exam_slots LIMIT 1");
+      if (slot.rows.length > 0) {
+        incidentId = crypto.randomUUID();
+        await client.query(
+          "INSERT INTO incidents (id, slot_id, type, description, status, reported_by) VALUES ($1, $2, $3, $4, $5, $6)",
+          [incidentId, slot.rows[0].id, 'malpractice', 'Test malpractice description', 'open', coordinatorId]
+        );
+        console.log(`✓ Seeded dummy incident ID: ${incidentId} for validation.`);
+      }
+    } else {
+      incidentId = incident.rows[0].id;
+    }
+
+    if (incidentId) {
+      const res = await axios.patch(
+        `http://localhost:5000/api/incidents/${incidentId}`,
+        { status: 'resolved', action_taken: 'Student warned and copy paper confiscated' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log('✓ PATCH /api/incidents/:id: OK (HTTP ' + res.status + ')');
+      if (res.data.status === 'resolved' && res.data.resolved_at) {
+        console.log('  ✓ PASS: Incident resolution successfully saved with timestamp.');
+      } else {
+        console.error('  ❌ FAIL: Incident fields not updated correctly:', res.data);
+        failed = true;
+      }
+    } else {
+      console.log('  ⚠ SKIP: No active slots found to seed test incident.');
+    }
+  } catch (err) {
+    console.error('❌ FAIL: PATCH /api/incidents/:id failed with error:', err.response?.data?.error || err.message);
+    failed = true;
+  }
+
+  // Close client pool
+  if (client) client.release();
+  await pool.end();
 
   if (failed) {
     console.error('❌ Some endpoint validations FAILED.');

@@ -25,14 +25,16 @@ router.get('/:cycleId', asyncHandler(async (req, res) => {
 // POST resolve a conflict
 router.post('/:id/resolve', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  await db.prepare("UPDATE conflicts SET status='resolved', resolved_at=datetime('now'), resolved_by=? WHERE id=?").run(req.user.id, req.params.id);
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE conflicts SET status='resolved', resolved_at=?, resolved_by=? WHERE id=?").run(now, req.user.id, req.params.id);
   res.json({ success: true });
 }));
 
 // POST ignore a conflict
 router.post('/:id/ignore', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
-  await db.prepare("UPDATE conflicts SET status='ignored', resolved_at=datetime('now'), resolved_by=? WHERE id=?").run(req.user.id, req.params.id);
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE conflicts SET status='ignored', resolved_at=?, resolved_by=? WHERE id=?").run(now, req.user.id, req.params.id);
   res.json({ success: true });
 }));
 

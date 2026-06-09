@@ -86,11 +86,12 @@ router.post('/:id/resolve', requireCoordinator, auditLog('RESOLVE_REPLACEMENT', 
   const rr = await db.prepare('SELECT * FROM replacement_requests WHERE id = ?').get(req.params.id);
   if (!rr) return res.status(404).json({ error: 'Replacement request not found' });
 
+  const now = new Date().toISOString();
   await db.prepare(`
     UPDATE replacement_requests
-    SET status = ?, resolved_at = datetime('now'), resolved_by = ?
+    SET status = ?, resolved_at = ?, resolved_by = ?
     WHERE id = ?
-  `).run(status, req.user.id, req.params.id);
+  `).run(status, now, req.user.id, req.params.id);
 
   const updated = await db.prepare('SELECT * FROM replacement_requests WHERE id = ?').get(req.params.id);
   

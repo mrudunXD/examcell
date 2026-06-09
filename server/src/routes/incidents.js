@@ -68,13 +68,14 @@ router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.i
 router.patch('/:id', requireCoordinator, auditLog('RESOLVE_INCIDENT', 'incidents', (req) => req.params.id, (req, data) => `Updated incident ID: ${req.params.id} (status: ${data?.status})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { status, action_taken } = req.body;
+  const now = new Date().toISOString();
   await db.prepare(`
     UPDATE incidents SET 
       status = COALESCE(?, status),
       action_taken = COALESCE(?, action_taken),
-      resolved_at = CASE WHEN ? = 'resolved' THEN datetime('now') ELSE resolved_at END
+      resolved_at = CASE WHEN ? = 'resolved' THEN ? ELSE resolved_at END
     WHERE id = ?
-  `).run(status, action_taken, status, req.params.id);
+  `).run(status, action_taken, status, now, req.params.id);
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(req.params.id);
   broadcastUpdate('INCIDENT_UPDATED', incident);
   res.json(incident);
