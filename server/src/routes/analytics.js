@@ -198,71 +198,80 @@ router.get('/historical', asyncHandler(async (req, res) => {
   
   // Get all cycles
   const cycles = await db.prepare(`
-    SELECT id, name, status, start_date, end_date 
-    FROM exam_cycles 
-    ORDER BY start_date DESC
+    SELECT 
+      ec.id, ec.name, ec.status, ec.start_date, ec.end_date,
+      COALESCE(es_cnt.cnt, 0) as total_slots,
+      COALESCE(sa_cnt.cnt, 0) as total_seated,
+      COALESCE(ra_cnt.cnt, 0) as total_rooms,
+      COALESCE(cf_cnt.cnt, 0) as total_conflicts,
+      COALESCE(ic_cnt.cnt, 0) as total_incidents,
+      COALESCE(st_cnt.avg_duration, 0) as avg_duration,
+      COALESCE(st_cnt.avg_constraints, 0) as avg_constraints,
+      COALESCE(st_cnt.avg_score, 0) as avg_score,
+      COALESCE(st_cnt.runs_count, 0) as runs_count
+    FROM exam_cycles ec
+    LEFT JOIN (
+      SELECT cycle_id, COUNT(*) as cnt FROM exam_slots GROUP BY cycle_id
+    ) es_cnt ON es_cnt.cycle_id = ec.id
+    LEFT JOIN (
+      SELECT es.cycle_id, COUNT(sa.id) as cnt
+      FROM seat_assignments sa
+      JOIN room_allocations ra ON sa.room_allocation_id = ra.id
+      JOIN exam_slots es ON ra.slot_id = es.id
+      GROUP BY es.cycle_id
+    ) sa_cnt ON sa_cnt.cycle_id = ec.id
+    LEFT JOIN (
+      SELECT es.cycle_id, COUNT(DISTINCT ra.classroom_id) as cnt
+      FROM room_allocations ra
+      JOIN exam_slots es ON ra.slot_id = es.id
+      GROUP BY es.cycle_id
+    ) ra_cnt ON ra_cnt.cycle_id = ec.id
+    LEFT JOIN (
+      SELECT cycle_id, COUNT(*) as cnt FROM conflicts GROUP BY cycle_id
+    ) cf_cnt ON cf_cnt.cycle_id = ec.id
+    LEFT JOIN (
+      SELECT es.cycle_id, COUNT(i.id) as cnt
+      FROM incidents i
+      JOIN exam_slots es ON i.slot_id = es.id
+      GROUP BY es.cycle_id
+    ) ic_cnt ON ic_cnt.cycle_id = ec.id
+    LEFT JOIN (
+      SELECT cycle_id,
+             AVG(solve_duration_ms) as avg_duration,
+             AVG(constraints_count) as avg_constraints,
+             AVG(optimization_score) as avg_score,
+             COUNT(*) as runs_count
+      FROM solver_telemetry
+      WHERE status = 'SUCCESS'
+      GROUP BY cycle_id
+    ) st_cnt ON st_cnt.cycle_id = ec.id
+    ORDER BY ec.start_date DESC
   `).all();
+
+  const dutiesByCycle = {};
+  const allDuties = await db.prepare(`
+    SELECT es.cycle_id, sd.faculty_id, COUNT(*) as duty_count 
+    FROM supervisor_duties sd 
+    JOIN room_allocations ra ON sd.room_allocation_id = ra.id 
+    JOIN exam_slots es ON ra.slot_id = es.id 
+    GROUP BY es.cycle_id, sd.faculty_id
+  `).all();
+
+  for (const row of allDuties) {
+    if (!dutiesByCycle[row.cycle_id]) dutiesByCycle[row.cycle_id] = [];
+    dutiesByCycle[row.cycle_id].push(row);
+  }
 
   const cycleMetrics = [];
   
   for (const cycle of cycles) {
-    // 1. Slots count
-    const slotsRow = await db.prepare('SELECT COUNT(*) as cnt FROM exam_slots WHERE cycle_id = ?').get(cycle.id);
-    const totalSlots = parseInt(slotsRow?.cnt || 0);
+    const totalSlots = parseInt(cycle.total_slots || 0);
+    const totalSeated = parseInt(cycle.total_seated || 0);
+    const totalRooms = parseInt(cycle.total_rooms || 0);
+    const totalConflicts = parseInt(cycle.total_conflicts || 0);
+    const totalIncidents = parseInt(cycle.total_incidents || 0);
 
-    // 2. Seated students count
-    const seatedRow = await db.prepare(`
-      SELECT COUNT(sa.id) as cnt 
-      FROM seat_assignments sa 
-      JOIN room_allocations ra ON sa.room_allocation_id = ra.id 
-      JOIN exam_slots es ON ra.slot_id = es.id 
-      WHERE es.cycle_id = ?
-    `).get(cycle.id);
-    const totalSeated = parseInt(seatedRow?.cnt || 0);
-
-    // 3. Classrooms count
-    const roomsRow = await db.prepare(`
-      SELECT COUNT(DISTINCT classroom_id) as cnt 
-      FROM room_allocations ra 
-      JOIN exam_slots es ON ra.slot_id = es.id 
-      WHERE es.cycle_id = ?
-    `).get(cycle.id);
-    const totalRooms = parseInt(roomsRow?.cnt || 0);
-
-    // 4. Conflicts count
-    const conflictsRow = await db.prepare('SELECT COUNT(*) as cnt FROM conflicts WHERE cycle_id = ?').get(cycle.id);
-    const totalConflicts = parseInt(conflictsRow?.cnt || 0);
-
-    // 5. Incidents count
-    const incidentsRow = await db.prepare(`
-      SELECT COUNT(i.id) as cnt 
-      FROM incidents i 
-      JOIN exam_slots es ON i.slot_id = es.id 
-      WHERE es.cycle_id = ?
-    `).get(cycle.id);
-    const totalIncidents = parseInt(incidentsRow?.cnt || 0);
-
-    // 6. Solver telemetry metrics
-    const telemetryRow = await db.prepare(`
-      SELECT 
-        AVG(solve_duration_ms) as avg_duration, 
-        AVG(constraints_count) as avg_constraints, 
-        AVG(optimization_score) as avg_score, 
-        COUNT(*) as runs_count 
-      FROM solver_telemetry 
-      WHERE cycle_id = ? AND status = 'SUCCESS'
-    `).get(cycle.id);
-
-    // 7. Duties metrics
-    const dutiesRows = await db.prepare(`
-      SELECT sd.faculty_id, COUNT(*) as duty_count 
-      FROM supervisor_duties sd 
-      JOIN room_allocations ra ON sd.room_allocation_id = ra.id 
-      JOIN exam_slots es ON ra.slot_id = es.id 
-      WHERE es.cycle_id = ?
-      GROUP BY sd.faculty_id
-    `).all(cycle.id);
-
+    const dutiesRows = dutiesByCycle[cycle.id] || [];
     const totalDuties = dutiesRows.reduce((sum, row) => sum + parseInt(row.duty_count), 0);
     const assignedFacultyCount = dutiesRows.length;
     
@@ -287,10 +296,10 @@ router.get('/historical', asyncHandler(async (req, res) => {
       totalRooms,
       totalConflicts,
       totalIncidents,
-      solverRuns: parseInt(telemetryRow?.runs_count || 0),
-      avgSolveDurationMs: Math.round(parseFloat(telemetryRow?.avg_duration || 0)),
-      avgConstraints: Math.round(parseFloat(telemetryRow?.avg_constraints || 0)),
-      avgOptimizationScore: Math.round(parseFloat(telemetryRow?.avg_score || 0)),
+      solverRuns: parseInt(cycle.runs_count || 0),
+      avgSolveDurationMs: Math.round(parseFloat(cycle.avg_duration || 0)),
+      avgConstraints: Math.round(parseFloat(cycle.avg_constraints || 0)),
+      avgOptimizationScore: Math.round(parseFloat(cycle.avg_score || 0)),
       totalDuties,
       assignedFacultyCount,
       avgDuties,

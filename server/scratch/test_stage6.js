@@ -11,11 +11,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const solverPath = 'c:/Users/mrudu/Documents/Codes/exam/server/src/services/scheduler.py';
 
+const pgPassword = (!process.env.PGPASSWORD || process.env.PGPASSWORD === 'REPLACE_WITH_STRONG_DB_PASSWORD')
+  ? '1234'
+  : process.env.PGPASSWORD;
+
 const pool = new pg.Pool({
   host: process.env.PGHOST || 'localhost',
   port: parseInt(process.env.PGPORT || '5432'),
   user: process.env.PGUSER || 'postgres',
-  password: process.env.PGPASSWORD || '1234',
+  password: pgPassword,
   database: process.env.PGDATABASE || 'exam_management',
 });
 
