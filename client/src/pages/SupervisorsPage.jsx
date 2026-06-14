@@ -59,7 +59,7 @@ export default function SupervisorsPage() {
               <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
             </Link>
           </div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Supervisor Assignment</h1>
           {slotInfo && (
             <p className="page-subtitle">{slotInfo.subject_code} — {slotInfo.subject_name} · {formatDate(slotInfo.date)} · {formatTime(slotInfo.start_time)}</p>
@@ -95,7 +95,7 @@ export default function SupervisorsPage() {
           </button>
         </div>
       ) : (
-        <div style={{ border: '1px solid #111' }}>
+        <div style={{ border: '1px solid #222225' }}>
           {Object.values(grouped).map((room, ri) => (
             <div key={room.room_no} style={{ borderBottom: ri < Object.values(grouped).length - 1 ? '1px solid #222225' : 'none' }}>
               {/* Room header */}
@@ -173,6 +173,9 @@ export default function SupervisorsPage() {
     </div>
   );
 }
+
+
+
 
 
 

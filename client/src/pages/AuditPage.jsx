@@ -45,7 +45,7 @@ export default function AuditPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Audit Log</h1>
           <p className="page-subtitle">{filtered.length} of {logs.length} entries</p>
         </div>
@@ -152,6 +152,9 @@ export default function AuditPage() {
     </div>
   );
 }
+
+
+
 
 
 

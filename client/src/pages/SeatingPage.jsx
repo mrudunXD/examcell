@@ -69,7 +69,7 @@ function BenchSeat({
       onDrop={handleDropLocal}
       onDragEnd={onDragEnd}
       style={{
-        background: isSource ? '#F5F5F7' : isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : 'var(--np-bg)',
+        background: isSource ? '#F5F5F7' : isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : '#0C0C0E',
         borderColor: isSource ? '#F5F5F7' : isDraggedOver ? '#166534' : '#222225',
         borderStyle: isDraggedOver ? 'dashed' : 'solid',
         borderWidth: isDraggedOver ? '2px' : '1px',
@@ -223,7 +223,7 @@ export default function SeatingPage() {
               <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
             </Link>
           </div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Seating Arrangement</h1>
           <p className="page-subtitle">{slot.subject_code} — {slot.subject_name} · {formatDate(slot.date)} · {formatTime(slot.start_time)}</p>
         </div>
@@ -265,7 +265,7 @@ export default function SeatingPage() {
       </div>
 
       {/* Status strip */}
-      <div style={{ display: 'flex', gap: 0, border: '1px solid #111', marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 0, border: '1px solid #222225', marginBottom: 20 }}>
         {[
           { label: 'Status', val: isApproved ? 'Finalised' : (slot.status || 'Draft').replace(/_/g, ' '), color: isApproved ? '#166534' : '#111' },
           { label: 'Rooms', val: rooms.length },
@@ -321,7 +321,7 @@ export default function SeatingPage() {
       ) : (
         <>
           {/* Room tabs */}
-          <div style={{ display: 'flex', gap: 0, border: '1px solid #111', borderBottom: 'none', marginBottom: 0 }}>
+          <div style={{ display: 'flex', gap: 0, border: '1px solid #222225', borderBottom: 'none', marginBottom: 0 }}>
             {rooms.map((r, i) => (
               <button
                 key={r.room.id}
@@ -431,7 +431,7 @@ export default function SeatingPage() {
                             <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{a.bench_col}</td>
                             <td style={{ fontWeight: 600 }}>{a.student_name}</td>
                             <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{a.prn}</td>
-                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-red)' }}>{a.roll_no}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#FF453A' }}>{a.roll_no}</td>
                             <td>{a.branch}</td>
                             <td><span className={`badge badge-${a.year.toLowerCase()}`}>{a.year}</span></td>
                           </tr>
@@ -448,6 +448,9 @@ export default function SeatingPage() {
     </div>
   );
 }
+
+
+
 
 
 

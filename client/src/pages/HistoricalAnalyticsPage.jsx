@@ -135,11 +135,11 @@ export default function HistoricalAnalyticsPage() {
       {/* Page header */}
       <div className="page-header">
         <div>
-          <div className="accent-bar" style={{ background: 'var(--np-ink)' }} />
+          <div className="accent-bar" style={{ background: '#F5F5F7' }} />
           <h1 className="page-title">Historical Analytics</h1>
           <p className="page-subtitle">Multi-cycle performance indicators, workload equity metrics, and solver benchmarks.</p>
         </div>
-        <div style={{ display: 'flex', border: '1px solid #111' }}>
+        <div style={{ display: 'flex', border: '1px solid #222225' }}>
           {['overview', 'trends', 'equity'].map(t => (
             <button
               key={t}
@@ -165,7 +165,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">Total Solver Executions</div>
                   <div className="stat-card-sub">{overall.successRuns} successful / {overall.failRuns} failed</div>
                 </div>
-                <div style={{ border: '1px solid #111', padding: 8, color: 'var(--np-ink)', opacity: 0.6 }}>
+                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   <Activity size={16} />
                 </div>
               </div>
@@ -180,7 +180,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">Solver Success Rate</div>
                   <div className="stat-card-sub">Infeasibility-free ratio</div>
                 </div>
-                <div style={{ border: '1px solid #111', padding: 8, color: 'var(--np-ink)', opacity: 0.6 }}>
+                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   {successRate > 80 ? <CheckCircle2 size={16} color="#166534" /> : <XCircle size={16} color="#FF453A" />}
                 </div>
               </div>
@@ -195,7 +195,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">Average Solve Duration</div>
                   <div className="stat-card-sub">Google OR-Tools benchmark</div>
                 </div>
-                <div style={{ border: '1px solid #111', padding: 8, color: 'var(--np-ink)', opacity: 0.6 }}>
+                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   <Clock size={16} />
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">All-Time Incidents</div>
                   <div className="stat-card-sub">Malpractices & disturbances</div>
                 </div>
-                <div style={{ border: '1px solid #111', padding: 8, color: 'var(--np-ink)', opacity: 0.6 }}>
+                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   <ShieldAlert size={16} />
                 </div>
               </div>
@@ -230,7 +230,7 @@ export default function HistoricalAnalyticsPage() {
             <div style={{ overflowX: 'auto' }}>
               <table className="table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#1C1C1F', borderBottom: '1px solid #111' }}>
+                  <tr style={{ background: '#1C1C1F', borderBottom: '1px solid #222225' }}>
                     <th style={{ padding: '12px 16px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Cycle Name</th>
                     <th style={{ padding: '12px 16px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Status</th>
                     <th style={{ padding: '12px 16px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', textAlign: 'right' }}>Slots</th>
@@ -391,7 +391,7 @@ export default function HistoricalAnalyticsPage() {
               ))}
             </div>
             
-            <div style={{ marginTop: 24, padding: 12, border: '1px solid #111', background: '#1C1C1F', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <div style={{ marginTop: 24, padding: 12, border: '1px solid #222225', background: '#1C1C1F', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2, color: '#92400e' }} />
               <div style={{ fontSize: 11, color: '#A3A3AC' }}>
                 <strong>Recommendation:</strong> Ensure that the load balancing difference (Max - Min) stays below 3 duties. High variance indicate possible rule bias or constraint overrides that skew supervisor fairness.
@@ -403,6 +403,9 @@ export default function HistoricalAnalyticsPage() {
     </div>
   );
 }
+
+
+
 
 
 

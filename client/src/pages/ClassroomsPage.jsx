@@ -109,7 +109,7 @@ export default function ClassroomsPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Classrooms</h1>
           <p className="page-subtitle">{rooms.length} rooms configured</p>
         </div>
@@ -162,7 +162,7 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {Object.entries(floors).sort(([a],[b]) => a.localeCompare(b)).map(([floor, floorRooms]) => (
-        <div key={floor} style={{ border: '1px solid #111' }}>
+        <div key={floor} style={{ border: '1px solid #222225' }}>
           {/* Floor header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -191,8 +191,8 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
                       fontFamily: 'var(--font-mono)',
                       fontSize: '9px',
                       fontWeight: 'bold',
-                      background: 'var(--np-ink)',
-                      color: 'var(--np-bg)',
+                      background: '#F5F5F7',
+                      color: '#0C0C0E',
                       padding: '2px 6px',
                       border: '1.5px solid var(--np-ink)',
                     }}>
@@ -245,6 +245,9 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
     </div>
   );
 }
+
+
+
 
 
 

@@ -150,7 +150,7 @@ function SubjectConstraintsModal({ subject, onClose }) {
         
         {/* Left Panel: Active Constraints List */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: 'var(--np-red)', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: '#FF453A', textTransform: 'uppercase' }}>
             {subject.code}
           </span>
           <h3 style={{ fontFamily: 'var(--font-serif)', margin: '2px 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
@@ -167,7 +167,7 @@ function SubjectConstraintsModal({ subject, onClose }) {
             ) : (
               <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #111', fontWeight: 'bold' }}>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #222225', fontWeight: 'bold' }}>
                     <th style={{ padding: 4 }}>Type</th>
                     <th style={{ padding: 4 }}>Date</th>
                     <th style={{ padding: 4 }}>Shift</th>
@@ -195,7 +195,7 @@ function SubjectConstraintsModal({ subject, onClose }) {
                         {c.shift_id ? `Shift ${c.shift_id}` : 'Full Day'}
                       </td>
                       <td style={{ padding: '6px 4px' }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.id)} style={{ color: 'var(--np-red)', padding: '2px 4px' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.id)} style={{ color: '#FF453A', padding: '2px 4px' }}>
                           Remove
                         </button>
                       </td>
@@ -265,11 +265,11 @@ function SubjectConstraintsModal({ subject, onClose }) {
   );
 }
 
-const ACCENT_COLORS = { FY: 'var(--np-red)', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
+const ACCENT_COLORS = { FY: '#FF453A', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
 
 function SubjectStatCard({ label, value, sub, onClick, accent }) {
   const [hovered, setHovered] = useState(false);
-  const ac = accent ? ACCENT_COLORS[accent] || 'var(--np-ink)' : 'var(--np-ink)';
+  const ac = accent ? ACCENT_COLORS[accent] || '#F5F5F7' : '#F5F5F7';
   return (
     <div onClick={onClick}
       onMouseEnter={() => setHovered(true)}
@@ -292,10 +292,10 @@ function SubjectStatCard({ label, value, sub, onClick, accent }) {
     >
       {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: ac }} />}
       <div>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: 'var(--np-ink)', lineHeight: 1.1 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: '#F5F5F7', lineHeight: 1.1 }}>
           {value}
         </div>
-        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: 'var(--np-ink)' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: '#F5F5F7' }}>
           {label}
         </div>
       </div>
@@ -308,7 +308,7 @@ function SubjectStatCard({ label, value, sub, onClick, accent }) {
         <div style={{ 
           fontFamily: 'var(--font-mono)', 
           fontSize: 10, 
-          color: ac === 'var(--np-ink)' ? 'var(--np-red)' : ac, 
+          color: ac === '#F5F5F7' ? '#FF453A' : ac, 
           fontWeight: 'bold',
           textTransform: 'uppercase', 
           letterSpacing: '0.08em',
@@ -333,7 +333,7 @@ function SubjectsBreadcrumb({ year, yearName, branch, sem, onHome, onYear, onBra
           {i > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n400)', padding: '0 5px' }}>/</span>}
           <button onClick={c.onClick} disabled={!c.onClick} style={{
             fontFamily: 'var(--font-mono)', fontSize: 11,
-            color: c.onClick ? 'var(--np-red)' : 'var(--np-n600)',
+            color: c.onClick ? '#FF453A' : 'var(--np-n600)',
             background: 'none', border: 'none', cursor: c.onClick ? 'pointer' : 'default',
             padding: '4px 0', fontWeight: c.onClick ? 400 : 600,
             textDecoration: c.onClick ? 'underline' : 'none',
@@ -393,7 +393,7 @@ export default function SubjectsPage() {
         <tbody>
           {subs.map(s => (
             <tr key={s.id}>
-              <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--np-red)', fontSize: 12 }}>{s.code}</td>
+              <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#FF453A', fontSize: 12 }}>{s.code}</td>
               <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n600)' }}>{s.abbreviation || '—'}</td>
               <td style={{ fontWeight: 600 }}>{s.name}</td>
               <td>{s.course_type && <span className="badge badge-neutral" style={{ fontSize: 9 }}>{s.course_type}</span>}</td>
@@ -419,7 +419,7 @@ export default function SubjectsPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Subjects</h1>
           <p className="page-subtitle">{subjects.length} subjects configured</p>
         </div>
@@ -516,6 +516,9 @@ export default function SubjectsPage() {
     </div>
   );
 }
+
+
+
 
 
 

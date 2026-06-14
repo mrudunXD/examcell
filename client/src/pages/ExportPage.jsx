@@ -49,7 +49,7 @@ export default function ExportPage() {
               <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
             </Link>
           </div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Export Documents</h1>
           <p className="page-subtitle">{cycle?.name}</p>
         </div>
@@ -71,7 +71,7 @@ export default function ExportPage() {
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
           Seating Charts & Attendance Sheets — Per Room
         </div>
-        <div style={{ border: '1px solid #111' }}>
+        <div style={{ border: '1px solid #222225' }}>
           {slots.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)' }}>
               No exam slots in this cycle.
@@ -119,7 +119,7 @@ export default function ExportPage() {
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
           Faculty Duty Sheets — Individual
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', border: '1px solid #111' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', border: '1px solid #222225' }}>
           {faculty.map((f, i) => (
             <div key={f.id} style={{
               display: 'flex',
@@ -147,6 +147,9 @@ export default function ExportPage() {
     </div>
   );
 }
+
+
+
 
 
 

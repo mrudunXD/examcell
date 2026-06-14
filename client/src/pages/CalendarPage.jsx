@@ -82,7 +82,7 @@ export default function CalendarPage() {
               <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
             </Link>
           </div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Exam Calendar</h1>
           <p className="page-subtitle">{cycle?.name} · {slots.length} scheduled exams</p>
         </div>
@@ -212,6 +212,9 @@ export default function CalendarPage() {
     </div>
   );
 }
+
+
+
 
 
 

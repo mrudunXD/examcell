@@ -96,7 +96,7 @@ function QrScannerModal({ roomStudents, onScanSuccess, onClose }) {
             left: 0,
             right: 0,
             height: '2px',
-            background: 'var(--np-red)',
+            background: '#FF453A',
             boxShadow: '0 0 8px var(--np-red)',
             animation: 'scannerLaser 2s infinite linear'
           }} />
@@ -180,7 +180,7 @@ function ReplacementRequestModal({ duties, onClose, onSubmitSuccess }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <ShieldAlert size={20} color="var(--np-red)" /> Request Invigilator Replacement
+          <ShieldAlert size={20} color="#FF453A" /> Request Invigilator Replacement
         </h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="form-group">
@@ -274,7 +274,7 @@ function IncidentModal({ duty, studentPrnPrefill, onClose, onReported }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
-        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--np-red)' }}>
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#FF453A' }}>
           <AlertTriangle size={20} /> Report Exam Incident / Malpractice
         </h2>
         <p style={{ fontSize: 13, color: 'var(--np-n600)', marginBottom: 16 }}>
@@ -356,7 +356,7 @@ function IncidentModal({ duty, studentPrnPrefill, onClose, onReported }) {
                   type="button" 
                   onClick={() => setEvidenceImage(null)}
                   style={{
-                    position: 'absolute', top: -6, right: -6, background: 'var(--np-red)', color: '#fff',
+                    position: 'absolute', top: -6, right: -6, background: '#FF453A', color: '#fff',
                     border: '1.5px solid var(--np-ink)', padding: 2, display: 'flex', alignItems: 'center'
                   }}
                 >
@@ -471,7 +471,7 @@ function DutyCalendar({ duties, onSelectDuty }) {
                 <div style={{
                   width: 6,
                   height: 6,
-                  background: dayDuties.some(d => d.role === 'primary') ? 'var(--np-red)' : '#3b82f6',
+                  background: dayDuties.some(d => d.role === 'primary') ? '#FF453A' : '#3b82f6',
                   marginTop: 2,
                 }} />
               )}
@@ -771,11 +771,11 @@ export default function FacultyDutyPage() {
           flexWrap: 'wrap'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ background: 'var(--np-red)', color: '#fff', padding: 8, display: 'flex', alignItems: 'center' }}>
+            <div style={{ background: '#FF453A', color: '#fff', padding: 8, display: 'flex', alignItems: 'center' }}>
               <QrCode size={24} />
             </div>
             <div>
-              <h4 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--np-ink)' }}>
+              <h4 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: '#F5F5F7' }}>
                 Active Invigilation Console Available Today!
               </h4>
               <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--np-n600)', fontFamily: 'var(--font-mono)' }}>
@@ -786,7 +786,7 @@ export default function FacultyDutyPage() {
           <button 
             onClick={() => launchAssistant(activeDutyToday.room_allocation_id)} 
             className="btn btn-primary animate-pulse"
-            style={{ backgroundColor: 'var(--np-red)', borderColor: 'var(--np-ink)', color: '#fff' }}
+            style={{ backgroundColor: '#FF453A', borderColor: '#F5F5F7', color: '#fff' }}
           >
             Launch Exam Assistant Console
           </button>
@@ -795,11 +795,11 @@ export default function FacultyDutyPage() {
 
       {/* ── PROFILE & ANALYTICS PANELS (only show outside assistant mode) ── */}
       {activeTab !== 'assistant' && (
-        <div className="card" style={{ padding: 24, marginBottom: 28, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+        <div className="card" style={{ padding: 24, marginBottom: 28, border: '1px solid #222225', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ 
-                width: 56, height: 56, background: 'var(--np-ink)', 
+                width: 56, height: 56, background: '#F5F5F7', 
                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' 
               }}>
                 <User size={28} />
@@ -834,7 +834,7 @@ export default function FacultyDutyPage() {
           </div>
 
           {/* Neobrutalist Analytics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginTop: 24, borderTop: '2px solid var(--np-ink)', paddingTop: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginTop: 24, borderTop: '1px solid #222225', paddingTop: 20 }}>
             {[
               { label: 'Assigned Duties', val: duties.length, sub: 'Total cycle load', icon: CalendarDays },
               { label: 'Upcoming Duties', val: upcomingDutiesCount, sub: 'Future schedule list', icon: Clock },
@@ -842,7 +842,7 @@ export default function FacultyDutyPage() {
               { label: 'Substitute Alerts', val: replacements.length, sub: 'Inability requests submitted', icon: ShieldAlert }
             ].map((stat, i) => (
               <div key={i} style={{ 
-                background: 'var(--np-bg)', 
+                background: '#0C0C0E', 
                 padding: 16, 
                 border: '1px solid var(--np-ink)',
                 boxShadow: '2px 2px 0 0 var(--np-ink)'
@@ -867,7 +867,7 @@ export default function FacultyDutyPage() {
       {activeTab !== 'assistant' && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           {/* Nav Tabs */}
-          <div style={{ display: 'flex', gap: 6, background: 'var(--np-muted)', padding: 4 }}>
+          <div style={{ display: 'flex', gap: 6, background: '#222225', padding: 4 }}>
             {[
               { id: 'duties', label: 'Duty timetable', badge: pendingAckCount },
               { id: 'live_status', label: 'Live campus status', badge: null },
@@ -880,8 +880,8 @@ export default function FacultyDutyPage() {
                 style={{
                   padding: '8px 16px',
                   border: 'none',
-                  background: activeTab === tab.id ? 'var(--np-ink)' : 'transparent',
-                  color: activeTab === tab.id ? 'var(--np-bg)' : 'var(--np-n600)',
+                  background: activeTab === tab.id ? '#F5F5F7' : 'transparent',
+                  color: activeTab === tab.id ? '#0C0C0E' : 'var(--np-n600)',
                   fontWeight: 700,
                   fontSize: 12,
                   cursor: 'pointer',
@@ -894,7 +894,7 @@ export default function FacultyDutyPage() {
                 <span>{tab.label}</span>
                 {tab.badge ? (
                   <span style={{ 
-                    background: tab.id === 'broadcasts' ? 'var(--np-red)' : '#d97706',
+                    background: tab.id === 'broadcasts' ? '#FF453A' : '#d97706',
                     color: '#fff', 
                     fontSize: 10, 
                     fontWeight: 800, 
@@ -920,13 +920,13 @@ export default function FacultyDutyPage() {
               </select>
 
               {/* Toggle Calendar/List View */}
-              <div style={{ display: 'flex', gap: 2, background: 'var(--np-muted)', padding: 2 }}>
+              <div style={{ display: 'flex', gap: 2, background: '#222225', padding: 2 }}>
                 <button 
                   onClick={() => setViewMode('list')}
                   className="btn btn-sm"
                   style={{ 
-                    background: viewMode === 'list' ? 'var(--np-ink)' : 'transparent',
-                    color: viewMode === 'list' ? 'var(--np-bg)' : 'var(--np-n600)',
+                    background: viewMode === 'list' ? '#F5F5F7' : 'transparent',
+                    color: viewMode === 'list' ? '#0C0C0E' : 'var(--np-n600)',
                     border: 'none',
                     minHeight: 24
                   }}
@@ -937,8 +937,8 @@ export default function FacultyDutyPage() {
                   onClick={() => setViewMode('calendar')}
                   className="btn btn-sm"
                   style={{ 
-                    background: viewMode === 'calendar' ? 'var(--np-ink)' : 'transparent',
-                    color: viewMode === 'calendar' ? 'var(--np-bg)' : 'var(--np-n600)',
+                    background: viewMode === 'calendar' ? '#F5F5F7' : 'transparent',
+                    color: viewMode === 'calendar' ? '#0C0C0E' : 'var(--np-n600)',
                     border: 'none',
                     minHeight: 24
                   }}
@@ -957,7 +957,7 @@ export default function FacultyDutyPage() {
           {loading ? (
             <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
           ) : duties.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: 64, border: '2px solid var(--np-ink)' }}>
+            <div className="card" style={{ textAlign: 'center', padding: 64, border: '1px solid #222225' }}>
               <CalendarDays size={40} strokeWidth={1} color="var(--np-n400)" style={{ marginBottom: 12 }} />
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>No Duties Allocated</div>
               <p style={{ fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 14 }}>
@@ -978,8 +978,8 @@ export default function FacultyDutyPage() {
                   key={duty.id}
                   className="card"
                   style={{
-                    border: '2px solid var(--np-ink)',
-                    borderLeft: `8px solid ${duty.role === 'primary' ? 'var(--np-ink)' : 'var(--np-n400)'}`,
+                    border: '1px solid #222225',
+                    borderLeft: `8px solid ${duty.role === 'primary' ? '#F5F5F7' : 'var(--np-n400)'}`,
                     boxShadow: '4px 4px 0 0 var(--np-ink)',
                     background: '#fff',
                     padding: 24
@@ -1009,7 +1009,7 @@ export default function FacultyDutyPage() {
                         <button 
                           onClick={() => launchAssistant(duty.room_allocation_id)} 
                           className="btn btn-primary btn-sm"
-                          style={{ background: 'var(--np-red)', color: '#fff' }}
+                          style={{ background: '#FF453A', color: '#fff' }}
                         >
                           Launch Console
                         </button>
@@ -1045,8 +1045,8 @@ export default function FacultyDutyPage() {
                         : null
                     ].filter(Boolean).map(({ icon: Icon, label, val }) => (
                       <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                        <div style={{ border: '1px solid var(--np-ink)', padding: 6, background: 'var(--np-bg)' }}>
-                          <Icon size={14} color="var(--np-ink)" />
+                        <div style={{ border: '1px solid var(--np-ink)', padding: 6, background: '#0C0C0E' }}>
+                          <Icon size={14} color="#F5F5F7" />
                         </div>
                         <div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n500)', fontWeight: 700 }}>{label}</div>
@@ -1062,7 +1062,7 @@ export default function FacultyDutyPage() {
 
           {/* Replacement Log Panel */}
           {replacements.length > 0 && (
-            <div className="card" style={{ marginTop: 32, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
+            <div className="card" style={{ marginTop: 32, border: '1px solid #222225', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
               <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>
                 My Replacement Requests Log
               </h3>
@@ -1099,7 +1099,7 @@ export default function FacultyDutyPage() {
 
       {/* ── TAB CONTENT: LIVE CAMPUS STATUS ── */}
       {activeTab === 'live_status' && (
-        <div className="card" style={{ padding: 24, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
+        <div className="card" style={{ padding: 24, border: '1px solid #222225', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
           <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 20 }}>
             Live Classroom Status Board (Active Today)
           </h3>
@@ -1117,7 +1117,7 @@ export default function FacultyDutyPage() {
                 <div key={i} style={{
                   border: '1.5px solid var(--np-ink)',
                   padding: 16,
-                  background: 'var(--np-bg)',
+                  background: '#0C0C0E',
                   boxShadow: '2px 2px 0 0 var(--np-ink)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -1143,7 +1143,7 @@ export default function FacultyDutyPage() {
 
       {/* ── TAB CONTENT: BROADCAST NOTICES ── */}
       {activeTab === 'broadcasts' && (
-        <div className="card" style={{ padding: 24, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
+        <div className="card" style={{ padding: 24, border: '1px solid #222225', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
           <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 20 }}>
             Announcements & Emergency Banners
           </h3>
@@ -1159,7 +1159,7 @@ export default function FacultyDutyPage() {
                   padding: 20,
                   border: `1.5px solid var(--np-ink)`,
                   background: b.priority === 'critical' ? '#fff1f1' : (b.priority === 'urgent' ? '#fffbeb' : '#fff'),
-                  borderLeft: `8px solid ${b.priority === 'critical' ? 'var(--np-red)' : (b.priority === 'urgent' ? '#f59e0b' : '#3b82f6')}`,
+                  borderLeft: `8px solid ${b.priority === 'critical' ? '#FF453A' : (b.priority === 'urgent' ? '#f59e0b' : '#3b82f6')}`,
                   position: 'relative'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -1196,7 +1196,7 @@ export default function FacultyDutyPage() {
 
       {/* ── TAB CONTENT: INCIDENTS LOG ── */}
       {activeTab === 'incidents' && (
-        <div className="card" style={{ padding: 24, border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
+        <div className="card" style={{ padding: 24, border: '1px solid #222225', boxShadow: '4px 4px 0 0 var(--np-ink)', background: '#fff' }}>
           <h3 style={{ margin: '0 0 16px 0', fontFamily: 'var(--font-serif)', fontSize: 20 }}>
             Incident Logging Log
           </h3>
@@ -1222,12 +1222,12 @@ export default function FacultyDutyPage() {
                     </span>
                   </div>
                   <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>
-                    {inc.type.toUpperCase()} · Severity: <span style={{ color: inc.severity === 'high' ? 'var(--np-red)' : 'inherit' }}>{inc.severity.toUpperCase()}</span>
+                    {inc.type.toUpperCase()} · Severity: <span style={{ color: inc.severity === 'high' ? '#FF453A' : 'inherit' }}>{inc.severity.toUpperCase()}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: 14, color: '#333', lineHeight: 1.4 }}>{inc.description}</p>
                   
                   {inc.student_prn && (
-                    <div style={{ fontSize: 11, color: '#111', marginTop: 10, background: 'var(--np-muted)', padding: '4px 8px', display: 'inline-block', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: 11, color: '#111', marginTop: 10, background: '#222225', padding: '4px 8px', display: 'inline-block', fontFamily: 'var(--font-mono)' }}>
                       Affected PRN: <strong>{inc.student_prn}</strong>
                     </div>
                   )}
@@ -1239,13 +1239,13 @@ export default function FacultyDutyPage() {
                       <img 
                         src={inc.evidence_image} 
                         alt="Evidence photo" 
-                        style={{ maxHeight: 150, border: '2px solid var(--np-ink)' }} 
+                        style={{ maxHeight: 150, border: '1px solid #222225' }} 
                       />
                     </div>
                   )}
 
                   {inc.action_taken && (
-                    <div style={{ marginTop: 14, padding: '12px 16px', background: 'var(--np-bg)', borderLeft: '4px solid var(--np-ink)', fontSize: 13 }}>
+                    <div style={{ marginTop: 14, padding: '12px 16px', background: '#0C0C0E', borderLeft: '4px solid var(--np-ink)', fontSize: 13 }}>
                       <strong>Coordinator Remarks:</strong>
                       <div style={{ marginTop: 4, color: 'var(--np-n700)' }}>{inc.action_taken}</div>
                     </div>
@@ -1261,7 +1261,7 @@ export default function FacultyDutyPage() {
       {activeTab === 'assistant' && assistantData && (
         <div className="fade-in">
           {/* Back Header Strip */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid var(--np-ink)', paddingBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #222225', paddingBottom: 12 }}>
             <button className="btn btn-ghost" onClick={() => { setActiveTab('duties'); setSelectedSeatStudent(null); }} style={{ border: '1px solid var(--np-ink)' }}>
               ← Return Dashboard
             </button>
@@ -1281,12 +1281,12 @@ export default function FacultyDutyPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               
               {/* Active Timer Card */}
-              <div className="card-invert" style={{ border: '2px solid var(--np-ink)', boxShadow: '4px 4px 0 0 var(--np-ink)', padding: 20 }}>
+              <div className="card-invert" style={{ border: '1px solid #222225', boxShadow: '4px 4px 0 0 var(--np-ink)', padding: 20 }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', opacity: 0.7 }}>Invigilation Assistant Mode</div>
                 <div style={{ fontSize: 28, fontWeight: 900, margin: '8px 0', fontFamily: 'var(--font-mono)' }}>{timerText}</div>
                 {/* Progress bar */}
                 <div style={{ width: '100%', height: 12, background: 'rgba(255,255,255,0.2)', border: '1px solid #fff' }}>
-                  <div style={{ height: '100%', width: `${timerProgress}%`, background: 'var(--np-red)', transition: 'width 1s ease' }} />
+                  <div style={{ height: '100%', width: `${timerProgress}%`, background: '#FF453A', transition: 'width 1s ease' }} />
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
                   Room {assistantData.roomAllocation.room_no} | Timings: {formatTime(assistantData.roomAllocation.start_time)} ({assistantData.roomAllocation.duration_mins}m)
@@ -1294,7 +1294,7 @@ export default function FacultyDutyPage() {
               </div>
 
               {/* Occupancy Analytics */}
-              <div className="card" style={{ padding: 20, border: '2px solid var(--np-ink)' }}>
+              <div className="card" style={{ padding: 20, border: '1px solid #222225' }}>
                 <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
                   Room Occupancy Stats
                 </div>
@@ -1317,7 +1317,7 @@ export default function FacultyDutyPage() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--np-n500)' }}>Absent</span>
-                    <span style={{ fontWeight: 700, color: 'var(--np-red)' }}>
+                    <span style={{ fontWeight: 700, color: '#FF453A' }}>
                       {localRecords.filter(r => r.attendance_status === 'absent' || !r.attendance_status).length}
                     </span>
                   </div>
@@ -1325,13 +1325,13 @@ export default function FacultyDutyPage() {
               </div>
 
               {/* Invigilation Team */}
-              <div className="card" style={{ padding: 20, border: '2px solid var(--np-ink)' }}>
+              <div className="card" style={{ padding: 20, border: '1px solid #222225' }}>
                 <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
                   Invigilation Team
                 </div>
                 {assistantData.team.map((t, idx) => (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: idx < assistantData.team.length - 1 ? '1px solid var(--np-muted)' : 'none' }}>
-                    <div style={{ width: 30, height: 30, background: 'var(--np-ink)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+                    <div style={{ width: 30, height: 30, background: '#F5F5F7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
                       {t.faculty_name.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -1343,7 +1343,7 @@ export default function FacultyDutyPage() {
               </div>
 
               {/* Local Incident Board */}
-              <div className="card" style={{ padding: 20, border: '2px solid var(--np-ink)' }}>
+              <div className="card" style={{ padding: 20, border: '1px solid #222225' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
                   <span style={{ fontWeight: 800, fontSize: 14 }}>Incidents Filed Today</span>
                   <button 
@@ -1367,7 +1367,7 @@ export default function FacultyDutyPage() {
                     {assistantData.incidents.map(inc => (
                       <div key={inc.id} style={{ border: '1px solid var(--np-muted)', padding: '6px 10px', background: '#fff' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 700 }}>
-                          <span style={{ color: 'var(--np-red)' }}>{inc.type.toUpperCase()}</span>
+                          <span style={{ color: '#FF453A' }}>{inc.type.toUpperCase()}</span>
                           <span>{inc.status}</span>
                         </div>
                         <p style={{ fontSize: 11, margin: '4px 0 0 0', color: 'var(--np-n600)' }}>{inc.description}</p>
@@ -1382,13 +1382,13 @@ export default function FacultyDutyPage() {
             <div>
               {/* Filter and View toggles */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 8, background: 'var(--np-muted)', padding: 2 }}>
+                <div style={{ display: 'flex', gap: 8, background: '#222225', padding: 2 }}>
                   <button 
                     onClick={() => setAssistantModeTab('grid')} 
                     className="btn btn-sm"
                     style={{
-                      background: assistantModeTab === 'grid' ? 'var(--np-ink)' : 'transparent',
-                      color: assistantModeTab === 'grid' ? 'var(--np-bg)' : 'var(--np-n600)',
+                      background: assistantModeTab === 'grid' ? '#F5F5F7' : 'transparent',
+                      color: assistantModeTab === 'grid' ? '#0C0C0E' : 'var(--np-n600)',
                       border: 'none', minHeight: 26
                     }}
                   >
@@ -1398,8 +1398,8 @@ export default function FacultyDutyPage() {
                     onClick={() => setAssistantModeTab('list')} 
                     className="btn btn-sm"
                     style={{
-                      background: assistantModeTab === 'list' ? 'var(--np-ink)' : 'transparent',
-                      color: assistantModeTab === 'list' ? 'var(--np-bg)' : 'var(--np-n600)',
+                      background: assistantModeTab === 'list' ? '#F5F5F7' : 'transparent',
+                      color: assistantModeTab === 'list' ? '#0C0C0E' : 'var(--np-n600)',
                       border: 'none', minHeight: 26
                     }}
                   >
@@ -1489,7 +1489,7 @@ export default function FacultyDutyPage() {
                                 <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--np-n600)', marginTop: 2 }}>
                                   PRN: {student.prn}
                                 </div>
-                                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--np-red)', fontWeight: 600 }}>
+                                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: '#FF453A', fontWeight: 600 }}>
                                   Roll: {student.roll_no}
                                 </div>
                               </div>
@@ -1507,8 +1507,8 @@ export default function FacultyDutyPage() {
                     }
 
                     return (
-                      <div style={{ background: '#fff', border: '2px solid var(--np-ink)', padding: 20, overflowX: 'auto', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
-                        <div style={{ borderBottom: '2px solid var(--np-ink)', paddingBottom: 8, marginBottom: 16, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      <div style={{ background: '#fff', border: '1px solid #222225', padding: 20, overflowX: 'auto', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+                        <div style={{ borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 16, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                           📢 FRONT OF CLASSROOM (BLACKBOARD)
                         </div>
                         {grid}
@@ -1520,7 +1520,7 @@ export default function FacultyDutyPage() {
 
               {/* Student Attendance List View */}
               {assistantModeTab === 'list' && (
-                <div style={{ border: '2px solid var(--np-ink)', background: '#fff', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+                <div style={{ border: '1px solid #222225', background: '#fff', boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
                   <table style={{ width: '100%' }}>
                     <thead>
                       <tr>
@@ -1575,7 +1575,7 @@ export default function FacultyDutyPage() {
       {selectedSeatStudent && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSelectedSeatStudent(null)}>
           <div className="modal" style={{ maxWidth: '400px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--np-ink)', paddingBottom: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222225', paddingBottom: 10, marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800 }}>Student Seat Details</h3>
               <button onClick={() => setSelectedSeatStudent(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
                 <X size={18} />
@@ -1608,7 +1608,7 @@ export default function FacultyDutyPage() {
             </div>
 
             {/* Actions block */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '2px solid var(--np-ink)', paddingTop: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid #222225', paddingTop: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--np-n500)' }}>Quick Mark Attendance</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                 <button 
@@ -1647,7 +1647,7 @@ export default function FacultyDutyPage() {
                   setSelectedSeatStudent(null);
                 }}
                 className="btn btn-danger"
-                style={{ marginTop: 8, background: 'var(--np-red)', color: '#fff' }}
+                style={{ marginTop: 8, background: '#FF453A', color: '#fff' }}
               >
                 ⚠️ File Malpractice Incident
               </button>
@@ -1690,6 +1690,9 @@ export default function FacultyDutyPage() {
     </div>
   );
 }
+
+
+
 
 
 

@@ -325,7 +325,7 @@ export default function AttendancePage() {
               <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
             </Link>
           </div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Attendance Marking</h1>
           <p className="page-subtitle">
             {slot?.subject_code} — {slot?.subject_name} · {formatDate(slot?.date)} · {formatTime(slot?.start_time)}
@@ -930,6 +930,9 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+
+
 
 
 

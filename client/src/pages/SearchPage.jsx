@@ -102,7 +102,7 @@ export default function SearchPage() {
       {/* Search Header */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'var(--np-bg)', paddingBottom: 24,
+        background: '#0C0C0E', paddingBottom: 24,
         borderBottom: '2px solid #111', marginBottom: 32,
       }}>
         <div className="accent-bar" style={{ marginBottom: 16 }} />
@@ -215,6 +215,9 @@ export default function SearchPage() {
     </div>
   );
 }
+
+
+
 
 
 

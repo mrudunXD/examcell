@@ -52,7 +52,7 @@ function CycleModal({ cycle, onClose, onSave }) {
           {/* Semester Type */}
           <div className="form-group">
             <label className="form-label">Semester Type *</label>
-            <div style={{ display: 'flex', gap: 0, border: '1px solid #111' }}>
+            <div style={{ display: 'flex', gap: 0, border: '1px solid #222225' }}>
               {['odd', 'even'].map(t => (
                 <button key={t} type="button" onClick={() => setForm({ ...form, semester_type: t })}
                   style={{
@@ -165,7 +165,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Exam Type</label>
-              <div style={{ display: 'flex', gap: 0, border: '1px solid #111' }}>
+              <div style={{ display: 'flex', gap: 0, border: '1px solid #222225' }}>
                 {['regular', 'backlog'].map(t => (
                   <button key={t} type="button" onClick={() => setForm({ ...form, exam_type: t })}
                     style={{
@@ -187,7 +187,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
             </div>
             <div className="form-group">
               <label className="form-label">Exam Mode</label>
-              <div style={{ display: 'flex', gap: 0, border: '1px solid #111' }}>
+              <div style={{ display: 'flex', gap: 0, border: '1px solid #222225' }}>
                 {['offline', 'online'].map(m => (
                   <button key={m} type="button" onClick={() => setForm({ ...form, exam_mode: m })}
                     style={{
@@ -410,7 +410,7 @@ export default function ExamCyclesPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Exam Cycles</h1>
           <p className="page-subtitle">Periods, slots, and room allocations</p>
         </div>
@@ -436,11 +436,11 @@ export default function ExamCyclesPage() {
           )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #111' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #222225' }}>
           {cycles.map((cycle, ci) => {
             const { backlog, regular } = splitSlots(slotsMap[cycle.id]);
             return (
-              <div key={cycle.id} style={{ borderBottom: ci < cycles.length - 1 ? '1px solid #111' : 'none' }}>
+              <div key={cycle.id} style={{ borderBottom: ci < cycles.length - 1 ? '1px solid #222225' : 'none' }}>
                 {/* Cycle header */}
                 <div
                   style={{
@@ -580,7 +580,7 @@ export default function ExamCyclesPage() {
       {autoScheduleModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setAutoScheduleModal(null)}>
           <div className="modal" style={{ width: '100%', maxWidth: 500 }}>
-            <h2 className="modal-title" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, borderBottom: '2px solid var(--np-ink)', paddingBottom: 8, marginBottom: 16 }}>
+            <h2 className="modal-title" style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 16 }}>
               Auto-Schedule: {autoScheduleModal.name}
             </h2>
             
@@ -697,7 +697,7 @@ export default function ExamCyclesPage() {
               </div>
 
               {/* Footer / Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '2px solid var(--np-ink)', paddingTop: 16, marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #222225', paddingTop: 16, marginTop: 8 }}>
                 <button 
                   className="btn btn-ghost" 
                   onClick={() => setAutoScheduleModal(null)}
@@ -809,7 +809,7 @@ function ExplainModal({ cycleId, slotId, onClose }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ width: '100%', maxWidth: 500, padding: 24 }}>
-        <h2 className="modal-title" style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', borderBottom: '2px solid var(--np-ink)', paddingBottom: 8, marginBottom: 16 }}>
+        <h2 className="modal-title" style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 16 }}>
           Decision Explanation
         </h2>
         <div style={{ fontSize: 13, marginBottom: 20 }}>
@@ -856,6 +856,9 @@ function ExplainModal({ cycleId, slotId, onClose }) {
     </div>
   );
 }
+
+
+
 
 
 

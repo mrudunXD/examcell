@@ -85,7 +85,7 @@ export default function LoginPage() {
         <div style={{
           padding: '52px 48px',
           background: '#0C0C0E',
-          borderRight: '1px solid #1C1C1F',
+          borderRight: '1px solid #222225',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -143,7 +143,7 @@ export default function LoginPage() {
             marginTop: 40,
             padding: '14px 16px',
             background: '#0A0A0C',
-            border: '1px solid #1C1C1F',
+            border: '1px solid #222225',
             borderRadius: 8,
           }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#4A4A4F', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
@@ -250,7 +250,7 @@ export default function LoginPage() {
           </form>
 
           {/* Kiosk launcher */}
-          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid #1C1C1F' }}>
+          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid #222225' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#E5E5EA', marginBottom: 4 }}>
               Smartboard Kiosk Mode
             </div>
@@ -299,4 +299,7 @@ export default function LoginPage() {
     </div>
   );
 }
+
+
+
 

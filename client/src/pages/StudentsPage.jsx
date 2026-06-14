@@ -145,7 +145,7 @@ function CSVImportModal({ onClose, onDone }) {
                   {result.failed.length} failed rows
                 </summary>
                 <div style={{ marginTop: 8, maxHeight: 100, overflowY: 'auto', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-                  {result.failed.map((f, i) => <div key={i} style={{ color: 'var(--np-red)', padding: '2px 0' }}>{f.reason}</div>)}
+                  {result.failed.map((f, i) => <div key={i} style={{ color: '#FF453A', padding: '2px 0' }}>{f.reason}</div>)}
                 </div>
               </details>
             )}
@@ -204,7 +204,7 @@ export default function StudentsPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Students</h1>
           <p className="page-subtitle">{students.length} students in database</p>
         </div>
@@ -290,7 +290,7 @@ function StudentRow({ s, i, isCoord, onEdit, onDel }) {
       <td style={{ color: 'var(--np-n400)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
       <td style={{ fontWeight: 600 }}>{s.name}</td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{s.prn}</td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-red)' }}>{s.roll_no}</td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#FF453A' }}>{s.roll_no}</td>
       <td>{s.branch}</td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)' }}>{s.section || '—'}</td>
       <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
@@ -432,8 +432,8 @@ function GroupedStudents({ students, isCoord, onEdit, onDel }) {
 
 function StatCard({ label, value, sub, onClick, accent }) {
   const [hovered, setHovered] = useState(false);
-  const accentColors = { FY: 'var(--np-red)', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
-  const ac = accent ? accentColors[accent] || 'var(--np-ink)' : 'var(--np-ink)';
+  const accentColors = { FY: '#FF453A', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
+  const ac = accent ? accentColors[accent] || '#F5F5F7' : '#F5F5F7';
   
   return (
     <div
@@ -458,10 +458,10 @@ function StatCard({ label, value, sub, onClick, accent }) {
     >
       {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: ac }} />}
       <div>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: 'var(--np-ink)', lineHeight: 1.1 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: '#F5F5F7', lineHeight: 1.1 }}>
           {value}
         </div>
-        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: 'var(--np-ink)' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: '#F5F5F7' }}>
           {label}
         </div>
       </div>
@@ -475,7 +475,7 @@ function StatCard({ label, value, sub, onClick, accent }) {
           <div style={{ 
             fontFamily: 'var(--font-mono)', 
             fontSize: 10, 
-            color: ac === 'var(--np-ink)' ? 'var(--np-red)' : ac, 
+            color: ac === '#F5F5F7' ? '#FF453A' : ac, 
             fontWeight: 'bold',
             textTransform: 'uppercase', 
             letterSpacing: '0.08em',
@@ -500,7 +500,7 @@ function Breadcrumb({ crumbs }) {
             disabled={!c.onClick}
             style={{
               fontFamily: 'var(--font-mono)', fontSize: 11,
-              color: c.onClick ? 'var(--np-red)' : 'var(--np-n600)',
+              color: c.onClick ? '#FF453A' : 'var(--np-n600)',
               background: 'none', border: 'none', cursor: c.onClick ? 'pointer' : 'default',
               padding: '4px 0', fontWeight: c.onClick ? 400 : 600,
               textDecoration: c.onClick ? 'underline' : 'none',
@@ -511,6 +511,9 @@ function Breadcrumb({ crumbs }) {
     </div>
   );
 }
+
+
+
 
 
 

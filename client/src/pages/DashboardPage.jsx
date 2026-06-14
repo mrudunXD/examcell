@@ -334,7 +334,7 @@ export default function DashboardPage() {
               }}>
                 <div style={{
                   padding: '14px 18px',
-                  borderBottom: '1px solid #1C1C1F',
+                  borderBottom: '1px solid #222225',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -357,7 +357,7 @@ export default function DashboardPage() {
                   ) : stats.upcomingSlots.map((slot, i) => (
                     <div key={slot.id} style={{
                       padding: '11px 18px',
-                      borderBottom: i < stats.upcomingSlots.length - 1 ? '1px solid #1C1C1F' : 'none',
+                      borderBottom: i < stats.upcomingSlots.length - 1 ? '1px solid #222225' : 'none',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -392,7 +392,7 @@ export default function DashboardPage() {
               }}>
                 <div style={{
                   padding: '14px 18px',
-                  borderBottom: '1px solid #1C1C1F',
+                  borderBottom: '1px solid #222225',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
                     Quick Actions
@@ -414,7 +414,7 @@ export default function DashboardPage() {
                         alignItems: 'center',
                         gap: 12,
                         padding: '12px 18px',
-                        borderBottom: '1px solid #1C1C1F',
+                        borderBottom: '1px solid #222225',
                         textDecoration: 'none',
                         transition: 'background 0.1s',
                       }}
@@ -484,4 +484,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+
 

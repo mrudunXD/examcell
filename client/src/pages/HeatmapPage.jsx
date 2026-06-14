@@ -57,7 +57,7 @@ export default function HeatmapPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Faculty Duty Heatmap</h1>
           <p className="page-subtitle">Supervision load across all cycles · {faculty.length} faculty</p>
         </div>
@@ -115,7 +115,7 @@ export default function HeatmapPage() {
           </div>
 
           {/* Heatmap table */}
-          <div style={{ overflowX: 'auto', border: '1px solid #111' }}>
+          <div style={{ overflowX: 'auto', border: '1px solid #222225' }}>
             <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
               <thead>
                 <tr>
@@ -216,6 +216,9 @@ export default function HeatmapPage() {
     </div>
   );
 }
+
+
+
 
 
 

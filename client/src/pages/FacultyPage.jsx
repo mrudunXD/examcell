@@ -207,7 +207,7 @@ function LeavesModal({ facultyList, onClose }) {
             ) : (
               <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #111', fontWeight: 'bold' }}>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #222225', fontWeight: 'bold' }}>
                     <th style={{ padding: 4 }}>Faculty</th>
                     <th style={{ padding: 4 }}>Date</th>
                     <th style={{ padding: 4 }}>Shift</th>
@@ -225,7 +225,7 @@ function LeavesModal({ facultyList, onClose }) {
                         </span>
                       </td>
                       <td style={{ padding: '6px 4px' }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(l.id)} style={{ color: 'var(--np-red)', padding: '2px 4px' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(l.id)} style={{ color: '#FF453A', padding: '2px 4px' }}>
                           Delete
                         </button>
                       </td>
@@ -335,7 +335,7 @@ export default function FacultyPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Faculty</h1>
           <p className="page-subtitle">{faculty.length} faculty accounts</p>
         </div>
@@ -409,6 +409,9 @@ export default function FacultyPage() {
     </div>
   );
 }
+
+
+
 
 
 

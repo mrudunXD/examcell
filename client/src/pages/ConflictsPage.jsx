@@ -75,7 +75,7 @@ export default function ConflictsPage() {
               <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
             </Link>
           </div>
-          <div className="accent-bar" />
+          
           <h1 className="page-title">Conflict Detection</h1>
           <p className="page-subtitle">
             {open.length > 0 ? (
@@ -208,6 +208,9 @@ export default function ConflictsPage() {
     </div>
   );
 }
+
+
+
 
 
 

@@ -325,7 +325,7 @@ export default function LiveDashboardPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <div className="accent-bar" />
+          
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 className="page-title">Live Dashboard</h1>
             {liveSlots.length > 0 && (
@@ -367,7 +367,7 @@ export default function LiveDashboardPage() {
 
       {/* Quick stats */}
       {data && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: '1px solid #111', marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: '1px solid #222225', marginBottom: 24 }}>
           {[
             { label: "Today's Exams", value: data.todaySlots?.length || 0, icon: Activity, color: '#111' },
             { label: 'Currently Live', value: liveSlots.length, icon: Radio, color: liveSlots.length ? '#166534' : '#767680' },
@@ -509,7 +509,7 @@ export default function LiveDashboardPage() {
 
           {/* Classroom Broadcast Console */}
           <div style={{ border: '1px solid #222225', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-red)', fontWeight: 'bold', marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#FF453A', fontWeight: 'bold', marginBottom: 12 }}>
               Classroom Broadcast Console
             </div>
             
@@ -680,6 +680,9 @@ function SlotCard({ slot, phase, isLast, navigate }) {
     </div>
   );
 }
+
+
+
 
 
 
