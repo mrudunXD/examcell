@@ -17,8 +17,12 @@ fi
 export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"
 export PGUSER="${PGUSER:-postgres}"
-export PGPASSWORD="${PGPASSWORD:-1234}"
 export PGDATABASE="${PGDATABASE:-exam_management}"
+
+if [ -z "$PGPASSWORD" ]; then
+    echo "❌ PGPASSWORD environment variable is not set. Backup aborted."
+    exit 1
+fi
 
 # Execute PostgreSQL Dump
 echo "Dumping database $PGDATABASE to $BACKUP_FILE..."

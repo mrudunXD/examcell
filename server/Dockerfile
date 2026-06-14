@@ -19,6 +19,9 @@ RUN npm install
 
 COPY . .
 
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 5000
 
 ENV PORT=5000

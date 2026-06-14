@@ -73,14 +73,77 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const user = await db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email.toLowerCase().trim());
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
-  const valid = bcrypt.compareSync(password, user.password_hash);
-  if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+  // Check lockout status
+  if (user.lockout_until && new Date(user.lockout_until) > new Date()) {
+    const minutesLeft = Math.ceil((new Date(user.lockout_until) - new Date()) / (60 * 1000));
+    return res.status(403).json({ error: `Account temporarily locked. Please try again in ${minutesLeft} minute(s).` });
+  }
 
-  const token = generateToken(user.id);
+  const valid = bcrypt.compareSync(password, user.password_hash);
+  if (!valid) {
+    const attempts = (user.failed_login_attempts || 0) + 1;
+    if (attempts >= 5) {
+      const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
+      await db.prepare('UPDATE users SET failed_login_attempts = ?, lockout_until = ? WHERE id = ?').run(attempts, lockoutUntil, user.id);
+      return res.status(401).json({ error: 'Invalid credentials. Account locked for 15 minutes.' });
+    } else {
+      await db.prepare('UPDATE users SET failed_login_attempts = ? WHERE id = ?').run(attempts, user.id);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+  }
+
+  // Clear failed login attempts and lockout on success
+  await db.prepare('UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?').run(user.id);
+
+  const token = generateToken(user.id, user.updated_at);
+  
+  // Set HttpOnly, Secure (in production), SameSite cookie
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 8 * 60 * 60 * 1000 // 8 hours
+  });
+
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department }
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department },
+    mustChangePassword: user.must_change_password === 1
   });
+}));
+
+// POST /auth/logout
+router.post('/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// POST /auth/change-password
+router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new password required' });
+  }
+
+  // Enforce password complexity
+  if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, and a number.' });
+  }
+
+  const db = getDb();
+  const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const valid = bcrypt.compareSync(currentPassword, user.password_hash);
+  if (!valid) return res.status(400).json({ error: 'Invalid current password' });
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  const now = new Date().toISOString();
+  await db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ?, failed_login_attempts = 0, lockout_until = NULL WHERE id = ?')
+    .run(hash, now, req.user.id);
+
+  res.clearCookie('token');
+  res.json({ success: true, message: 'Password updated. Please log in again.' });
 }));
 
 /**

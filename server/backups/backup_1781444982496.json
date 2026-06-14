@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-09T10:33:07.441Z",
+  "timestamp": "2026-06-14T13:49:42.348Z",
   "tables": {
     "users": [
       {
@@ -12,7 +12,10 @@
         "department": "Examination Cell",
         "is_active": 1,
         "created_at": "2026-06-08T19:23:07.551Z",
-        "updated_at": "2026-06-08T19:23:07.551Z"
+        "updated_at": "2026-06-08T19:23:07.551Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "fe4820fc-e03b-401f-9161-218878f94b9d",
@@ -23,7 +26,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "53c4a894-856d-433c-955f-fc0a0c793399",
@@ -34,7 +40,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "54f87969-21a4-425a-847d-79eee5195403",
@@ -45,7 +54,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "7efc8040-3ba8-4a36-a8f6-9b322f1163fc",
@@ -56,7 +68,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "0b5bb164-cf6c-4ed2-82e3-28c6b55b6e3c",
@@ -67,7 +82,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "e861d177-7104-4205-8431-5652936ea1a6",
@@ -78,7 +96,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "d08b2c49-9a2a-44c0-98f0-2bc6ff3f1859",
@@ -89,7 +110,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "b09e4f66-a58a-426a-b9d3-0d60d3f71fc2",
@@ -100,7 +124,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "9896f6b5-82aa-4af9-aa90-b172b72bedee",
@@ -111,7 +138,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "3e8210b0-c5c6-441d-8e09-62b374464b31",
@@ -122,7 +152,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "3a51f2de-32a1-44f6-827f-e36f23d0fd9d",
@@ -133,7 +166,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "c34a1ce5-79ee-4948-9714-62a151a75054",
@@ -144,7 +180,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "10e6b7b2-57c7-49da-b6b1-d8d8b417647b",
@@ -155,7 +194,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "8a2fe160-9744-499b-9cfd-7c5d98ea5005",
@@ -166,7 +208,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "86be6f58-40a3-4d4e-87ec-244a4bebd314",
@@ -177,7 +222,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "7ec35dba-a1b2-4a6c-abbe-c86d61ed6338",
@@ -188,7 +236,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "48a44c45-8d5c-4950-b57d-be7ed0d7e5b9",
@@ -199,7 +250,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "277b1273-1eba-46f0-bcf3-b6c50d6c58d9",
@@ -210,7 +264,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "cfcea98a-897f-4d84-8aaa-f3282c952029",
@@ -221,7 +278,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "c5d8bfca-6ba3-4feb-8b7b-90927ab564c6",
@@ -232,7 +292,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "ba0f8018-d609-40ff-ae6a-28fe6e8b3af8",
@@ -243,7 +306,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "cd6413e6-4154-4002-a5fc-5bdb6986cc9b",
@@ -254,7 +320,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "28c69251-f1eb-435b-9477-41a22d70fd33",
@@ -265,7 +334,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "be661ce4-d9bb-41bc-a8ca-cd398772011c",
@@ -276,7 +348,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "5ee70456-b4b4-456a-8f3c-42c621227c9e",
@@ -287,7 +362,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "cb4bdab4-ba98-4923-9e60-bc50a89437ad",
@@ -298,7 +376,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "70187ec2-a739-4d97-8971-683f873bf8c1",
@@ -309,7 +390,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "2cea2e48-5f17-40f4-990b-758d1828ee33",
@@ -320,7 +404,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "fd644f1b-848c-4d9c-ab04-cb041a969554",
@@ -331,7 +418,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "aa7ae2ac-b5d4-4401-9838-60d8962e9c44",
@@ -342,7 +432,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "88bdf55b-c8ba-489c-b018-848b406b87f9",
@@ -353,7 +446,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "5f0fe5cf-2f66-40d9-b28a-525c4451f832",
@@ -364,7 +460,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "9e4c47ee-cf55-4707-86db-a384406b2784",
@@ -375,7 +474,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "23e682b8-c5e9-4135-b369-609a3f430382",
@@ -386,7 +488,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "cf57bc48-0a6b-42de-b173-ca8c62211ed8",
@@ -397,7 +502,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "88ddf625-249d-402e-963a-a947f32a3d5d",
@@ -408,7 +516,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "b1a44fdd-2834-4396-94ff-82d713f43608",
@@ -419,7 +530,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "2f2e20ce-c639-4849-875d-960fda6b26a2",
@@ -430,7 +544,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       },
       {
         "id": "b23eab00-ad46-452a-bb10-0e2f440f9d73",
@@ -441,7 +558,10 @@
         "department": "Common",
         "is_active": 1,
         "created_at": "2026-06-08T21:59:35.895Z",
-        "updated_at": "2026-06-08T21:59:35.895Z"
+        "updated_at": "2026-06-08T21:59:35.895Z",
+        "must_change_password": 0,
+        "failed_login_attempts": 0,
+        "lockout_until": null
       }
     ],
     "students": [

@@ -17,8 +17,12 @@ rem Database configuration
 set PGHOST=localhost
 set PGPORT=5432
 set PGUSER=postgres
-set PGPASSWORD=1234
 set PGDATABASE=exam_management
+
+if "%PGPASSWORD%"=="" (
+    echo PGPASSWORD environment variable is not set. Backup aborted.
+    exit /b 1
+)
 
 echo Dumping database %PGDATABASE% to %BACKUP_FILE%...
 pg_dump -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %PGDATABASE% -F c -b -v -f "%BACKUP_FILE%"

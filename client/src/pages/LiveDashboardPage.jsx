@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import {
@@ -142,12 +142,42 @@ export default function LiveDashboardPage() {
   const [resolvingIncident, setResolvingIncident] = useState(null);
   const navigate = useNavigate();
 
+  // Option 2 Targeted announcements state
+  const [broadcasts, setBroadcasts] = useState([]);
+  const [acknowledgments, setAcknowledgments] = useState({});
+  const [onlineKiosks, setOnlineKiosks] = useState([]);
+  
+  // Composer Form state
+  const [targetRoomId, setTargetRoomId] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastPriority, setBroadcastPriority] = useState('normal');
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
       const active = r.data.find(c => c.status === 'active') || r.data[0];
       setCycles(r.data);
       if (active) setSelectedCycle(active.id);
     });
+  }, []);
+
+  const fetchBroadcastsData = useCallback(async () => {
+    try {
+      const [brRes, ackRes] = await Promise.all([
+        api.get('/broadcasts'),
+        api.get('/broadcasts/acknowledgments')
+      ]);
+      setBroadcasts(brRes.data);
+      
+      const ackMap = {};
+      for (const a of ackRes.data) {
+        ackMap[`${a.broadcast_id}_${a.classroom_id}`] = a.acknowledged_at;
+      }
+      setAcknowledgments(ackMap);
+    } catch (err) {
+      console.error('Failed to load broadcasts telemetry:', err);
+    }
   }, []);
 
   const fetchLive = useCallback(async (cycleId) => {
@@ -161,7 +191,12 @@ export default function LiveDashboardPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { if (selectedCycle) fetchLive(selectedCycle); }, [selectedCycle, fetchLive]);
+  useEffect(() => {
+    if (selectedCycle) {
+      fetchLive(selectedCycle);
+      fetchBroadcastsData();
+    }
+  }, [selectedCycle, fetchLive, fetchBroadcastsData]);
 
   // WebSocket live synchronization
   useEffect(() => {
@@ -202,10 +237,28 @@ export default function LiveDashboardPage() {
       fetchLive(selectedCycle);
     });
 
+    socket.on('KIOSKS_UPDATED', (kioskList) => {
+      console.log('📣 WebSocket KIOSKS_UPDATED received:', kioskList);
+      setOnlineKiosks(kioskList);
+    });
+
+    socket.on('BROADCAST_ACKNOWLEDGED', (ack) => {
+      console.log('📣 WebSocket BROADCAST_ACKNOWLEDGED received:', ack);
+      setAcknowledgments(prev => ({
+        ...prev,
+        [`${ack.broadcastId}_${ack.classroomId}`]: ack.acknowledgedAt
+      }));
+      toast.success(`Kiosk acknowledged broadcast!`);
+    });
+
+    socket.on('EMERGENCY_BROADCAST', () => {
+      fetchBroadcastsData();
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, [selectedCycle, fetchLive]);
+  }, [selectedCycle, fetchLive, fetchBroadcastsData]);
 
   // Auto-refresh every 30s
   useEffect(() => {
@@ -217,6 +270,51 @@ export default function LiveDashboardPage() {
   // Clock
   const [now, setNow] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
+
+  // Compute active classrooms for today
+  const activeClassrooms = useMemo(() => {
+    if (!data?.todaySlots) return [];
+    const roomsMap = {};
+    for (const slot of data.todaySlots) {
+      for (const r of slot.rooms || []) {
+        roomsMap[r.classroom_id] = {
+          classroomId: r.classroom_id,
+          roomNo: r.room_no,
+          block: r.block,
+          slotId: slot.id,
+          slotName: `${slot.subject_code} - ${slot.subject_name}`
+        };
+      }
+    }
+    return Object.values(roomsMap);
+  }, [data]);
+
+  const handleSendBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMsg.trim()) {
+      toast.error('Title and message are required.');
+      return;
+    }
+    setSendingBroadcast(true);
+    try {
+      await api.post('/broadcasts', {
+        title: broadcastTitle.trim(),
+        message: broadcastMsg.trim(),
+        priority: broadcastPriority,
+        classroom_id: targetRoomId || null
+      });
+      toast.success('Broadcast sent successfully');
+      setBroadcastTitle('');
+      setBroadcastMsg('');
+      setTargetRoomId('');
+      setBroadcastPriority('normal');
+      fetchBroadcastsData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send broadcast');
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
 
   const liveSlots = data?.todaySlots?.filter(s => getSlotPhase(s) === 'live') || [];
   const upcomingToday = data?.todaySlots?.filter(s => getSlotPhase(s) === 'upcoming') || [];
@@ -407,6 +505,124 @@ export default function LiveDashboardPage() {
                 <span style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', fontSize: 13 }}>All clear, no incidents</span>
               </div>
             )}
+          </div>
+
+          {/* Classroom Broadcast Console */}
+          <div style={{ border: '2px solid #111111', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-red)', fontWeight: 'bold', marginBottom: 12 }}>
+              Classroom Broadcast Console
+            </div>
+            
+            <form onSubmit={handleSendBroadcast} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="form-group" style={{ marginBottom: 4 }}>
+                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Target Classroom</label>
+                <select
+                  className="select"
+                  value={targetRoomId}
+                  onChange={e => setTargetRoomId(e.target.value)}
+                  style={{ fontSize: 11, padding: '4px 6px', border: '1.5px solid #111111', width: '100%', outline: 'none' }}
+                >
+                  <option value="">Global Broadcast (All Rooms)</option>
+                  {activeClassrooms.map(c => {
+                    const isOnline = onlineKiosks.some(k => String(k.classroomId) === String(c.classroomId) && k.status === 'online');
+                    return (
+                      <option key={c.classroomId} value={c.classroomId}>
+                        Room {c.roomNo} {c.block ? `(${c.block})` : ''} {isOnline ? '🟢 Online' : '🔴 Offline'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 4 }}>
+                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Priority</label>
+                <select
+                  className="select"
+                  value={broadcastPriority}
+                  onChange={e => setBroadcastPriority(e.target.value)}
+                  style={{ fontSize: 11, padding: '4px 6px', border: '1.5px solid #111111', width: '100%', outline: 'none' }}
+                >
+                  <option value="normal">Normal Priority</option>
+                  <option value="urgent">Urgent Priority</option>
+                  <option value="critical">Critical Priority</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 4 }}>
+                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Title</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={broadcastTitle}
+                  onChange={e => setBroadcastTitle(e.target.value)}
+                  placeholder="e.g. Q4 Page 2 Correction"
+                  style={{ fontSize: 11, padding: '6px', border: '1.5px solid #111111', width: '100%', outline: 'none' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 4 }}>
+                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Message</label>
+                <textarea
+                  className="input"
+                  value={broadcastMsg}
+                  onChange={e => setBroadcastMsg(e.target.value)}
+                  placeholder="Enter correction details..."
+                  style={{ minHeight: 50, fontSize: 11, padding: '6px', border: '1.5px solid #111111', width: '100%', outline: 'none', resize: 'vertical' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-danger btn-sm"
+                style={{ fontSize: 10, fontWeight: 'bold', border: '2px solid #111111', boxShadow: '2px 2px 0 0 #111111', textTransform: 'uppercase', width: '100%', cursor: 'pointer', padding: '6px' }}
+                disabled={sendingBroadcast}
+              >
+                {sendingBroadcast ? 'Sending...' : 'Publish Announcement'}
+              </button>
+            </form>
+          </div>
+
+          {/* Broadcast Acknowledgment status card */}
+          <div style={{ border: '2px solid #111111', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 12 }}>
+              Targeted Acknowledgment Tracker
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 180, overflowY: 'auto' }} className="custom-scrollbar">
+              {broadcasts.filter(b => b.classroom_id).length === 0 ? (
+                <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--np-n500)' }}>
+                  No targeted broadcasts sent yet.
+                </div>
+              ) : (
+                broadcasts.filter(b => b.classroom_id).map(b => {
+                  const targetRoom = activeClassrooms.find(c => String(c.classroomId) === String(b.classroom_id));
+                  const isAcked = acknowledgments[`${b.id}_${b.classroom_id}`];
+                  
+                  return (
+                    <div key={b.id} style={{ fontSize: 11, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong style={{ fontFamily: 'var(--font-sans)', color: '#111111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                          {b.title}
+                        </strong>
+                        {isAcked ? (
+                          <span style={{ color: '#166534', fontWeight: 'bold', fontSize: 9, display: 'flex', alignItems: 'center', gap: 2 }}>
+                            🟢 ACK
+                          </span>
+                        ) : (
+                          <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: 9, display: 'flex', alignItems: 'center', gap: 2 }}>
+                            🔴 UNACK
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--np-n500)', marginTop: 2, display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Room: {targetRoom ? targetRoom.roomNo : 'Room ' + b.classroom_id}</span>
+                        <span>{new Date(b.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
           {lastRefresh && (

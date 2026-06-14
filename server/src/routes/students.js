@@ -106,6 +106,12 @@ router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
   if (!name || !prn || !roll_no || !branch || !year || !semester)
     return res.status(400).json({ error: 'name, prn, roll_no, branch, year, semester are required' });
+
+  const fieldsToCheck = [name, prn, roll_no, branch, section, year];
+  if (fieldsToCheck.some(val => val && /^[=+\-@\t\r]/.test(String(val)))) {
+    return res.status(400).json({ error: 'Input fields cannot start with =, +, -, @ to prevent formula injection.' });
+  }
+
   const id = crypto.randomUUID();
   await db.prepare(`
     INSERT INTO students (id, name, prn, roll_no, branch, section, year, semester)
@@ -149,6 +155,11 @@ router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req
 router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (req) => req.params.id, (req, data) => `Updated student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
+  const fieldsToCheck = [name, prn, roll_no, branch, section, year];
+  if (fieldsToCheck.some(val => val && /^[=+\-@\t\r]/.test(String(val)))) {
+    return res.status(400).json({ error: 'Input fields cannot start with =, +, -, @ to prevent formula injection.' });
+  }
+
   await db.prepare(`
     UPDATE students
     SET name=?, prn=?, roll_no=?, branch=?, section=?, year=?, semester=?, updated_at=datetime('now')
@@ -193,6 +204,10 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
     transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, '_'),
   });
 
+  if (data.length > 5000) {
+    return res.status(400).json({ error: 'Bulk student import limit exceeded (maximum 5000 rows allowed).' });
+  }
+
   const db = getDb();
   const inserted = [];
   const failed = [];
@@ -208,6 +223,21 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
         const required = ['name', 'prn', 'roll_no', 'branch', 'year', 'semester'];
         const missing = required.filter(f => !row[f]);
         if (missing.length) { failed.push({ row, reason: `Missing: ${missing.join(', ')}` }); continue; }
+
+        // Prevent formula / CSV injection
+        let hasFormula = false;
+        for (const key of required) {
+          const val = String(row[key] || '');
+          if (/^[=+\-@\t\r]/.test(val)) {
+            hasFormula = true;
+            break;
+          }
+        }
+        if (hasFormula) {
+          failed.push({ row, reason: 'CSV injection threat detected: values cannot start with =, +, -, @' });
+          continue;
+        }
+
         const validYears = ['FY', 'SY', 'TY', 'LY'];
         if (!validYears.includes(row.year?.toUpperCase())) {
           failed.push({ row, reason: 'year must be FY/SY/TY/LY' }); continue;

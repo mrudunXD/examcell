@@ -220,13 +220,13 @@ router.put('/reassign', requireCoordinator, auditLog('REASSIGN_SUPERVISOR', 'sup
   `).get(new_faculty_id, slot.date, slot.start_time, duty_id);
   if (busy) return res.status(400).json({ error: `${faculty.name} is already assigned to Room ${busy.room_no} at this slot (${slot.date} ${slot.start_time}).` });
 
-  if (version !== undefined) {
-    const result = await db.prepare('UPDATE supervisor_duties SET faculty_id=?, version = version + 1 WHERE id=? AND version=?').run(new_faculty_id, duty_id, parseInt(version));
-    if (result.changes === 0) {
-      return res.status(409).json({ error: 'Conflict: Supervisor duty assignment was modified by another coordinator. Please refresh.' });
-    }
-  } else {
-    await db.prepare('UPDATE supervisor_duties SET faculty_id=? WHERE id=?').run(new_faculty_id, duty_id);
+  if (version === undefined) {
+    return res.status(400).json({ error: 'version is required for optimistic concurrency control.' });
+  }
+
+  const result = await db.prepare('UPDATE supervisor_duties SET faculty_id=?, version = version + 1 WHERE id=? AND version=?').run(new_faculty_id, duty_id, parseInt(version));
+  if (result.changes === 0) {
+    return res.status(409).json({ error: 'Conflict: Supervisor duty assignment was modified by another coordinator. Please refresh.' });
   }
   res.json({ success: true });
 }));

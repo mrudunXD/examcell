@@ -55,11 +55,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", "ws://localhost:5000", "http://localhost:5000", "ws://localhost:5173"]
+      connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"]
     }
   }
 }));
@@ -89,7 +89,7 @@ initDb();
 // Middleware
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(morgan('dev'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // NOTE: /exports static directory removed (C6) — PDFs are streamed directly, never served statically.

@@ -482,6 +482,9 @@ export default function ExamCyclesPage() {
                     <Link to={`/calendar/${cycle.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
                       <CalendarDays size={11} strokeWidth={1.5} /> Calendar
                     </Link>
+                    <Link to={`/planner/${cycle.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>
+                      Interactive Planner
+                    </Link>
                     <Link to={`/conflicts/${cycle.id}`} className="btn btn-warning btn-sm" style={{ fontSize: 10 }}>Conflicts</Link>
                     <Link to={`/export/${cycle.id}`} className="btn btn-success btn-sm" style={{ fontSize: 10 }}>Export</Link>
                     {isCoord && <>

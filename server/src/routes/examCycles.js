@@ -228,8 +228,15 @@ const runSolver = (inputData) => {
   });
 };
 
+const activeScheduling = new Set();
+
 router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Auto-scheduled ${data?.created || 0} exam slots for cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
-  const db = getDb();
+  if (activeScheduling.has(req.params.id)) {
+    return res.status(409).json({ error: 'Auto-scheduling already in progress for this cycle.' });
+  }
+  activeScheduling.add(req.params.id);
+  try {
+    const db = getDb();
   const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
@@ -459,6 +466,9 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
       console.error('⚠️ Failed to save error solver telemetry:', telemetryErr.message);
     }
     res.status(500).json({ error: 'An internal error occurred while running the scheduler.' });
+  }
+  } finally {
+    activeScheduling.delete(req.params.id);
   }
 }));
 

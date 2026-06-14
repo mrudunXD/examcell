@@ -23,6 +23,7 @@ import HeatmapPage from './pages/HeatmapPage.jsx';
 import KioskPage from './pages/KioskPage.jsx';
 import SystemHealthPage from './pages/SystemHealthPage.jsx';
 import HistoricalAnalyticsPage from './pages/HistoricalAnalyticsPage.jsx';
+import PlannerPage from './pages/PlannerPage.jsx';
 
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="attendance/:slotId"  element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
           <Route path="conflicts/:cycleId"  element={<ProtectedRoute role="coordinator"><ConflictsPage /></ProtectedRoute>} />
           <Route path="calendar/:cycleId"   element={<ProtectedRoute role="coordinator"><CalendarPage /></ProtectedRoute>} />
+          <Route path="planner/:cycleId"    element={<ProtectedRoute role="coordinator"><PlannerPage /></ProtectedRoute>} />
           <Route path="export/:cycleId"     element={<ProtectedRoute role="coordinator"><ExportPage /></ProtectedRoute>} />
           <Route path="audit"   element={<ProtectedRoute role="coordinator"><AuditPage /></ProtectedRoute>} />
           <Route path="search"  element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />

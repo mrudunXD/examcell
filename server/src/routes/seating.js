@@ -8,6 +8,8 @@ import { generateSeating } from '../services/seatingEngine.js';
 const router = Router();
 router.use(authenticate);
 
+const activeGenerations = new Set();
+
 // GET seating for a slot — coordinator only (H7: prevents faculty reading seating before official release)
 router.get('/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
   const db = getDb();
@@ -42,60 +44,68 @@ router.get('/:slotId', requireCoordinator, asyncHandler(async (req, res) => {
 
 // POST generate seating for a slot
 router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SEATING', 'seating', (req) => req.params.slotId, (req, data) => `Generated seating for ${data?.assigned || 0} students for slot ID: ${req.params.slotId}`), asyncHandler(async (req, res) => {
-  const db = getDb();
+  if (activeGenerations.has(req.params.slotId)) {
+    return res.status(409).json({ error: 'Seating generation already in progress for this slot.' });
+  }
+  activeGenerations.add(req.params.slotId);
+  try {
+    const db = getDb();
 
-  const slot = await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
-  if (!slot) return res.status(404).json({ error: 'Slot not found' });
+    const slot = await db.prepare('SELECT * FROM exam_slots WHERE id=?').get(req.params.slotId);
+    if (!slot) return res.status(404).json({ error: 'Slot not found' });
 
-  // Get students for this slot
-  const students = await db.prepare(`
-    SELECT st.* FROM students st
-    JOIN slot_students ss ON ss.student_id = st.id
-    WHERE ss.slot_id = ?
-  `).all(req.params.slotId);
+    // Get students for this slot
+    const students = await db.prepare(`
+      SELECT st.* FROM students st
+      JOIN slot_students ss ON ss.student_id = st.id
+      WHERE ss.slot_id = ?
+    `).all(req.params.slotId);
 
-  // Get rooms for this slot
-  const rooms = await db.prepare(`
-    SELECT ra.id, ra.classroom_id, c.room_no, c.block, c.capacity, c.bench_rows, c.bench_cols
-    FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
-    WHERE ra.slot_id = ?
-    ORDER BY c.room_no
-  `).all(req.params.slotId);
+    // Get rooms for this slot
+    const rooms = await db.prepare(`
+      SELECT ra.id, ra.classroom_id, c.room_no, c.block, c.capacity, c.bench_rows, c.bench_cols
+      FROM room_allocations ra JOIN classrooms c ON c.id = ra.classroom_id
+      WHERE ra.slot_id = ?
+      ORDER BY c.room_no
+    `).all(req.params.slotId);
 
-  if (!students.length) return res.status(400).json({ error: 'No students assigned to this slot' });
-  if (!rooms.length) return res.status(400).json({ error: 'No rooms allocated to this slot' });
+    if (!students.length) return res.status(400).json({ error: 'No students assigned to this slot' });
+    if (!rooms.length) return res.status(400).json({ error: 'No rooms allocated to this slot' });
 
-  const { assignments, conflicts } = generateSeating(students, rooms);
+    const { assignments, conflicts } = generateSeating(students, rooms);
 
-  // Save assignments (replace existing)
-  const saveSeating = await db.transaction(async () => {
-    // Delete existing assignments for these rooms
-    const raIds = rooms.map(r => r.id);
-    for (const raId of raIds) {
-      await db.prepare('DELETE FROM seat_assignments WHERE room_allocation_id=?').run(raId);
-    }
-    // Delete old conflicts for this slot
-    await db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('CAPACITY_OVERFLOW','BRANCH_MIXING_FAILED','INSUFFICIENT_ROOM_CAPACITY','NO_STUDENTS','NO_ROOMS')").run(req.params.slotId);
+    // Save assignments (replace existing)
+    const saveSeating = await db.transaction(async () => {
+      // Delete existing assignments for these rooms
+      const raIds = rooms.map(r => r.id);
+      for (const raId of raIds) {
+        await db.prepare('DELETE FROM seat_assignments WHERE room_allocation_id=?').run(raId);
+      }
+      // Delete old conflicts for this slot
+      await db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('CAPACITY_OVERFLOW','BRANCH_MIXING_FAILED','INSUFFICIENT_ROOM_CAPACITY','NO_STUDENTS','NO_ROOMS')").run(req.params.slotId);
 
-    // Insert new assignments
-    const stmt = await db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
-    for (const a of assignments) {
-      await stmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
-    }
+      // Insert new assignments
+      const stmt = await db.prepare('INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col) VALUES (?, ?, ?, ?, ?)');
+      for (const a of assignments) {
+        await stmt.run(crypto.randomUUID(), a.student_id, a.room_allocation_id, a.bench_row, a.bench_col);
+      }
 
-    // Insert conflicts
-    const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    for (const c of conflicts) {
-      await cStmt.run(crypto.randomUUID(), req.params.slotId, slot.cycle_id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
-    }
+      // Insert conflicts
+      const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, affected_entities, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      for (const c of conflicts) {
+        await cStmt.run(crypto.randomUUID(), req.params.slotId, slot.cycle_id, c.type, c.description, c.affected_entities || null, c.suggested_resolution || null);
+      }
 
-    // Update slot status
-    await db.prepare("UPDATE exam_slots SET status='seating_generated' WHERE id=?").run(req.params.slotId);
-  });
+      // Update slot status
+      await db.prepare("UPDATE exam_slots SET status='seating_generated' WHERE id=?").run(req.params.slotId);
+    });
 
-  await saveSeating();
+    await saveSeating();
 
-  res.json({ assigned: assignments.length, conflicts, message: `Seating generated for ${assignments.length} students across ${rooms.length} room(s).` });
+    res.json({ assigned: assignments.length, conflicts, message: `Seating generated for ${assignments.length} students across ${rooms.length} room(s).` });
+  } finally {
+    activeGenerations.delete(req.params.slotId);
+  }
 }));
 
 // PUT change a single seat
@@ -106,26 +116,19 @@ router.put('/change-seat', requireCoordinator, auditLog('CHANGE_SEAT', 'seating'
   const assignment = await db.prepare('SELECT * FROM seat_assignments WHERE id=?').get(assignment_id);
   if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
 
-  // Check if seat is occupied
-  const occupied = await db.prepare(`
-    SELECT s.name
-    FROM seat_assignments sa
-    JOIN students s ON s.id = sa.student_id
-    WHERE sa.room_allocation_id = ? AND sa.bench_row = ? AND sa.bench_col = ? AND sa.id != ?
-  `).get(assignment.room_allocation_id, bench_row, bench_col, assignment_id);
-
-  if (occupied) {
-    return res.status(400).json({ error: `Seat Row ${bench_row}, Col ${bench_col} is already occupied by ${occupied.name}.` });
+  if (assignment.is_approved === 1) {
+    return res.status(400).json({ error: 'Cannot modify seating: seating plan is finalized. Please unlock it first.' });
   }
 
-  if (version !== undefined) {
-    const result = await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, version = version + 1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND version=?").run(bench_row, bench_col, assignment_id, parseInt(version));
-    if (result.changes === 0) {
-      return res.status(409).json({ error: 'Conflict: Seating assignment was modified by another coordinator. Please refresh.' });
-    }
-  } else {
-    await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(bench_row, bench_col, assignment_id);
+  if (version === undefined) {
+    return res.status(400).json({ error: 'version is required for optimistic concurrency control.' });
   }
+
+  const result = await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, version = version + 1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND version=?").run(bench_row, bench_col, assignment_id, parseInt(version));
+  if (result.changes === 0) {
+    return res.status(409).json({ error: 'Conflict: Seating assignment was modified by another coordinator. Please refresh.' });
+  }
+
   res.json({ success: true });
 }));
 
@@ -138,20 +141,22 @@ router.put('/swap', requireCoordinator, auditLog('SWAP_SEATING', 'seating', (req
   const a2 = await db.prepare('SELECT * FROM seat_assignments WHERE id=?').get(assignment_id_2);
   if (!a1 || !a2) return res.status(404).json({ error: 'Assignment not found' });
 
+  if (a1.is_approved === 1 || a2.is_approved === 1) {
+    return res.status(400).json({ error: 'Cannot modify seating: seating plan is finalized. Please unlock it first.' });
+  }
+
+  if (version_1 === undefined || version_2 === undefined) {
+    return res.status(400).json({ error: 'version_1 and version_2 are required for optimistic concurrency control.' });
+  }
+
   const swap = await db.transaction(async () => {
-    if (version_1 !== undefined && version_2 !== undefined) {
-      const res1 = await db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=? AND version=?").run(a1.id, parseInt(version_1));
-      if (res1.changes === 0) throw new Error('409: Seating assignment 1 modified by another user.');
-      
-      const res2 = await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=?, version = version + 1 WHERE id=? AND version=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id, parseInt(version_2));
-      if (res2.changes === 0) throw new Error('409: Seating assignment 2 modified by another user.');
-      
-      await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=?, version = version + 1 WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
-    } else {
-      await db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=?").run(a1.id);
-      await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id);
-      await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=? WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
-    }
+    const res1 = await db.prepare("UPDATE seat_assignments SET bench_row=-1, bench_col=-1 WHERE id=? AND version=?").run(a1.id, parseInt(version_1));
+    if (res1.changes === 0) throw new Error('409: Seating assignment 1 modified by another user.');
+    
+    const res2 = await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=?, version = version + 1 WHERE id=? AND version=?").run(a1.room_allocation_id, a1.bench_row, a1.bench_col, a2.id, parseInt(version_2));
+    if (res2.changes === 0) throw new Error('409: Seating assignment 2 modified by another user.');
+    
+    await db.prepare("UPDATE seat_assignments SET room_allocation_id=?, bench_row=?, bench_col=?, version = version + 1 WHERE id=?").run(a2.room_allocation_id, a2.bench_row, a2.bench_col, a1.id);
   });
 
   try {

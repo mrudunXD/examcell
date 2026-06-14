@@ -88,6 +88,9 @@ router.post('/:slotId', verifyAttendanceAccess, auditLog('SAVE_ATTENDANCE', 'att
   if (!Array.isArray(records) || !records.length) {
     return res.status(400).json({ error: 'records array required' });
   }
+  if (records.length > 1000) {
+    return res.status(400).json({ error: 'Bulk attendance update limit exceeded (maximum 1000 records allowed per request).' });
+  }
 
   // Prepare outside transaction (required by better-sqlite3)
   const stmt = db.prepare(`

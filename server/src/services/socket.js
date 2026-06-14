@@ -14,20 +14,47 @@ export function initSocket(server) {
     }
   });
 
-  // Verify JWT token during WebSocket handshake
+  const ipConnections = new Map();
+
+  // Verify JWT token and apply IP connection limiting during WebSocket handshake
   ioInstance.use((socket, next) => {
-    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    const ip = socket.handshake.address;
+    const currentCount = ipConnections.get(ip) || 0;
+    if (currentCount >= 10) {
+      return next(new Error('Too many connections from this IP.'));
+    }
+    ipConnections.set(ip, currentCount + 1);
+
+    socket.on('disconnect', () => {
+      const count = ipConnections.get(ip) || 1;
+      if (count <= 1) {
+        ipConnections.delete(ip);
+      } else {
+        ipConnections.set(ip, count - 1);
+      }
+    });
+
+    let token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (!token && socket.handshake.headers.cookie) {
+      const cookies = {};
+      socket.handshake.headers.cookie.split(';').forEach(c => {
+        const parts = c.split('=');
+        cookies[parts.shift().trim()] = decodeURIComponent(parts.join('='));
+      });
+      token = cookies.token;
+    }
+
     if (!token) {
-      // Allow unauthenticated connections (like public kiosks) but without user context
       return next();
     }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      // C10: Never fall back to a hardcoded secret — reject the connection
       return next(new Error('Server misconfiguration: JWT_SECRET not set'));
     }
+
     try {
-      const decoded = jwt.verify(token, secret);
+      const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
       socket.user = decoded;
       next();
     } catch (err) {
@@ -38,6 +65,26 @@ export function initSocket(server) {
   ioInstance.on('connection', (socket) => {
     console.log(`📡 WebSocket Client Connected: ${socket.id}`);
     activeSessions.add(socket.id);
+
+    // Message rate limiter per socket connection
+    let messageCount = 0;
+    const rateLimitWindowMs = 60 * 1000;
+    const maxMessagesPerWindow = 60;
+    let windowStart = Date.now();
+
+    socket.use(([event, ...args], next) => {
+      const now = Date.now();
+      if (now - windowStart > rateLimitWindowMs) {
+        windowStart = now;
+        messageCount = 0;
+      }
+      messageCount++;
+      if (messageCount > maxMessagesPerWindow) {
+        console.warn(`⚠️ WebSocket Rate Limit exceeded for client ${socket.id}`);
+        return next(new Error('Rate limit exceeded.'));
+      }
+      next();
+    });
 
     // Kiosk registers its room information
     socket.on('register_kiosk', (data) => {
@@ -56,6 +103,24 @@ export function initSocket(server) {
     socket.on('kiosk_ping', () => {
       if (activeKiosks.has(socket.id)) {
         activeKiosks.get(socket.id).lastPing = Date.now();
+      }
+    });
+
+    socket.on('kiosk_acknowledge', async (data) => {
+      const { broadcastId, classroomId, userId } = data;
+      console.log(`📺 Kiosk Acknowledged: Broadcast ${broadcastId} in Room ${classroomId} by user ${userId}`);
+      try {
+        const { getDb } = await import('../db/database.js');
+        const db = getDb();
+        await db.prepare(`
+          INSERT INTO broadcast_acknowledgments (broadcast_id, classroom_id, acknowledged_by)
+          VALUES (?, ?, ?)
+          ON CONFLICT (broadcast_id, classroom_id) DO NOTHING
+        `).run(broadcastId, classroomId, userId || null);
+
+        ioInstance.emit('BROADCAST_ACKNOWLEDGED', { broadcastId, classroomId, acknowledgedAt: new Date().toISOString() });
+      } catch (err) {
+        console.error('Failed to save kiosk acknowledgment:', err.message);
       }
     });
 
@@ -98,6 +163,19 @@ export function broadcastUpdate(event, payload) {
   if (ioInstance) {
     console.log(`📣 Broadcasting WebSocket Event: ${event}`, payload);
     ioInstance.emit(event, payload);
+  } else {
+    console.warn('⚠️ Cannot broadcast; Socket.io is not initialized.');
+  }
+}
+
+export function broadcastTargetedUpdate(classroomId, event, payload) {
+  if (ioInstance) {
+    console.log(`📣 Broadcasting Targeted Event to Room ${classroomId}: ${event}`, payload);
+    for (const [socketId, info] of activeKiosks.entries()) {
+      if (String(info.classroomId) === String(classroomId)) {
+        ioInstance.to(socketId).emit(event, payload);
+      }
+    }
   } else {
     console.warn('⚠️ Cannot broadcast; Socket.io is not initialized.');
   }

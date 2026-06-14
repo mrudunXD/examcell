@@ -34,9 +34,11 @@ export function getSlowQueryLog() {
 
 dotenv.config();
 
-const pgPassword = (!process.env.PGPASSWORD || process.env.PGPASSWORD === 'REPLACE_WITH_STRONG_DB_PASSWORD')
-  ? '1234'
-  : process.env.PGPASSWORD;
+const pgPassword = process.env.PGPASSWORD;
+if (!pgPassword || pgPassword === 'REPLACE_WITH_STRONG_DB_PASSWORD') {
+  console.error('FATAL: PGPASSWORD environment variable must be set to a strong password.');
+  process.exit(1);
+}
 
 const pool = new pg.Pool({
   host: process.env.PGHOST || 'localhost',
@@ -129,6 +131,9 @@ class PgDatabase {
         role TEXT NOT NULL CHECK(role IN ('coordinator', 'faculty')),
         department TEXT,
         is_active INTEGER DEFAULT 1,
+        must_change_password INTEGER DEFAULT 0,
+        failed_login_attempts INTEGER DEFAULT 0,
+        lockout_until TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -402,7 +407,27 @@ class PgDatabase {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='seat_assignments' AND column_name='version') THEN
           ALTER TABLE seat_assignments ADD COLUMN version INTEGER DEFAULT 1;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='must_change_password') THEN
+          ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='failed_login_attempts') THEN
+          ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='lockout_until') THEN
+          ALTER TABLE users ADD COLUMN lockout_until TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='broadcasts' AND column_name='classroom_id') THEN
+          ALTER TABLE broadcasts ADD COLUMN classroom_id TEXT REFERENCES classrooms(id) ON DELETE SET NULL;
+        END IF;
       END $$;
+
+      CREATE TABLE IF NOT EXISTS broadcast_acknowledgments (
+        broadcast_id TEXT REFERENCES broadcasts(id) ON DELETE CASCADE,
+        classroom_id TEXT REFERENCES classrooms(id) ON DELETE CASCADE,
+        acknowledged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        acknowledged_by TEXT REFERENCES users(id),
+        PRIMARY KEY (broadcast_id, classroom_id)
+      );
     `);
   }
 }
@@ -534,8 +559,8 @@ async function seedInitialData() {
   const coordId = crypto.randomUUID();
 
   await db.prepare(`
-    INSERT INTO users (id, name, email, password_hash, role, department)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, name, email, password_hash, role, department, must_change_password)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
   `).run(coordId, 'Admin Coordinator', 'admin@mitwpu.edu.in', coordHash, 'coordinator', 'Examination Cell');
 
   console.log('✅ Seeded default coordinator: admin@mitwpu.edu.in / admin123');

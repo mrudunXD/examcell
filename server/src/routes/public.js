@@ -2,7 +2,19 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
+import rateLimit from 'express-rate-limit';
+
 const router = Router();
+
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' }
+});
+
+router.use(publicLimiter);
 
 // GET initialization data for Kiosk selector (cycles and classrooms)
 router.get('/kiosk-init', asyncHandler(async (req, res) => {
@@ -77,14 +89,22 @@ router.get('/seating/:roomAllocationId', asyncHandler(async (req, res) => {
 
   const classroom = await db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
   const assignments = await db.prepare(`
-    SELECT sa.bench_row, sa.bench_col, st.prn, st.roll_no, st.branch, st.year
+    SELECT sa.bench_row, sa.bench_col, st.prn, st.branch, st.year
     FROM seat_assignments sa
     JOIN students st ON st.id = sa.student_id
     WHERE sa.room_allocation_id = ?
     ORDER BY sa.bench_row, sa.bench_col
   `).all(req.params.roomAllocationId);
 
-  res.json({ classroom, assignments });
+  const maskedAssignments = assignments.map(a => {
+    let maskedPrn = a.prn;
+    if (a.prn && a.prn.length > 4) {
+      maskedPrn = '*'.repeat(a.prn.length - 4) + a.prn.slice(-4);
+    }
+    return { ...a, prn: maskedPrn };
+  });
+
+  res.json({ classroom, assignments: maskedAssignments });
 }));
 
 // GET /api/public/server-time

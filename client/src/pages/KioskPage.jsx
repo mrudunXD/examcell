@@ -99,6 +99,10 @@ function playChime(type) {
       // Exam ended: low double chime C4 -> G3
       playTone(261.63, 0.35, now);
       playTone(196.00, 0.7, now + 0.35);
+    } else if (type === 'alert') {
+      // Emergency/Targeted broadcast warning chime
+      playTone(587.33, 0.25, now);
+      playTone(880.00, 0.6, now + 0.28);
     }
   } catch (e) {
     console.warn("Failed to play synthesized chime:", e);
@@ -526,6 +530,10 @@ export default function KioskPage() {
   const [seatingData, setSeatingData] = useState(null);
   const [loadingSeating, setLoadingSeating] = useState(false);
 
+  const [currentRoom, setCurrentRoom] = useState(null);
+  const [activeAlert, setActiveAlert] = useState(null);
+  const socketRef = useRef(null);
+
   // WebSocket Connection State
   const [socketConnected, setSocketConnected] = useState(false);
 
@@ -582,6 +590,13 @@ export default function KioskPage() {
       setBroadcasts((data.broadcasts || []).slice(0, 5));
       setIsOffline(false);
 
+      // Extract classroom info
+      const allRooms = (data.slots || []).flatMap(s => s.rooms || []);
+      const matchedRoom = allRooms.find(r => String(r.classroom_id) === String(classroomId));
+      if (matchedRoom) {
+        setCurrentRoom(matchedRoom);
+      }
+
       // Cache data
       localStorage.setItem(
         `kiosk_cache_${cycleId}_${classroomId || ''}`,
@@ -622,10 +637,17 @@ export default function KioskPage() {
       withCredentials: true,
       transports: ['websocket', 'polling']
     });
+    socketRef.current = socket;
 
     socket.on('connect', () => {
       console.log('📡 WebSocket connected successfully');
       setSocketConnected(true);
+      if (classroomId) {
+        socket.emit('register_kiosk', {
+          classroomId,
+          roomNo: currentRoom?.room_no || `Room ${classroomId}`
+        });
+      }
     });
 
     socket.on('disconnect', () => {
@@ -641,6 +663,15 @@ export default function KioskPage() {
     // Listen for events
     socket.on('EMERGENCY_BROADCAST', (broadcast) => {
       console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
+      
+      const isTargeted = classroomId && String(broadcast.classroom_id) === String(classroomId);
+      const isGlobalUrgent = !broadcast.classroom_id && (broadcast.priority === 'urgent' || broadcast.priority === 'critical');
+      
+      if (isTargeted || isGlobalUrgent) {
+        setActiveAlert(broadcast);
+        playChime('alert');
+      }
+
       loadData();
     });
 
@@ -653,8 +684,19 @@ export default function KioskPage() {
 
     return () => {
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [cycleId, loadData]);
+  }, [cycleId, classroomId, currentRoom, loadData]);
+
+  // Sync kiosk registration when room info resolves
+  useEffect(() => {
+    if (socketConnected && socketRef.current && classroomId) {
+      socketRef.current.emit('register_kiosk', {
+        classroomId,
+        roomNo: currentRoom?.room_no || `Room ${classroomId}`
+      });
+    }
+  }, [socketConnected, currentRoom, classroomId]);
 
   // Sync theme selection
   useEffect(() => {
@@ -1445,8 +1487,126 @@ export default function KioskPage() {
         </div>
       )}
 
+      {/* Target Emergency Alert Overlay */}
+      {activeAlert && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0, 0, 0, 0.95)',
+          boxSizing: 'border-box',
+          padding: '40px',
+        }}>
+          <div style={{
+            background: '#F9F9F7',
+            border: '24px solid #CC0000',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxSizing: 'border-box',
+            padding: '40px',
+            animation: 'pulse-border 1.5s infinite alternate',
+            color: '#111111',
+            textAlign: 'center',
+          }}>
+            <span style={{ 
+              fontSize: '24px', 
+              fontWeight: 900, 
+              letterSpacing: '0.2em', 
+              color: '#CC0000', 
+              textTransform: 'uppercase', 
+              fontFamily: 'var(--font-mono)',
+              marginBottom: 20
+            }}>
+              🚨 EMERGENCY BROADCAST ALERT 🚨
+            </span>
+
+            <h1 style={{ 
+              fontSize: '42px', 
+              fontWeight: '900', 
+              lineHeight: 1.2, 
+              color: '#111111', 
+              fontFamily: 'var(--font-serif)',
+              margin: '20px 0',
+              textTransform: 'uppercase'
+            }}>
+              {activeAlert.title}
+            </h1>
+
+            <div style={{ 
+              fontSize: '48px', 
+              fontWeight: 'bold', 
+              lineHeight: 1.3,
+              fontFamily: 'var(--font-body)',
+              color: '#111111',
+              maxWidth: '85%',
+              margin: '30px auto',
+              wordBreak: 'break-word',
+              background: '#E5E5E0',
+              padding: '24px 36px',
+              border: '4px solid #111111',
+              boxShadow: '8px 8px 0 0 #111111',
+            }}>
+              {activeAlert.message}
+            </div>
+
+            <button 
+              onClick={async () => {
+                if (socketRef.current) {
+                  socketRef.current.emit('kiosk_acknowledge', {
+                    broadcastId: activeAlert.id,
+                    classroomId: classroomId,
+                    userId: null
+                  });
+                }
+                try {
+                  await api.post(`/broadcasts/${activeAlert.id}/acknowledge`, { classroom_id: classroomId });
+                } catch (err) {
+                  console.error('REST acknowledge failed:', err);
+                }
+                setActiveAlert(null);
+              }}
+              style={{
+                background: '#166534',
+                color: '#ffffff',
+                border: '4px solid #111111',
+                padding: '24px 48px',
+                fontSize: '28px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                textTransform: 'uppercase',
+                boxShadow: '6px 6px 0 0 #111111',
+                marginTop: '30px',
+                transition: 'transform 0.1s, box-shadow 0.1s',
+              }}
+              onMouseDown={e => {
+                e.currentTarget.style.transform = 'translate(2px, 2px)';
+                e.currentTarget.style.boxShadow = '2px 2px 0 0 #111111';
+              }}
+              onMouseUp={e => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '6px 6px 0 0 #111111';
+              }}
+            >
+              Confirm Acknowledgment
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Styles */}
       <style>{`
+        @keyframes pulse-border {
+          0% { border-color: #CC0000; }
+          100% { border-color: #800000; }
+        }
         @keyframes pulse { 
           0%, 100% { opacity: 1; transform: scale(1); } 
           50% { opacity: 0.4; transform: scale(1.02); } 

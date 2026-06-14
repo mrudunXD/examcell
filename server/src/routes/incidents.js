@@ -47,6 +47,16 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(await db.prepare(query).all(...params));
 }));
 
+function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // POST report a new incident
 router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.id, (req, data) => `Reported incident ${data?.type} (severity: ${data?.severity}) for slot ID: ${data?.slot_id}`), asyncHandler(async (req, res) => {
   const db = getDb();
@@ -69,11 +79,15 @@ router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.i
     if (!validImage) return res.status(400).json({ error: 'evidence_image must be a valid base64-encoded JPEG, PNG, or WebP image (max 2MB).' });
   }
 
+  const cleanDescription = escapeHtml(description.trim());
+  const cleanActionTaken = action_taken ? escapeHtml(action_taken.trim()) : null;
+  const cleanStudentPrn = student_prn ? escapeHtml(student_prn.trim()) : null;
+
   const id = crypto.randomUUID();
   await db.prepare(`
     INSERT INTO incidents (id, slot_id, room_allocation_id, reported_by, type, description, student_prn, action_taken, severity, evidence_image)
     VALUES (?,?,?,?,?,?,?,?,?,?)
-  `).run(id, slot_id, room_allocation_id || null, req.user.id, type, description, student_prn || null, action_taken || null, severity || 'low', evidence_image || null);
+  `).run(id, slot_id, room_allocation_id || null, req.user.id, type, cleanDescription, cleanStudentPrn, cleanActionTaken, severity || 'low', evidence_image || null);
 
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(id);
   broadcastUpdate('INCIDENT_REPORTED', incident);
@@ -84,6 +98,7 @@ router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.i
 router.patch('/:id', requireCoordinator, auditLog('RESOLVE_INCIDENT', 'incidents', (req) => req.params.id, (req, data) => `Updated incident ID: ${req.params.id} (status: ${data?.status})`), asyncHandler(async (req, res) => {
   const db = getDb();
   const { status, action_taken } = req.body;
+  const cleanActionTaken = action_taken ? escapeHtml(action_taken.trim()) : null;
   const now = new Date().toISOString();
   await db.prepare(`
     UPDATE incidents SET 
@@ -91,7 +106,7 @@ router.patch('/:id', requireCoordinator, auditLog('RESOLVE_INCIDENT', 'incidents
       action_taken = COALESCE(?, action_taken),
       resolved_at = CASE WHEN ? = 'resolved' THEN ?::text ELSE resolved_at END
     WHERE id = ?
-  `).run(status, action_taken, status, now, req.params.id);
+  `).run(status, cleanActionTaken, status, now, req.params.id);
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(req.params.id);
   broadcastUpdate('INCIDENT_UPDATED', incident);
   res.json(incident);
