@@ -456,8 +456,8 @@ function DutyCalendar({ duties, onSelectDuty }) {
                   ? (dayDuties.some(d => d.role === 'primary') ? 'rgba(17, 17, 17, 0.05)' : 'rgba(163, 163, 163, 0.1)') 
                   : (isToday ? 'rgba(59, 130, 246, 0.08)' : 'transparent'),
                 border: hasDuties 
-                  ? `1.5px solid ${dayDuties.some(d => d.role === 'primary') ? '#111' : '#a3a3a3'}` 
-                  : (isToday ? '1.5px solid #3b82f6' : '1px solid #E5E5E0'),
+                  ? `1.5px solid ${dayDuties.some(d => d.role === 'primary') ? '#111' : '#767680'}` 
+                  : (isToday ? '1.5px solid #3b82f6' : '1px solid #222225'),
                 position: 'relative',
                 cursor: hasDuties ? 'pointer' : 'default',
                 transition: 'all 0.2s',
@@ -1690,3 +1690,9 @@ export default function FacultyDutyPage() {
     </div>
   );
 }
+
+
+
+
+
+

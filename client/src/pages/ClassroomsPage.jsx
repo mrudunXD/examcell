@@ -72,7 +72,7 @@ function RoomModal({ room, onClose, onSave }) {
                 <span style={{ marginLeft: 8, color: '#92400e' }}> — differs from capacity field</span>}
             </div>
           )}
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (room?.id ? 'Update' : 'Add Room')}
@@ -166,7 +166,7 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
           {/* Floor header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 16px', background: '#111111', color: '#F9F9F7',
+            padding: '10px 16px', background: '#F5F5F7', color: '#0C0C0E',
           }}>
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 700 }}>{floor}</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
@@ -178,12 +178,12 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', border: 'none' }}>
             {floorRooms.sort((a, b) => String(a.room_no).localeCompare(String(b.room_no))).map((r, i) => (
               <div key={r.id} style={{
-                borderRight: '1px solid #E5E5E0',
-                borderBottom: '1px solid #E5E5E0',
+                borderRight: '1px solid #222225',
+                borderBottom: '1px solid #222225',
                 padding: '16px 14px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, lineHeight: 1, color: '#111111' }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, lineHeight: 1, color: '#F5F5F7' }}>
                     {r.room_no}
                   </div>
                   {!!r.is_online && (
@@ -200,7 +200,7 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
                     </span>
                   )}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#737373', marginBottom: 12 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8E8E93', marginBottom: 12 }}>
                   {r.block}
                 </div>
 
@@ -210,8 +210,8 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
                     { label: 'Layout', val: `${r.bench_rows}×${r.bench_cols}` },
                   ].map(({ label, val }) => (
                     <div key={label}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#A3A3A3' }}>{label}</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#111111', marginTop: 2 }}>{val}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#767680' }}>{label}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#F5F5F7', marginTop: 2 }}>{val}</div>
                     </div>
                   ))}
                 </div>
@@ -223,7 +223,7 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
                   gap: 2, marginBottom: 12, opacity: 0.4,
                 }}>
                   {Array.from({ length: Math.min(r.bench_rows * r.bench_cols, 24) }).map((_, j) => (
-                    <div key={j} style={{ height: 4, background: '#111111' }} />
+                    <div key={j} style={{ height: 4, background: '#F5F5F7' }} />
                   ))}
                 </div>
 
@@ -245,3 +245,9 @@ function FloorGroupedRooms({ rooms, isCoord, onEdit, onDel }) {
     </div>
   );
 }
+
+
+
+
+
+

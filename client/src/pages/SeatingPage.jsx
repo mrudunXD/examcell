@@ -48,7 +48,7 @@ function BenchSeat({
           alignItems: 'center', 
           justifyContent: 'center',
           background: isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : 'transparent',
-          border: isDraggedOver ? '2px dashed #166534' : '1px solid #E5E5E0',
+          border: isDraggedOver ? '2px dashed #166534' : '1px solid #222225',
           transition: 'all 0.15s'
         }}
         onDragOver={handleDragOverLocal}
@@ -69,8 +69,8 @@ function BenchSeat({
       onDrop={handleDropLocal}
       onDragEnd={onDragEnd}
       style={{
-        background: isSource ? '#111111' : isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : 'var(--np-bg)',
-        borderColor: isSource ? '#111111' : isDraggedOver ? '#166534' : '#E5E5E0',
+        background: isSource ? '#F5F5F7' : isDraggedOver ? 'rgba(22, 101, 52, 0.15)' : 'var(--np-bg)',
+        borderColor: isSource ? '#F5F5F7' : isDraggedOver ? '#166534' : '#222225',
         borderStyle: isDraggedOver ? 'dashed' : 'solid',
         borderWidth: isDraggedOver ? '2px' : '1px',
         cursor: isApproved ? 'default' : 'grab',
@@ -79,7 +79,7 @@ function BenchSeat({
       onClick={() => isSwapMode && onSwapSelect(seat)}
       title={`${seat.student_name} · ${seat.prn} · ${seat.roll_no} · ${seat.branch} ${seat.year}`}
     >
-      <div className="seat-name" style={{ color: isSource ? '#F9F9F7' : '#111111' }}>{seat.student_name}</div>
+      <div className="seat-name" style={{ color: isSource ? '#0C0C0E' : '#F5F5F7' }}>{seat.student_name}</div>
       <div className="seat-prn" style={{ color: isSource ? 'rgba(255,255,255,0.5)' : undefined }}>PRN: {seat.prn}</div>
       <div className="seat-roll" style={{ color: isSource ? '#fca5a5' : undefined }}>Roll: {seat.roll_no}</div>
       <div className="seat-branch">
@@ -275,9 +275,9 @@ export default function SeatingPage() {
           <div key={i} style={{
             flex: 1,
             padding: '10px 14px',
-            borderRight: i < 3 ? '1px solid #E5E5E0' : 'none',
+            borderRight: i < 3 ? '1px solid #222225' : 'none',
           }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#A3A3A3' }}>{item.label}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#767680' }}>{item.label}</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: item.color || '#111', textTransform: 'capitalize', marginTop: 2 }}>{item.val}</div>
           </div>
         ))}
@@ -307,8 +307,8 @@ export default function SeatingPage() {
 
       {!hasSeating ? (
         <div className="card" style={{ textAlign: 'center', padding: 64 }}>
-          <div style={{ border: '1px solid #E5E5E0', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
-            <Play size={28} strokeWidth={1} color="#A3A3A3" />
+          <div style={{ border: '1px solid #222225', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
+            <Play size={28} strokeWidth={1} color="#767680" />
           </div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Seating Generated</div>
           <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)', marginBottom: 24, fontSize: 14 }}>
@@ -333,9 +333,9 @@ export default function SeatingPage() {
                   textTransform: 'uppercase',
                   letterSpacing: '0.08em',
                   border: 'none',
-                  borderRight: i < rooms.length - 1 ? '1px solid #E5E5E0' : 'none',
-                  background: selectedRoom === r.room.id ? '#111111' : '#F9F9F7',
-                  color: selectedRoom === r.room.id ? '#F9F9F7' : '#525252',
+                  borderRight: i < rooms.length - 1 ? '1px solid #222225' : 'none',
+                  background: selectedRoom === r.room.id ? '#F5F5F7' : '#0C0C0E',
+                  color: selectedRoom === r.room.id ? '#0C0C0E' : '#A3A3AC',
                   cursor: 'pointer',
                   transition: 'all 0.12s',
                 }}
@@ -349,7 +349,7 @@ export default function SeatingPage() {
             const { grid, rows, cols } = buildGrid(currentRoom.room, currentRoom.assignments);
             return (
               <div className="card" style={{ marginTop: 0, borderTop: '2px solid #111' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid #E5E5E0', paddingBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid #222225', paddingBottom: 12 }}>
                   <div>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>
                       Room {currentRoom.room.room_no}
@@ -376,7 +376,7 @@ export default function SeatingPage() {
                     textTransform: 'uppercase',
                     letterSpacing: '0.12em',
                     color: 'var(--np-n500)',
-                    borderBottom: '2px solid #111111',
+                    borderBottom: '1px solid #222225',
                     paddingBottom: 8,
                     marginBottom: 14,
                   }}>
@@ -448,4 +448,10 @@ export default function SeatingPage() {
     </div>
   );
 }
+
+
+
+
+
+
 

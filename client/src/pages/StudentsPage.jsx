@@ -67,7 +67,7 @@ function StudentModal({ student, onClose, onSave }) {
               </select>
             </div>
           </div>
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 6, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 6, paddingTop: 16, borderTop: '1px solid #222225' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (student?.id ? 'Update Student' : 'Add Student')}
@@ -117,11 +117,11 @@ function CSVImportModal({ onClose, onDone }) {
 
         <div
           onClick={() => fileRef.current.click()}
-          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#111111'; }}
-          onDragLeave={e => e.currentTarget.style.borderColor = '#E5E5E0'}
-          onDrop={e => { e.preventDefault(); setFile(e.dataTransfer.files[0]); e.currentTarget.style.borderColor = '#E5E5E0'; }}
+          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#F5F5F7'; }}
+          onDragLeave={e => e.currentTarget.style.borderColor = '#222225'}
+          onDrop={e => { e.preventDefault(); setFile(e.dataTransfer.files[0]); e.currentTarget.style.borderColor = '#222225'; }}
           style={{
-            border: '2px dashed #E5E5E0',
+            border: '2px dashed #222225',
             padding: 32,
             textAlign: 'center',
             cursor: 'pointer',
@@ -129,7 +129,7 @@ function CSVImportModal({ onClose, onDone }) {
             transition: 'border-color 0.15s',
           }}
         >
-          <Upload size={24} strokeWidth={1.5} color="#A3A3A3" style={{ margin: '0 auto 10px' }} />
+          <Upload size={24} strokeWidth={1.5} color="#767680" style={{ margin: '0 auto 10px' }} />
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--np-n600)' }}>
             {file ? <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{file.name}</strong> : 'Click or drag & drop a CSV file'}
           </p>
@@ -152,7 +152,7 @@ function CSVImportModal({ onClose, onDone }) {
           </div>
         )}
 
-        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
           <button className="btn btn-primary" onClick={handleUpload} disabled={!file || uploading}>
             {uploading ? <><div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> Importing…</> : <><Upload size={13} strokeWidth={1.5} /> Import</>}
@@ -223,10 +223,10 @@ export default function StudentsPage() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px' }}>
-          <Search size={12} strokeWidth={1.5} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#A3A3A3' }} />
+          <Search size={12} strokeWidth={1.5} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#767680' }} />
           <input
             className="input"
-            style={{ paddingLeft: 28, borderBottom: '2px solid #E5E5E0', paddingTop: 7, paddingBottom: 7 }}
+            style={{ paddingLeft: 28, borderBottom: '2px solid #222225', paddingTop: 7, paddingBottom: 7 }}
             placeholder="Search name, PRN, roll no…"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -511,3 +511,9 @@ function Breadcrumb({ crumbs }) {
     </div>
   );
 }
+
+
+
+
+
+

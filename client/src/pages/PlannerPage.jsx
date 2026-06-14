@@ -303,11 +303,11 @@ export default function PlannerPage() {
       <div className="page-header" style={{ paddingBottom: 12, borderBottom: '3px solid #111111', flexShrink: 0 }}>
         <div>
           <div className="flex-row" style={{ gap: 6, marginBottom: 8 }}>
-            <Link to="/exam-cycles" className="btn btn-ghost btn-sm" style={{ border: '2px solid #111111', fontWeight: 'bold' }}>
+            <Link to="/exam-cycles" className="btn btn-ghost btn-sm" style={{ border: '1px solid #222225', fontWeight: 'bold' }}>
               <ArrowLeft size={12} strokeWidth={2} /> Back to Cycles
             </Link>
           </div>
-          <div className="accent-bar" style={{ height: 4, background: '#111111', margin: '4px 0' }} />
+          <div className="accent-bar" style={{ height: 4, background: '#F5F5F7', margin: '4px 0' }} />
           <h1 className="page-title" style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 900, textTransform: 'uppercase' }}>
             Interactive Planner
           </h1>
@@ -331,7 +331,7 @@ export default function PlannerPage() {
           padding: 16,
           overflowY: 'auto'
         }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, borderBottom: '2px solid #111111', paddingBottom: 8, marginBottom: 12 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
             Unscheduled Subjects ({unscheduledSubjects.length})
           </h2>
 
@@ -343,7 +343,7 @@ export default function PlannerPage() {
               placeholder="Search code/name..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              style={{ border: '2px solid #111111', padding: '6px 10px', fontSize: 12 }}
+              style={{ border: '1px solid #222225', padding: '6px 10px', fontSize: 12 }}
             />
             
             <div style={{ display: 'flex', gap: 6 }}>
@@ -351,7 +351,7 @@ export default function PlannerPage() {
                 className="input" 
                 value={branchFilter} 
                 onChange={e => setBranchFilter(e.target.value)}
-                style={{ border: '2px solid #111111', padding: '4px 6px', fontSize: 11, flex: 1 }}
+                style={{ border: '1px solid #222225', padding: '4px 6px', fontSize: 11, flex: 1 }}
               >
                 <option value="">All Branches</option>
                 {uniqueBranches.map(b => <option key={b} value={b}>{b}</option>)}
@@ -361,7 +361,7 @@ export default function PlannerPage() {
                 className="input" 
                 value={yearFilter} 
                 onChange={e => setYearFilter(e.target.value)}
-                style={{ border: '2px solid #111111', padding: '4px 6px', fontSize: 11, flex: 1 }}
+                style={{ border: '1px solid #222225', padding: '4px 6px', fontSize: 11, flex: 1 }}
               >
                 <option value="">All Years</option>
                 {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -372,7 +372,7 @@ export default function PlannerPage() {
           {/* Unscheduled Subjects List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, overflowY: 'auto', paddingRight: 4 }}>
             {unscheduledSubjects.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--np-n500)', fontSize: 12, padding: 24, border: '2px dashed #E5E5E0', fontStyle: 'italic' }}>
+              <div style={{ textAlign: 'center', color: 'var(--np-n500)', fontSize: 12, padding: 24, border: '2px dashed #222225', fontStyle: 'italic' }}>
                 No unscheduled subjects match the filters.
               </div>
             ) : (
@@ -383,7 +383,7 @@ export default function PlannerPage() {
                   onDragStart={(e) => handleDragStart(e, 'subject', sub)}
                   onDragEnd={handleDragEnd}
                   style={{
-                    border: '2px solid #111111',
+                    border: '1px solid #222225',
                     background: '#FFF',
                     padding: 10,
                     cursor: 'grab',
@@ -400,14 +400,14 @@ export default function PlannerPage() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 'bold', background: '#E5E5E0', padding: '2px 6px', border: '1px solid #111111' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 'bold', background: '#222225', padding: '2px 6px', border: '1px solid #111111' }}>
                       {sub.code}
                     </span>
                     <span style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n500)', fontWeight: 600 }}>
                       {sub.branch} &middot; {sub.year} (Sem {sub.semester})
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-sans)', color: '#111111', wordBreak: 'break-word' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-sans)', color: '#F5F5F7', wordBreak: 'break-word' }}>
                     {sub.name}
                   </div>
                 </div>
@@ -419,7 +419,7 @@ export default function PlannerPage() {
         {/* Calendar Timetable Timeline Grid */}
         <div style={{
           flex: 1,
-          background: '#F9F9F7',
+          background: '#0C0C0E',
           padding: 16,
           overflow: 'auto',
           display: 'flex',
@@ -429,7 +429,7 @@ export default function PlannerPage() {
           {draggedItem && hoveredCell && currentCellConflicts.length > 0 && (
             <div style={{
               background: 'rgba(204, 0, 0, 0.1)',
-              border: '3px solid #CC0000',
+              border: '3px solid #FF453A',
               padding: '12px 16px',
               marginBottom: 16,
               display: 'flex',
@@ -437,13 +437,13 @@ export default function PlannerPage() {
               alignItems: 'flex-start',
               animation: 'pulse 1.5s infinite alternate'
             }}>
-              <AlertTriangle size={20} color="#CC0000" style={{ flexShrink: 0, marginTop: 2 }} />
+              <AlertTriangle size={20} color="#FF453A" style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
-                <strong style={{ textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontSize: 11, color: '#CC0000' }}>
+                <strong style={{ textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontSize: 11, color: '#FF453A' }}>
                   Scheduling Conflicts Detected
                 </strong>
                 {currentCellConflicts.map((c, idx) => (
-                  <div key={idx} style={{ fontSize: 12, color: '#111111', marginTop: 4 }}>
+                  <div key={idx} style={{ fontSize: 12, color: '#F5F5F7', marginTop: 4 }}>
                     &bull; {c.description}
                   </div>
                 ))}
@@ -455,12 +455,12 @@ export default function PlannerPage() {
           <div style={{ border: '3px solid #111111', background: '#FFF', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
-                <tr style={{ borderBottom: '3px solid #111111', background: '#E5E5E0' }}>
-                  <th style={{ width: 120, padding: 12, borderRight: '2px solid #111111', textAlign: 'left', fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 900 }}>
+                <tr style={{ borderBottom: '3px solid #111111', background: '#222225' }}>
+                  <th style={{ width: 120, padding: 12, borderRight: '1px solid #222225', textAlign: 'left', fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 900 }}>
                     SHIFT
                   </th>
                   {dates.map(date => (
-                    <th key={date} style={{ padding: 12, borderRight: '2px solid #111111', textAlign: 'center', minWidth: 160 }}>
+                    <th key={date} style={{ padding: 12, borderRight: '1px solid #222225', textAlign: 'center', minWidth: 160 }}>
                       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 900 }}>
                         {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                       </div>
@@ -473,11 +473,11 @@ export default function PlannerPage() {
               </thead>
               <tbody>
                 {SHIFTS.map(shift => (
-                  <tr key={shift.id} style={{ borderBottom: '2px solid #111111' }}>
+                  <tr key={shift.id} style={{ borderBottom: '1px solid #222225' }}>
                     <td style={{
                       padding: 12,
-                      borderRight: '2px solid #111111',
-                      background: '#F5F5F5',
+                      borderRight: '1px solid #222225',
+                      background: '#1C1C1F',
                       verticalAlign: 'top',
                       fontFamily: 'var(--font-sans)',
                       fontWeight: 'bold'
@@ -496,7 +496,7 @@ export default function PlannerPage() {
                       // Calculate border styling for active drag actions
                       let cellStyle = {
                         padding: 12,
-                        borderRight: '2px solid #111111',
+                        borderRight: '1px solid #222225',
                         verticalAlign: 'top',
                         background: '#FFF',
                         minHeight: 120,
@@ -507,7 +507,7 @@ export default function PlannerPage() {
                         if (hasConflicts) {
                           cellStyle.background = 'rgba(204, 0, 0, 0.05)';
                           cellStyle.boxShadow = '0 0 12px rgba(204, 0, 0, 0.4) inset';
-                          cellStyle.border = '2px dashed #CC0000';
+                          cellStyle.border = '2px dashed #FF453A';
                         } else {
                           cellStyle.background = 'rgba(22, 101, 52, 0.05)';
                           cellStyle.boxShadow = '0 0 12px rgba(22, 101, 52, 0.4) inset';
@@ -533,15 +533,15 @@ export default function PlannerPage() {
                                   onDragStart={(e) => handleDragStart(e, 'slot', slot)}
                                   onDragEnd={handleDragEnd}
                                   style={{
-                                    border: '2px solid #111111',
-                                    background: isClashingSource ? 'rgba(204, 0, 0, 0.15)' : '#F9F9F7',
+                                    border: '1px solid #222225',
+                                    background: isClashingSource ? 'rgba(204, 0, 0, 0.15)' : '#0C0C0E',
                                     padding: 8,
                                     cursor: 'grab',
                                     position: 'relative',
                                     boxShadow: isClashingSource 
                                       ? '0 0 8px rgba(204, 0, 0, 0.6)' 
                                       : '2px 2px 0 0 #111111',
-                                    borderColor: isClashingSource ? '#CC0000' : '#111111'
+                                    borderColor: isClashingSource ? '#FF453A' : '#F5F5F7'
                                   }}
                                 >
                                   {/* Delete btn */}
@@ -556,7 +556,7 @@ export default function PlannerPage() {
                                       cursor: 'pointer',
                                       color: 'var(--np-n500)'
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.color = '#CC0000'}
+                                    onMouseEnter={e => e.currentTarget.style.color = '#FF453A'}
                                     onMouseLeave={e => e.currentTarget.style.color = 'var(--np-n500)'}
                                   >
                                     <Trash2 size={12} />
@@ -565,13 +565,13 @@ export default function PlannerPage() {
                                   <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--np-n500)', marginBottom: 2 }}>
                                     {slot.branch} &bull; {slot.year} (Sem {slot.subject_semester})
                                   </div>
-                                  <div style={{ fontSize: 11, fontWeight: 'bold', fontFamily: 'var(--font-sans)', color: '#111111', paddingRight: 14 }}>
+                                  <div style={{ fontSize: 11, fontWeight: 'bold', fontFamily: 'var(--font-sans)', color: '#F5F5F7', paddingRight: 14 }}>
                                     {slot.subject_code} &middot; {slot.subject_name}
                                   </div>
 
                                   {/* Room allocations count */}
                                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                                    <span style={{ fontSize: 9, color: 'var(--np-n600)', background: 'rgba(0,0,0,0.05)', padding: '1px 4px', border: '1px solid #E5E5E0' }}>
+                                    <span style={{ fontSize: 9, color: 'var(--np-n600)', background: 'rgba(0,0,0,0.05)', padding: '1px 4px', border: '1px solid #222225' }}>
                                       Rooms: {slot.rooms?.map(r => r.room_no).join(', ') || 'None'}
                                     </span>
                                   </div>
@@ -580,7 +580,7 @@ export default function PlannerPage() {
                             })}
                             
                             {cellSlots.length === 0 && !isHovered && (
-                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A3A3A3', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#767680', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
                                 EMPTY
                               </div>
                             )}
@@ -607,3 +607,9 @@ export default function PlannerPage() {
     </div>
   );
 }
+
+
+
+
+
+

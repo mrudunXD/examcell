@@ -113,7 +113,7 @@ export default function CalendarPage() {
             <div key={d} style={{
               textAlign: 'center', padding: '8px 0',
               fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em',
-              textTransform: 'uppercase', color: d === 'Sun' ? '#CC0000' : 'var(--np-n500)',
+              textTransform: 'uppercase', color: d === 'Sun' ? '#FF453A' : 'var(--np-n500)',
               background: '#111', color: d === 'Sun' ? '#fca5a5' : 'rgba(255,255,255,0.6)',
               borderRight: '1px solid rgba(255,255,255,0.1)',
             }}>
@@ -124,7 +124,7 @@ export default function CalendarPage() {
 
         {/* Weeks */}
         {grid.map((week, wi) => (
-          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < grid.length - 1 ? '1px solid #E5E5E0' : 'none' }}>
+          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < grid.length - 1 ? '1px solid #222225' : 'none' }}>
             {week.map((day, di) => {
               const isSun = di === 0;
               const dateStr = day ? `${viewYear}-${String(viewMonth + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : null;
@@ -137,7 +137,7 @@ export default function CalendarPage() {
                   key={di}
                   style={{
                     minHeight: 90, padding: '6px 8px',
-                    borderRight: di < 6 ? '1px solid #E5E5E0' : 'none',
+                    borderRight: di < 6 ? '1px solid #222225' : 'none',
                     background: !day ? '#FAFAFA' : isSun ? '#FFF5F5' : isInCycle ? '#FEFEFE' : '#FAFAFA',
                     cursor: daySlots.length ? 'pointer' : 'default',
                     position: 'relative',
@@ -148,10 +148,10 @@ export default function CalendarPage() {
                     <>
                       <div style={{
                         fontFamily: 'var(--font-mono)', fontSize: 11,
-                        color: isSun ? '#CC0000' : !isInCycle ? '#CCCCCC' : '#111',
+                        color: isSun ? '#FF453A' : !isInCycle ? '#CCCCCC' : '#111',
                         fontWeight: isToday ? 700 : 400,
                         marginBottom: 4,
-                        ...(isToday ? { background: '#111', color: '#F9F9F7', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 10 } : {}),
+                        ...(isToday ? { background: '#111', color: '#0C0C0E', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 10 } : {}),
                       }}>
                         {day}
                       </div>
@@ -193,7 +193,7 @@ export default function CalendarPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {selected.slots.map(slot => (
-              <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid #E5E5E0', background: '#FEFEFE' }}>
+              <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid #222225', background: '#FEFEFE' }}>
                 <div style={{ width: 4, alignSelf: 'stretch', background: SEM_COLORS[slot.subject_semester] || '#374151', flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
@@ -201,7 +201,7 @@ export default function CalendarPage() {
                     {slot.branch} · {slot.year} · Sem {slot.subject_semester} · {formatTime(slot.start_time)} · {slot.student_count} students
                   </div>
                 </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', padding: '2px 8px', border: '1px solid #E5E5E0', color: 'var(--np-n500)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', padding: '2px 8px', border: '1px solid #222225', color: 'var(--np-n500)' }}>
                   {slot.status}
                 </span>
               </div>
@@ -212,3 +212,9 @@ export default function CalendarPage() {
     </div>
   );
 }
+
+
+
+
+
+

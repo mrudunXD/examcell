@@ -76,7 +76,7 @@ function SubjectModal({ subject, onClose, onSave }) {
               <option value="INP">INP — Internship/Project</option>
             </select>
           </div>
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (subject?.id ? 'Update' : 'Add Subject')}
@@ -176,7 +176,7 @@ function SubjectConstraintsModal({ subject, onClose }) {
                 </thead>
                 <tbody>
                   {constraints.map((c) => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #E5E5E0' }}>
+                    <tr key={c.id} style={{ borderBottom: '1px solid #222225' }}>
                       <td style={{ padding: '6px 4px' }}>
                         <span style={{ 
                           fontSize: 9, 
@@ -516,3 +516,9 @@ export default function SubjectsPage() {
     </div>
   );
 }
+
+
+
+
+
+

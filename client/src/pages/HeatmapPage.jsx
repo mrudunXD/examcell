@@ -4,13 +4,13 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 function heatColor(value, max) {
-  if (!value || max === 0) return { bg: '#F9F9F7', text: '#D1D5DB' };
+  if (!value || max === 0) return { bg: '#0C0C0E', text: '#D1D5DB' };
   const ratio = value / max;
   if (ratio < 0.25)  return { bg: '#DBEAFE', text: '#1d4ed8' };
   if (ratio < 0.5)   return { bg: '#BBF7D0', text: '#166534' };
   if (ratio < 0.75)  return { bg: '#FDE68A', text: '#92400e' };
   if (ratio < 0.9)   return { bg: '#FED7AA', text: '#c2410c' };
-  return { bg: '#FECACA', text: '#CC0000' };
+  return { bg: '#FECACA', text: '#FF453A' };
 }
 
 export default function HeatmapPage() {
@@ -76,8 +76,8 @@ export default function HeatmapPage() {
       {/* Fairness alerts */}
       {overloaded.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#FFF5F5', border: '1px solid #fecaca', marginBottom: 12 }}>
-          <AlertCircle size={13} strokeWidth={1.5} color="#CC0000" style={{ flexShrink: 0 }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#CC0000' }}>
+          <AlertCircle size={13} strokeWidth={1.5} color="#FF453A" style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#FF453A' }}>
             Overloaded (&gt;1.5× avg): {overloaded.map(f => f.name).join(', ')}
           </span>
         </div>
@@ -97,15 +97,15 @@ export default function HeatmapPage() {
           <div className="flex-row" style={{ gap: 16, marginBottom: 16, alignItems: 'center' }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)' }}>Duty count:</span>
             {[
-              { label: '0', bg: '#F9F9F7', text: '#D1D5DB' },
+              { label: '0', bg: '#0C0C0E', text: '#D1D5DB' },
               { label: '1–25%', bg: '#DBEAFE', text: '#1d4ed8' },
               { label: '26–50%', bg: '#BBF7D0', text: '#166534' },
               { label: '51–75%', bg: '#FDE68A', text: '#92400e' },
               { label: '76–90%', bg: '#FED7AA', text: '#c2410c' },
-              { label: '91–100%', bg: '#FECACA', text: '#CC0000' },
+              { label: '91–100%', bg: '#FECACA', text: '#FF453A' },
             ].map(l => (
               <div key={l.label} className="flex-row" style={{ gap: 5, alignItems: 'center' }}>
-                <div style={{ width: 14, height: 14, background: l.bg, border: '1px solid #E5E5E0' }} />
+                <div style={{ width: 14, height: 14, background: l.bg, border: '1px solid #222225' }} />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)' }}>{l.label}</span>
               </div>
             ))}
@@ -119,7 +119,7 @@ export default function HeatmapPage() {
             <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ padding: '8px 14px', textAlign: 'left', background: '#111', color: '#F9F9F7', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                  <th style={{ padding: '8px 14px', textAlign: 'left', background: '#111', color: '#0C0C0E', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
                     Faculty
                   </th>
                   {allCycles.map(c => (
@@ -140,7 +140,7 @@ export default function HeatmapPage() {
                   const isUnder = total < avg * 0.5 && total > 0;
                   return (
                     <tr key={f.id}>
-                      <td style={{ padding: '8px 14px', borderBottom: '1px solid #E5E5E0', borderRight: '1px solid #E5E5E0', whiteSpace: 'nowrap', background: fi % 2 === 0 ? '#FDFDFB' : '#FFF' }}>
+                      <td style={{ padding: '8px 14px', borderBottom: '1px solid #222225', borderRight: '1px solid #222225', whiteSpace: 'nowrap', background: fi % 2 === 0 ? '#FDFDFB' : '#FFF' }}>
                         <div style={{ fontWeight: 600, fontSize: 12 }}>{f.name}</div>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)' }}>{f.department}</div>
                       </td>
@@ -148,16 +148,16 @@ export default function HeatmapPage() {
                         const val = matrix[f.id]?.[c.id] || 0;
                         const style = heatColor(val, maxDuties);
                         return (
-                          <td key={c.id} style={{ padding: '8px 12px', textAlign: 'center', background: style.bg, borderBottom: '1px solid #E5E5E0', borderRight: '1px solid #E5E5E0', transition: 'background 0.2s' }}>
+                          <td key={c.id} style={{ padding: '8px 12px', textAlign: 'center', background: style.bg, borderBottom: '1px solid #222225', borderRight: '1px solid #222225', transition: 'background 0.2s' }}>
                             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: val > 0 ? 700 : 400, color: style.text }}>
                               {val || '—'}
                             </span>
                           </td>
                         );
                       })}
-                      <td style={{ padding: '8px 12px', textAlign: 'center', background: totalStyle.bg, borderBottom: '1px solid #E5E5E0', borderLeft: '1px solid #E5E5E0' }}>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', background: totalStyle.bg, borderBottom: '1px solid #222225', borderLeft: '1px solid #222225' }}>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800, color: totalStyle.text }}>{total}</div>
-                        {isOver && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: '#CC0000', textTransform: 'uppercase', marginTop: 1 }}>Overloaded</div>}
+                        {isOver && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: '#FF453A', textTransform: 'uppercase', marginTop: 1 }}>Overloaded</div>}
                         {isUnder && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: '#92400e', textTransform: 'uppercase', marginTop: 1 }}>Underused</div>}
                       </td>
                     </tr>
@@ -184,9 +184,9 @@ export default function HeatmapPage() {
             const pct = loadData.avg > 0 ? Math.min(100, Math.round((faculty.duty_count / (loadData.avg * 2)) * 100)) : 0;
             const isHigh = faculty.duty_count > loadData.avg * 1.3;
             const isLow = faculty.duty_count < loadData.avg * 0.5;
-            const barColor = isHigh ? '#CC0000' : isLow ? '#92400e' : '#166534';
+            const barColor = isHigh ? '#FF453A' : isLow ? '#92400e' : '#166534';
             return (
-              <div key={faculty.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #E5E5E0' }}>
+              <div key={faculty.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #222225' }}>
                 <div style={{ width: 180, minWidth: 180 }}>
                   <div style={{ fontWeight: 600, fontSize: 12 }}>{faculty.name}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)' }}>{faculty.department}</div>
@@ -204,7 +204,7 @@ export default function HeatmapPage() {
                   </div>
                 </div>
                 <div style={{ width: 80, textAlign: 'right' }}>
-                  {isHigh && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#CC0000', textTransform: 'uppercase', border: '1px solid #fecaca', padding: '2px 6px' }}>High</span>}
+                  {isHigh && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#FF453A', textTransform: 'uppercase', border: '1px solid #fecaca', padding: '2px 6px' }}>High</span>}
                   {isLow && faculty.duty_count > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#92400e', textTransform: 'uppercase', border: '1px solid #FDE68A', padding: '2px 6px' }}>Low</span>}
                   {faculty.duty_count === 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n400)' }}>None</span>}
                 </div>
@@ -216,3 +216,9 @@ export default function HeatmapPage() {
     </div>
   );
 }
+
+
+
+
+
+

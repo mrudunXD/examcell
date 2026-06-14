@@ -12,13 +12,13 @@ import toast from 'react-hot-toast';
 function statusColor(slot) {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-  if (!slot.date || slot.date !== today) return '#525252';
+  if (!slot.date || slot.date !== today) return '#A3A3AC';
   const [h, m] = slot.start_time.split(':').map(Number);
   const start = new Date(); start.setHours(h, m, 0);
   const end = new Date(start.getTime() + slot.duration_mins * 60000);
   if (now < start) return '#1d4ed8';     // upcoming
   if (now >= start && now <= end) return '#166534';  // live
-  return '#525252';                                   // done
+  return '#A3A3AC';                                   // done
 }
 
 function getSlotPhase(slot) {
@@ -37,8 +37,8 @@ function AttendancePct({ present, total }) {
   const pct = total > 0 ? Math.round((present / total) * 100) : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 4, background: '#E5E5E0', position: 'relative' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: pct > 75 ? '#166534' : pct > 40 ? '#92400e' : '#CC0000', transition: 'width 0.5s' }} />
+      <div style={{ flex: 1, height: 4, background: '#222225', position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: pct > 75 ? '#166534' : pct > 40 ? '#92400e' : '#FF453A', transition: 'width 0.5s' }} />
       </div>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, minWidth: 36 }}>{pct}%</span>
     </div>
@@ -72,7 +72,7 @@ function IncidentResolveModal({ incident, onClose, onSave }) {
         <h2 className="modal-title" style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
           <AlertTriangle size={20} /> Resolve Exam Incident
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '12px 0 20px 0', fontSize: 13, borderBottom: '1px solid #E5E5E0', paddingBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '12px 0 20px 0', fontSize: 13, borderBottom: '1px solid #222225', paddingBottom: 16 }}>
           <div className="grid-2">
             <div>
               <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', color: 'var(--np-n500)' }}>Type</strong>
@@ -118,7 +118,7 @@ function IncidentResolveModal({ incident, onClose, onSave }) {
           />
         </div>
 
-        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Close</button>
           <button type="button" className="btn btn-warning" onClick={() => handleUpdate('escalated')} disabled={submitting}>
             Escalate
@@ -370,13 +370,13 @@ export default function LiveDashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: '1px solid #111', marginBottom: 24 }}>
           {[
             { label: "Today's Exams", value: data.todaySlots?.length || 0, icon: Activity, color: '#111' },
-            { label: 'Currently Live', value: liveSlots.length, icon: Radio, color: liveSlots.length ? '#166534' : '#A3A3A3' },
-            { label: 'Open Incidents', value: data.openIncidents?.length || 0, icon: AlertTriangle, color: data.openIncidents?.length ? '#CC0000' : '#A3A3A3' },
+            { label: 'Currently Live', value: liveSlots.length, icon: Radio, color: liveSlots.length ? '#166534' : '#767680' },
+            { label: 'Open Incidents', value: data.openIncidents?.length || 0, icon: AlertTriangle, color: data.openIncidents?.length ? '#FF453A' : '#767680' },
             { label: 'Next Exam Days', value: data.upcomingSlots?.length || 0, icon: Clock, color: '#1d4ed8' },
           ].map((s, i) => {
             const Icon = s.icon;
             return (
-              <div key={s.label} style={{ padding: '16px 20px', borderRight: i < 3 ? '1px solid #E5E5E0' : 'none', display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div key={s.label} style={{ padding: '16px 20px', borderRight: i < 3 ? '1px solid #222225' : 'none', display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div style={{ color: s.color, flexShrink: 0 }}><Icon size={20} strokeWidth={1.5} /></div>
                 <div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: s.color, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{s.value}</div>
@@ -425,10 +425,10 @@ export default function LiveDashboardPage() {
           {/* Done */}
           {doneToday.length > 0 && (
             <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n400)', borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n400)', borderBottom: '1px solid #222225', paddingBottom: 6 }}>
                 Completed Today ({doneToday.length})
               </div>
-              <div style={{ border: '1px solid #E5E5E0', borderTop: 'none', opacity: 0.7 }}>
+              <div style={{ border: '1px solid #222225', borderTop: 'none', opacity: 0.7 }}>
                 {doneToday.map((slot, i) => (
                   <SlotCard key={slot.id} slot={slot} phase="done" isLast={i === doneToday.length - 1} navigate={navigate} />
                 ))}
@@ -437,7 +437,7 @@ export default function LiveDashboardPage() {
           )}
 
           {data && data.todaySlots?.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 48, border: '1px solid #E5E5E0', color: 'var(--np-n500)' }}>
+            <div style={{ textAlign: 'center', padding: 48, border: '1px solid #222225', color: 'var(--np-n500)' }}>
               <Clock size={32} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12 }} />
               <div style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>No exams scheduled for today</div>
             </div>
@@ -447,10 +447,10 @@ export default function LiveDashboardPage() {
         {/* Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Upcoming days */}
-          <div style={{ border: '1px solid #E5E5E0', padding: 16 }}>
+          <div style={{ border: '1px solid #222225', padding: 16 }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 12 }}>Next Exam Days</div>
             {data?.upcomingSlots?.length ? data.upcomingSlots.map(d => (
-              <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #E5E5E0' }}>
+              <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #222225' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 12 }}>{new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })}, {formatDate(d.date)}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)', marginTop: 2 }}>{d.subjects?.slice(0, 40)}{d.subjects?.length > 40 ? '…' : ''}</div>
@@ -461,8 +461,8 @@ export default function LiveDashboardPage() {
           </div>
 
           {/* Open incidents */}
-          <div style={{ border: '1px solid #E5E5E0', padding: 16 }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: data?.openIncidents?.length ? '#CC0000' : 'var(--np-n500)', marginBottom: 12 }}>
+          <div style={{ border: '1px solid #222225', padding: 16 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: data?.openIncidents?.length ? '#FF453A' : 'var(--np-n500)', marginBottom: 12 }}>
               Open Incidents
             </div>
             {data?.openIncidents?.length ? data.openIncidents.map(inc => (
@@ -487,9 +487,9 @@ export default function LiveDashboardPage() {
                 }}
               >
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  <AlertTriangle size={12} strokeWidth={1.5} color="#CC0000" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <AlertTriangle size={12} strokeWidth={1.5} color="#FF453A" style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: '#CC0000', fontWeight: 700 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: '#FF453A', fontWeight: 700 }}>
                       {inc.type} · Room {inc.room_no}
                     </div>
                     <div style={{ fontSize: 12, marginTop: 2, color: '#111' }}>{inc.description.slice(0, 80)}{inc.description.length > 80 ? '…' : ''}</div>
@@ -508,7 +508,7 @@ export default function LiveDashboardPage() {
           </div>
 
           {/* Classroom Broadcast Console */}
-          <div style={{ border: '2px solid #111111', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
+          <div style={{ border: '1px solid #222225', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-red)', fontWeight: 'bold', marginBottom: 12 }}>
               Classroom Broadcast Console
             </div>
@@ -574,7 +574,7 @@ export default function LiveDashboardPage() {
               <button
                 type="submit"
                 className="btn btn-danger btn-sm"
-                style={{ fontSize: 10, fontWeight: 'bold', border: '2px solid #111111', boxShadow: '2px 2px 0 0 #111111', textTransform: 'uppercase', width: '100%', cursor: 'pointer', padding: '6px' }}
+                style={{ fontSize: 10, fontWeight: 'bold', border: '1px solid #222225', boxShadow: '2px 2px 0 0 #111111', textTransform: 'uppercase', width: '100%', cursor: 'pointer', padding: '6px' }}
                 disabled={sendingBroadcast}
               >
                 {sendingBroadcast ? 'Sending...' : 'Publish Announcement'}
@@ -583,7 +583,7 @@ export default function LiveDashboardPage() {
           </div>
 
           {/* Broadcast Acknowledgment status card */}
-          <div style={{ border: '2px solid #111111', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
+          <div style={{ border: '1px solid #222225', background: '#ffffff', padding: 16, boxShadow: '4px 4px 0 0 #111111' }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 12 }}>
               Targeted Acknowledgment Tracker
             </div>
@@ -599,9 +599,9 @@ export default function LiveDashboardPage() {
                   const isAcked = acknowledgments[`${b.id}_${b.classroom_id}`];
                   
                   return (
-                    <div key={b.id} style={{ fontSize: 11, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
+                    <div key={b.id} style={{ fontSize: 11, borderBottom: '1px solid #222225', paddingBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontFamily: 'var(--font-sans)', color: '#111111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                        <strong style={{ fontFamily: 'var(--font-sans)', color: '#F5F5F7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
                           {b.title}
                         </strong>
                         {isAcked ? (
@@ -609,7 +609,7 @@ export default function LiveDashboardPage() {
                             🟢 ACK
                           </span>
                         ) : (
-                          <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: 9, display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <span style={{ color: '#FF453A', fontWeight: 'bold', fontSize: 9, display: 'flex', alignItems: 'center', gap: 2 }}>
                             🔴 UNACK
                           </span>
                         )}
@@ -644,13 +644,13 @@ export default function LiveDashboardPage() {
 }
 
 function SlotCard({ slot, phase, isLast, navigate }) {
-  const colors = { live: '#166534', upcoming: '#1d4ed8', done: '#A3A3A3' };
+  const colors = { live: '#166534', upcoming: '#1d4ed8', done: '#767680' };
   const color = colors[phase];
   const pct = slot.seated_count > 0 ? Math.round((slot.present_count / slot.seated_count) * 100) : 0;
   const ackPct = slot.supervisor_count > 0 ? Math.round((slot.ack_count / slot.supervisor_count) * 100) : 0;
 
   return (
-    <div style={{ display: 'flex', gap: 12, padding: '14px 16px', borderBottom: !isLast ? '1px solid #E5E5E0' : 'none', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: 12, padding: '14px 16px', borderBottom: !isLast ? '1px solid #222225' : 'none', alignItems: 'flex-start' }}>
       <div style={{ width: 3, alignSelf: 'stretch', background: color, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
@@ -680,3 +680,9 @@ function SlotCard({ slot, phase, isLast, navigate }) {
     </div>
   );
 }
+
+
+
+
+
+

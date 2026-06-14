@@ -8,7 +8,7 @@ import io from 'socket.io-client';
 
 const STATUS_CONFIG = {
   present: { label: 'Present', color: '#166534', bg: '#f0fdf4', border: '#bbf7d0', icon: Check },
-  absent:  { label: 'Absent',  color: '#CC0000', bg: '#fff5f5', border: '#fecaca', icon: X },
+  absent:  { label: 'Absent',  color: '#FF453A', bg: '#fff5f5', border: '#fecaca', icon: X },
   late:    { label: 'Late',    color: '#92400e', bg: '#fffbeb', border: '#fde68a', icon: Clock },
 };
 
@@ -356,9 +356,9 @@ export default function AttendancePage() {
         {[
           { label: 'Total',    value: summary.total,    color: '#111' },
           { label: 'Present',  value: summary.present,  color: '#166534' },
-          { label: 'Absent',   value: summary.absent,   color: '#CC0000' },
+          { label: 'Absent',   value: summary.absent,   color: '#FF453A' },
           { label: 'Late',     value: summary.late,     color: '#92400e' },
-          { label: 'Unmarked', value: summary.unmarked, color: '#A3A3A3' },
+          { label: 'Unmarked', value: summary.unmarked, color: '#767680' },
         ].map((item) => (
           <div key={item.label} className="attendance-summary-item">
             <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontFamily: 'var(--font-mono)' }}>{item.value}</div>
@@ -370,7 +370,7 @@ export default function AttendancePage() {
       <div className="attendance-main-layout">
         {/* Room selector */}
         <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #222225', paddingBottom: 6 }}>
             Rooms
           </div>
           <div className="attendance-rooms-container">
@@ -390,7 +390,7 @@ export default function AttendancePage() {
         {/* Right side: Tabs & Panels */}
         <div>
           {/* Tab buttons */}
-          <div style={{ display: 'flex', borderBottom: '2px solid #111111', marginBottom: 16 }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid #222225', marginBottom: 16 }}>
             <button
               onClick={() => setActiveTab('attendance')}
               style={{
@@ -400,8 +400,8 @@ export default function AttendancePage() {
                 fontWeight: 700,
                 border: 'none',
                 borderBottom: activeTab === 'attendance' ? '4px solid #111111' : 'none',
-                background: activeTab === 'attendance' ? '#111111' : 'transparent',
-                color: activeTab === 'attendance' ? '#F9F9F7' : '#525252',
+                background: activeTab === 'attendance' ? '#F5F5F7' : 'transparent',
+                color: activeTab === 'attendance' ? '#0C0C0E' : '#A3A3AC',
                 cursor: 'pointer',
                 transition: 'all 0.12s',
               }}
@@ -417,8 +417,8 @@ export default function AttendancePage() {
                 fontWeight: 700,
                 border: 'none',
                 borderBottom: activeTab === 'logs' ? '4px solid #111111' : 'none',
-                background: activeTab === 'logs' ? '#111111' : 'transparent',
-                color: activeTab === 'logs' ? '#F9F9F7' : '#525252',
+                background: activeTab === 'logs' ? '#F5F5F7' : 'transparent',
+                color: activeTab === 'logs' ? '#0C0C0E' : '#A3A3AC',
                 cursor: 'pointer',
                 transition: 'all 0.12s',
                 display: 'flex',
@@ -441,7 +441,7 @@ export default function AttendancePage() {
                 <button className="btn btn-ghost btn-sm" onClick={() => markAll('present')} style={{ color: '#166534', borderColor: '#166534' }}>
                   <CheckSquare size={11} strokeWidth={1.5} /> All Present
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => markAll('absent')} style={{ color: '#CC0000', borderColor: '#CC0000' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => markAll('absent')} style={{ color: '#FF453A', borderColor: '#FF453A' }}>
                   <X size={11} strokeWidth={1.5} /> All Absent
                 </button>
               </div>
@@ -453,13 +453,13 @@ export default function AttendancePage() {
                   No students in this room, or no seating generated yet.
                 </div>
               ) : (
-                <div style={{ border: '1px solid #E5E5E0' }}>
+                <div style={{ border: '1px solid #222225' }}>
                   {records.map((student, i) => {
                     const status = student.attendance_status || null;
                     const isDirty = dirty[student.student_id];
                     return (
                       <div key={student.student_id} className={`attendance-student-row ${isDirty ? 'dirty' : ''}`} style={{
-                        borderBottom: i < records.length - 1 ? '1px solid #E5E5E0' : 'none',
+                        borderBottom: i < records.length - 1 ? '1px solid #222225' : 'none',
                       }}>
                       <div className="attendance-student-header">
                         <div className="attendance-student-seat">
@@ -485,9 +485,9 @@ export default function AttendancePage() {
                                 onClick={() => markStatus(student.student_id, s)}
                                 title={cfg.label}
                                 style={{
-                                  padding: '5px 10px', border: `1px solid ${isActive ? cfg.color : '#E5E5E0'}`,
+                                  padding: '5px 10px', border: `1px solid ${isActive ? cfg.color : '#222225'}`,
                                   background: isActive ? cfg.bg : 'transparent',
-                                  color: isActive ? cfg.color : '#A3A3A3',
+                                  color: isActive ? cfg.color : '#767680',
                                   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
                                   fontFamily: 'var(--font-mono)', fontSize: 9,
                                   transition: 'all 0.1s',
@@ -517,8 +517,8 @@ export default function AttendancePage() {
           {activeTab === 'logs' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
               {/* Timeline panel */}
-              <div style={{ border: '2px solid #111111', background: '#FFF', padding: 20, boxShadow: '4px 4px 0 0 #111111' }}>
-                <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 16px 0', borderBottom: '2px solid #111111', paddingBottom: 8 }}>
+              <div style={{ border: '1px solid #222225', background: '#FFF', padding: 20, boxShadow: '4px 4px 0 0 #111111' }}>
+                <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 16px 0', borderBottom: '1px solid #222225', paddingBottom: 8 }}>
                   Room Activity Timeline
                 </h3>
                 
@@ -531,13 +531,13 @@ export default function AttendancePage() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '420px', overflowY: 'auto' }} className="custom-scrollbar">
                     {logs.map((log) => {
-                      let typeColor = '#525252';
+                      let typeColor = '#A3A3AC';
                       if (log.type === 'toilet_out') typeColor = '#92400e';
                       if (log.type === 'toilet_in') typeColor = '#166534';
                       if (log.type === 'extra_booklet') typeColor = '#1d4ed8';
 
                       return (
-                        <div key={log.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #E5E5E0', paddingBottom: 10 }}>
+                        <div key={log.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #222225', paddingBottom: 10 }}>
                           <div style={{
                             width: 6, alignSelf: 'stretch', background: typeColor, flexShrink: 0
                           }} />
@@ -576,8 +576,8 @@ export default function AttendancePage() {
               </div>
 
               {/* Log entry composer */}
-              <div style={{ border: '2px solid #111111', background: '#F9F9F7', padding: 20, boxShadow: '4px 4px 0 0 #111111', position: 'sticky', top: 10 }}>
-                <h4 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 16px 0', borderBottom: '2px solid #111111', paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ border: '1px solid #222225', background: '#0C0C0E', padding: 20, boxShadow: '4px 4px 0 0 #111111', position: 'sticky', top: 10 }}>
+                <h4 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 16px 0', borderBottom: '1px solid #222225', paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Plus size={16} /> Add Log Entry
                 </h4>
                 
@@ -644,7 +644,7 @@ export default function AttendancePage() {
       {scannerOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setScannerOpen(false)}>
           <div className="modal" style={{ maxWidth: '480px', border: '4px solid #111111', boxShadow: '8px 8px 0 0 #111111' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '2px solid #111111', paddingBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid #222225', paddingBottom: 10 }}>
               <h2 className="modal-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 📷 Ticket scanner
               </h2>
@@ -715,7 +715,7 @@ export default function AttendancePage() {
               <div style={{
                 marginTop: 16,
                 padding: 14,
-                border: '2px solid #111111',
+                border: '1px solid #222225',
                 background: scanResult.status === 'success' ? '#f0fdf4' : scanResult.status === 'redirect' ? '#fff5f5' : '#f8fafc',
                 color: scanResult.status === 'success' ? '#166534' : scanResult.status === 'redirect' ? '#991b1b' : '#334155',
                 animation: 'fadeIn 0.2s ease-out',
@@ -762,7 +762,7 @@ export default function AttendancePage() {
         }
         .attendance-summary-item {
           padding: 12px 16px;
-          border-right: 1px solid #E5E5E0;
+          border-right: 1px solid #222225;
           text-align: center;
         }
         .attendance-summary-item:last-child {
@@ -783,7 +783,7 @@ export default function AttendancePage() {
           width: 100%;
           padding: 10px 14px;
           margin-bottom: 4px;
-          border: 2px solid #E5E5E0;
+          border: 2px solid #222225;
           background: transparent;
           color: #111;
           text-align: left;
@@ -794,7 +794,7 @@ export default function AttendancePage() {
         .attendance-room-btn.active {
           border-color: #111;
           background: #111;
-          color: #F9F9F7;
+          color: #0C0C0E;
         }
 
         .attendance-student-row {
@@ -897,7 +897,7 @@ export default function AttendancePage() {
             justify-content: space-between;
             align-items: center;
             gap: 8px;
-            border-top: 1px dashed #E5E5E0;
+            border-top: 1px dashed #222225;
             padding-top: 8px;
           }
           .attendance-status-container {
@@ -914,8 +914,8 @@ export default function AttendancePage() {
             grid-template-columns: repeat(2, 1fr);
           }
           .attendance-summary-item {
-            border-right: 1px solid #E5E5E0;
-            border-bottom: 1px solid #E5E5E0;
+            border-right: 1px solid #222225;
+            border-bottom: 1px solid #222225;
           }
           .attendance-summary-item:nth-child(even) {
             border-right: none;
@@ -930,3 +930,9 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+
+
+
+
+

@@ -109,11 +109,11 @@ function GlobalSearchModal({ onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
-      <div className="modal modal-lg" style={{ padding: 0, overflow: 'hidden', maxWidth: 640, background: '#F9F9F7', border: '3px solid #111111' }}>
-        <div style={{ position: 'relative', borderBottom: '2px solid #111111', background: '#FFFFFF' }}>
+      <div className="modal modal-lg" style={{ padding: 0, overflow: 'hidden', maxWidth: 640, background: '#121214', border: '1px solid #222225' }}>
+        <div style={{ position: 'relative', borderBottom: '1px solid #222225', background: '#1C1C1F' }}>
           <SearchIcon
             size={18} strokeWidth={1.5}
-            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#525252', pointerEvents: 'none' }}
+            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#8E8E93', pointerEvents: 'none' }}
           />
           <input
             ref={inputRef}
@@ -125,14 +125,14 @@ function GlobalSearchModal({ onClose }) {
               width: '100%', padding: '18px 48px 18px 50px',
               border: 'none', outline: 'none',
               fontFamily: 'var(--font-sans)', fontSize: 16,
-              background: 'transparent', color: '#111',
+              background: 'transparent', color: '#FFFFFF',
               boxSizing: 'border-box',
             }}
           />
           {query && (
             <button
               onClick={() => { setQuery(''); setResults({ students: [], subjects: [], faculty: [], cycles: [] }); inputRef.current?.focus(); }}
-              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#525252', display: 'flex', alignItems: 'center', padding: 4 }}
+              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', display: 'flex', alignItems: 'center', padding: 4 }}
             >
               <X size={16} strokeWidth={1.5} />
             </button>
@@ -174,13 +174,13 @@ function GlobalSearchModal({ onClose }) {
                 <div style={{
                   fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase',
                   letterSpacing: '0.1em', color: 'var(--np-n500)',
-                  borderBottom: '1px solid #E5E5E0', paddingBottom: 4, marginBottom: 8,
+                  borderBottom: '1px solid #222225', paddingBottom: 4, marginBottom: 8,
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   <Icon size={10} strokeWidth={1.5} />
                   {LABELS[type]}
                 </div>
-                <div style={{ border: '1px solid #E5E5E0', background: '#FFFFFF' }}>
+                <div style={{ border: '1px solid #222225', background: '#121214', borderRadius: '6px', overflow: 'hidden' }}>
                   {items.map((item, i) => {
                     const globalIdx = flatResults.findIndex(r => r.type === type && r.item.id === item.id);
                     const isActive = activeIdx === globalIdx;
@@ -191,9 +191,9 @@ function GlobalSearchModal({ onClose }) {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 12, width: '100%',
                           padding: '10px 14px', border: 'none', textAlign: 'left', cursor: 'pointer',
-                          background: isActive ? '#111' : 'transparent',
-                          color: isActive ? '#F9F9F7' : '#111',
-                          borderBottom: i < items.length - 1 ? '1px solid #E5E5E0' : 'none',
+                          background: isActive ? '#1C1C1F' : 'transparent',
+                          color: isActive ? '#FFFFFF' : '#E5E5EA',
+                          borderBottom: i < items.length - 1 ? '1px solid #222225' : 'none',
                           transition: 'background 0.05s',
                         }}
                       >
@@ -216,9 +216,9 @@ function GlobalSearchModal({ onClose }) {
 
         {query.length >= 2 && (
           <div style={{
-            background: '#FFFFFF', borderTop: '1px solid #E5E5E0',
+            background: '#1C1C1F', borderTop: '1px solid #222225',
             padding: '8px 16px', display: 'flex', justifyContent: 'space-between',
-            fontFamily: 'var(--font-mono)', fontSize: 8, color: '#A3A3A3',
+            fontFamily: 'var(--font-mono)', fontSize: 8, color: '#8E8E93',
             textTransform: 'uppercase', letterSpacing: '0.08em'
           }}>
             <span>Total Results: {totalResults}</span>
@@ -461,10 +461,23 @@ export default function Layout() {
 
         {/* ── Main area ─────────────────────────────────────────────────────── */}
         <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Edition strip */}
-          <div className="edition-strip">
-            <span>MIT WPU Examination Cell · Internal System</span>
-            <span>Vol. 1 · {today} · Pune Edition</span>
+          {/* Top bar */}
+          <div style={{
+            background: '#0C0C0E',
+            borderBottom: '1px solid #1C1C1F',
+            padding: '0 28px',
+            height: 52,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#8E8E93', fontWeight: 500 }}>
+              MIT WPU · Examination Cell Management System
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#4A4A4F', letterSpacing: '0.03em' }}>
+              {today}
+            </span>
           </div>
 
           <div className="main-inner" style={{ flex: 1, overflowY: 'auto' }}>

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { formatDateTime } from '../lib/format.js';
 
 const ACTION_COLOR = {
-  INSERT: '#166534', UPDATE: '#1d4ed8', DELETE: '#CC0000',
+  INSERT: '#166534', UPDATE: '#1d4ed8', DELETE: '#FF453A',
   GENERATE: '#92400e', APPROVE: '#166534', UNLOCK: '#92400e',
   ACTIVATE: '#7c3aed', DUPLICATE: '#0e7490',
 };
@@ -97,8 +97,8 @@ export default function AuditPage() {
         <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
       ) : filtered.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 64 }}>
-          <div style={{ border: '1px solid #E5E5E0', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
-            <ClipboardList size={28} strokeWidth={1} color="#A3A3A3" />
+          <div style={{ border: '1px solid #222225', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
+            <ClipboardList size={28} strokeWidth={1} color="#767680" />
           </div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
             {logs.length === 0 ? 'No Audit Entries' : 'No Matching Entries'}
@@ -131,8 +131,8 @@ export default function AuditPage() {
                   <td>
                     <span className="badge" style={{
                       color: ACTION_COLOR[log.action] || 'var(--np-n600)',
-                      borderColor: ACTION_COLOR[log.action] || '#E5E5E0',
-                      background: `${ACTION_COLOR[log.action] || '#525252'}11`,
+                      borderColor: ACTION_COLOR[log.action] || '#222225',
+                      background: `${ACTION_COLOR[log.action] || '#A3A3AC'}11`,
                     }}>
                       {log.action}
                     </span>
@@ -152,3 +152,9 @@ export default function AuditPage() {
     </div>
   );
 }
+
+
+
+
+
+

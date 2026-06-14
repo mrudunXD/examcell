@@ -68,7 +68,7 @@ export default function ExportPage() {
 
       {/* Seating & Attendance by slot */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', borderBottom: '1px solid #E5E5E0', paddingBottom: 8, marginBottom: 12 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
           Seating Charts & Attendance Sheets — Per Room
         </div>
         <div style={{ border: '1px solid #111' }}>
@@ -82,7 +82,7 @@ export default function ExportPage() {
               alignItems: 'center',
               gap: 16,
               padding: '12px 16px',
-              borderBottom: si < slots.length - 1 ? '1px solid #E5E5E0' : 'none',
+              borderBottom: si < slots.length - 1 ? '1px solid #222225' : 'none',
               flexWrap: 'wrap',
             }}>
               <div style={{ flex: 1, minWidth: 200 }}>
@@ -116,7 +116,7 @@ export default function ExportPage() {
 
       {/* Faculty duty sheets */}
       <div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', borderBottom: '1px solid #E5E5E0', paddingBottom: 8, marginBottom: 12 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
           Faculty Duty Sheets — Individual
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', border: '1px solid #111' }}>
@@ -126,8 +126,8 @@ export default function ExportPage() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '12px 14px',
-              borderRight: '1px solid #E5E5E0',
-              borderBottom: '1px solid #E5E5E0',
+              borderRight: '1px solid #222225',
+              borderBottom: '1px solid #222225',
               gap: 10,
             }}>
               <div>
@@ -147,3 +147,9 @@ export default function ExportPage() {
     </div>
   );
 }
+
+
+
+
+
+

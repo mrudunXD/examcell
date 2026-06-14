@@ -46,7 +46,7 @@ function FacultyModal({ faculty, onClose, onSave }) {
             <label className="form-label">{faculty?.id ? 'New Password (leave blank to keep)' : 'Password *'}</label>
             <input className="input" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required={!faculty?.id} placeholder="••••••••" />
           </div>
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (faculty?.id ? 'Update' : 'Create Account')}
@@ -100,7 +100,7 @@ function SubjectAssignModal({ faculty, allSubjects, onClose, onSave }) {
                 letterSpacing: '0.1em',
                 color: 'var(--np-n500)',
                 paddingBottom: 6,
-                borderBottom: '1px solid #E5E5E0',
+                borderBottom: '1px solid #222225',
                 marginBottom: 8,
               }}>{group}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -111,9 +111,9 @@ function SubjectAssignModal({ faculty, allSubjects, onClose, onSave }) {
                     onClick={() => toggle(s.id)}
                     className="btn btn-sm"
                     style={{
-                      background: selected.includes(s.id) ? '#111111' : 'transparent',
-                      color: selected.includes(s.id) ? '#F9F9F7' : 'var(--np-n600)',
-                      borderColor: selected.includes(s.id) ? '#111111' : '#E5E5E0',
+                      background: selected.includes(s.id) ? '#F5F5F7' : 'transparent',
+                      color: selected.includes(s.id) ? '#0C0C0E' : 'var(--np-n600)',
+                      borderColor: selected.includes(s.id) ? '#F5F5F7' : '#222225',
                     }}
                   >
                     {selected.includes(s.id) && <Check size={10} strokeWidth={2} />}
@@ -129,7 +129,7 @@ function SubjectAssignModal({ faculty, allSubjects, onClose, onSave }) {
             </p>
           )}
         </div>
-        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : 'Save Assignments'}
@@ -216,7 +216,7 @@ function LeavesModal({ facultyList, onClose }) {
                 </thead>
                 <tbody>
                   {leaves.map((l) => (
-                    <tr key={l.id} style={{ borderBottom: '1px solid #E5E5E0' }}>
+                    <tr key={l.id} style={{ borderBottom: '1px solid #222225' }}>
                       <td style={{ padding: '6px 4px', fontWeight: 600 }}>{l.faculty_name}</td>
                       <td style={{ padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{l.date}</td>
                       <td style={{ padding: '6px 4px' }}>
@@ -409,3 +409,9 @@ export default function FacultyPage() {
     </div>
   );
 }
+
+
+
+
+
+

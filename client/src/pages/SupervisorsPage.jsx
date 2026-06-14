@@ -81,8 +81,8 @@ export default function SupervisorsPage() {
         <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
       ) : duties.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 64 }}>
-          <div style={{ border: '1px solid #E5E5E0', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
-            <UserCog size={28} strokeWidth={1} color="#A3A3A3" />
+          <div style={{ border: '1px solid #222225', display: 'inline-flex', padding: 14, marginBottom: 16 }}>
+            <UserCog size={28} strokeWidth={1} color="#767680" />
           </div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
             No Supervisors Assigned
@@ -97,15 +97,15 @@ export default function SupervisorsPage() {
       ) : (
         <div style={{ border: '1px solid #111' }}>
           {Object.values(grouped).map((room, ri) => (
-            <div key={room.room_no} style={{ borderBottom: ri < Object.values(grouped).length - 1 ? '1px solid #E5E5E0' : 'none' }}>
+            <div key={room.room_no} style={{ borderBottom: ri < Object.values(grouped).length - 1 ? '1px solid #222225' : 'none' }}>
               {/* Room header */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 16px',
-                background: '#111111',
-                color: '#F9F9F7',
+                background: '#F5F5F7',
+                color: '#0C0C0E',
               }}>
                 <div>
                   <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>
@@ -129,7 +129,7 @@ export default function SupervisorsPage() {
                     alignItems: 'center',
                     gap: 14,
                     padding: '12px 16px',
-                    borderBottom: di < room.duties.length - 1 ? '1px solid #E5E5E0' : 'none',
+                    borderBottom: di < room.duties.length - 1 ? '1px solid #222225' : 'none',
                   }}
                 >
                   {/* Role badge */}
@@ -141,9 +141,9 @@ export default function SupervisorsPage() {
                     letterSpacing: '0.08em',
                     padding: '3px 0',
                     textAlign: 'center',
-                    border: `1px solid ${d.role === 'primary' ? '#111111' : '#E5E5E0'}`,
-                    background: d.role === 'primary' ? '#111111' : 'transparent',
-                    color: d.role === 'primary' ? '#F9F9F7' : 'var(--np-n500)',
+                    border: `1px solid ${d.role === 'primary' ? '#F5F5F7' : '#222225'}`,
+                    background: d.role === 'primary' ? '#F5F5F7' : 'transparent',
+                    color: d.role === 'primary' ? '#0C0C0E' : 'var(--np-n500)',
                   }}>
                     {d.role}
                   </div>
@@ -173,3 +173,9 @@ export default function SupervisorsPage() {
     </div>
   );
 }
+
+
+
+
+
+

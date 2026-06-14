@@ -6,17 +6,17 @@ import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
 
 const TYPE_META = {
-  FACULTY_CLASH:   { label: 'Faculty Clash',   color: '#CC0000', bg: '#FFF5F5', icon: ShieldAlert },
+  FACULTY_CLASH:   { label: 'Faculty Clash',   color: '#FF453A', bg: '#FFF5F5', icon: ShieldAlert },
   ROOM_OVERFLOW:   { label: 'Room Overflow',   color: '#92400e', bg: '#FFFBEB', icon: AlertTriangle },
   STUDENT_CLASH:   { label: 'Student Clash',   color: '#7c3aed', bg: '#F5F3FF', icon: AlertTriangle },
   BRANCH_MIXING_FAILED: { label: 'Branch Mix', color: '#0e7490', bg: '#F0F9FF', icon: Info },
   INSUFFICIENT_ROOM_CAPACITY: { label: 'Room Capacity', color: '#92400e', bg: '#FFFBEB', icon: ShieldAlert },
-  NO_STUDENTS:     { label: 'No Students',     color: '#525252', bg: '#FAFAFA', icon: Info },
-  NO_ROOMS:        { label: 'No Rooms',        color: '#525252', bg: '#FAFAFA', icon: Info },
+  NO_STUDENTS:     { label: 'No Students',     color: '#A3A3AC', bg: '#FAFAFA', icon: Info },
+  NO_ROOMS:        { label: 'No Rooms',        color: '#A3A3AC', bg: '#FAFAFA', icon: Info },
 };
 
 function getMeta(type) {
-  return TYPE_META[type] || { label: type.replace(/_/g, ' '), color: '#525252', bg: '#FAFAFA', icon: Info };
+  return TYPE_META[type] || { label: type.replace(/_/g, ' '), color: '#A3A3AC', bg: '#FAFAFA', icon: Info };
 }
 
 export default function ConflictsPage() {
@@ -79,7 +79,7 @@ export default function ConflictsPage() {
           <h1 className="page-title">Conflict Detection</h1>
           <p className="page-subtitle">
             {open.length > 0 ? (
-              <span style={{ color: '#CC0000' }}>{open.length} open conflict{open.length > 1 ? 's' : ''}</span>
+              <span style={{ color: '#FF453A' }}>{open.length} open conflict{open.length > 1 ? 's' : ''}</span>
             ) : (
               <span style={{ color: '#166534' }}>No open conflicts</span>
             )}
@@ -182,12 +182,12 @@ export default function ConflictsPage() {
           {/* Resolved */}
           {resolved.length > 0 && (
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #E5E5E0', paddingBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #222225', paddingBottom: 6 }}>
                 Resolved / Ignored ({resolved.length})
               </div>
               {resolved.map(c => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 4, border: '1px solid #E5E5E0', opacity: 0.7 }}>
-                  <div style={{ color: c.status === 'resolved' ? '#166534' : '#A3A3A3' }}>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 4, border: '1px solid #222225', opacity: 0.7 }}>
+                  <div style={{ color: c.status === 'resolved' ? '#166534' : '#767680' }}>
                     {c.status === 'resolved' ? <CheckCircle size={12} strokeWidth={1.5} /> : <X size={12} strokeWidth={1.5} />}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -208,3 +208,9 @@ export default function ConflictsPage() {
     </div>
   );
 }
+
+
+
+
+
+

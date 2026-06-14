@@ -41,18 +41,18 @@ export default function App() {
         position="top-right"
         toastOptions={{
           style: {
-            background: '#F9F9F7',
-            color: '#111111',
-            border: '1px solid #111111',
-            borderRadius: '0px',
+            background: '#1C1C1F',
+            color: '#F5F5F7',
+            border: '1px solid #2C2C2E',
+            borderRadius: '8px',
             fontFamily: "'Inter', sans-serif",
-            fontSize: '12px',
+            fontSize: '13px',
             fontWeight: 500,
-            boxShadow: '4px 4px 0 0 #111111',
-            padding: '10px 14px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            padding: '12px 16px',
           },
-          success: { iconTheme: { primary: '#166534', secondary: '#F9F9F7' } },
-          error:   { iconTheme: { primary: '#CC0000', secondary: '#F9F9F7' } },
+          success: { iconTheme: { primary: '#30D158', secondary: '#1C1C1F' } },
+          error:   { iconTheme: { primary: '#FF453A', secondary: '#1C1C1F' } },
         }}
       />
       <Routes>

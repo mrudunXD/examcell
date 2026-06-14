@@ -8,9 +8,9 @@ import { useAppStore } from '../store/index.js';
 import { useAuthStore } from '../store/index.js';
 
 const STATUSES = ['draft', 'active', 'finalised', 'archived'];
-const STATUS_ACCENT = { draft: '#A3A3A3', active: '#1d4ed8', finalised: '#166534', archived: '#525252' };
-const TYPE_ACCENT   = { regular: '#166534', backlog: '#CC0000' };
-const MODE_ACCENT   = { offline: '#111111', online: '#1d4ed8' };
+const STATUS_ACCENT = { draft: '#767680', active: '#1d4ed8', finalised: '#166534', archived: '#A3A3AC' };
+const TYPE_ACCENT   = { regular: '#166534', backlog: '#FF453A' };
+const MODE_ACCENT   = { offline: '#F5F5F7', online: '#1d4ed8' };
 
 // ── Cycle Modal ──────────────────────────────────────────────────────────────
 function CycleModal({ cycle, onClose, onSave }) {
@@ -57,8 +57,8 @@ function CycleModal({ cycle, onClose, onSave }) {
                 <button key={t} type="button" onClick={() => setForm({ ...form, semester_type: t })}
                   style={{
                     flex: 1, padding: '8px 0', border: 'none',
-                    background: form.semester_type === t ? '#111111' : 'transparent',
-                    color: form.semester_type === t ? '#F9F9F7' : '#525252',
+                    background: form.semester_type === t ? '#F5F5F7' : 'transparent',
+                    color: form.semester_type === t ? '#0C0C0E' : '#A3A3AC',
                     fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em',
                     cursor: 'pointer',
                   }}>
@@ -78,7 +78,7 @@ function CycleModal({ cycle, onClose, onSave }) {
               </select>
             </div>
           )}
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (cycle?.id ? 'Update' : 'Create Cycle')}
@@ -171,7 +171,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
                     style={{
                       flex: 1, padding: '7px 0', border: 'none',
                       background: form.exam_type === t ? TYPE_ACCENT[t] : 'transparent',
-                      color: form.exam_type === t ? '#F9F9F7' : '#525252',
+                      color: form.exam_type === t ? '#0C0C0E' : '#A3A3AC',
                       fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase',
                       letterSpacing: '0.08em', cursor: 'pointer',
                     }}>
@@ -180,7 +180,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
                 ))}
               </div>
               {form.exam_type === 'backlog' && (
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#CC0000', marginTop: 3 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#FF453A', marginTop: 3 }}>
                   Backlog slots must be scheduled before the regular exam date
                 </div>
               )}
@@ -193,7 +193,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
                     style={{
                       flex: 1, padding: '7px 0', border: 'none',
                       background: form.exam_mode === m ? MODE_ACCENT[m] : 'transparent',
-                      color: form.exam_mode === m ? '#F9F9F7' : '#525252',
+                      color: form.exam_mode === m ? '#0C0C0E' : '#A3A3AC',
                       fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase',
                       letterSpacing: '0.08em', cursor: 'pointer',
                     }}>
@@ -257,9 +257,9 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
                     {rooms.map(c => (
                       <button key={c.id} type="button" onClick={() => toggleClassroom(c.id)} className="btn btn-sm"
                         style={{
-                          background: form.classroom_ids.includes(c.id) ? '#111111' : 'transparent',
-                          color: form.classroom_ids.includes(c.id) ? '#F9F9F7' : 'var(--np-n600)',
-                          borderColor: form.classroom_ids.includes(c.id) ? '#111111' : '#E5E5E0',
+                          background: form.classroom_ids.includes(c.id) ? '#F5F5F7' : 'transparent',
+                          color: form.classroom_ids.includes(c.id) ? '#0C0C0E' : 'var(--np-n600)',
+                          borderColor: form.classroom_ids.includes(c.id) ? '#F5F5F7' : '#222225',
                         }}>
                         {c.room_no} (cap. {c.capacity})
                       </button>
@@ -279,7 +279,7 @@ function SlotModal({ cycleId, cycle, slot, onClose, onSave }) {
             </div>
           )}
 
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #E5E5E0' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (slot?.id ? 'Update Slot' : 'Create & Auto-Assign')}
@@ -445,20 +445,20 @@ export default function ExamCyclesPage() {
                 <div
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
-                    background: expanded[cycle.id] ? '#F5F5F5' : '#F9F9F7',
-                    borderBottom: expanded[cycle.id] ? '1px solid #E5E5E0' : 'none',
+                    background: expanded[cycle.id] ? '#1C1C1F' : '#0C0C0E',
+                    borderBottom: expanded[cycle.id] ? '1px solid #222225' : 'none',
                   }}
                   onClick={() => toggleExpanded(cycle.id)}
                 >
                   <div style={{ color: 'var(--np-n500)', flexShrink: 0 }}>
                     {expanded[cycle.id] ? <ChevronDown size={15} strokeWidth={1.5} /> : <ChevronRight size={15} strokeWidth={1.5} />}
                   </div>
-                  <div style={{ width: 6, height: 6, flexShrink: 0, background: STATUS_ACCENT[cycle.status] || '#A3A3A3' }} />
+                  <div style={{ width: 6, height: 6, flexShrink: 0, background: STATUS_ACCENT[cycle.status] || '#767680' }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700 }}>{cycle.name}</span>
                       <span className="badge" style={{ color: STATUS_ACCENT[cycle.status], borderColor: STATUS_ACCENT[cycle.status], textTransform: 'capitalize' }}>{cycle.status}</span>
-                      <span className="badge" style={{ color: '#525252', borderColor: '#E5E5E0', textTransform: 'capitalize', fontSize: 9 }}>
+                      <span className="badge" style={{ color: '#A3A3AC', borderColor: '#222225', textTransform: 'capitalize', fontSize: 9 }}>
                         {cycle.semester_type || 'odd'}-sem
                       </span>
                     </div>
@@ -527,7 +527,7 @@ export default function ExamCyclesPage() {
                         {/* Backlog slots first */}
                         {backlog.length > 0 && (
                           <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#CC0000', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, borderBottom: '1px solid #fecaca', paddingBottom: 4 }}>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#FF453A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, borderBottom: '1px solid #fecaca', paddingBottom: 4 }}>
                               Backlog Exams ({backlog.length})
                             </div>
                             <SlotList slots={backlog} cycleId={cycle.id} isCoord={isCoord}
@@ -726,11 +726,11 @@ export default function ExamCyclesPage() {
 
 function SlotList({ slots, cycleId, isCoord, onEdit, onDel, onExplain }) {
   return (
-    <div style={{ border: '1px solid #E5E5E0' }}>
+    <div style={{ border: '1px solid #222225' }}>
       {slots.map((slot, si) => (
         <div key={slot.id} style={{
           display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-          borderBottom: si < slots.length - 1 ? '1px solid #E5E5E0' : 'none',
+          borderBottom: si < slots.length - 1 ? '1px solid #222225' : 'none',
         }}>
           {/* Type indicator */}
           <div style={{ width: 4, height: 32, flexShrink: 0, background: TYPE_ACCENT[slot.exam_type] || '#111' }} />
@@ -749,7 +749,7 @@ function SlotList({ slots, cycleId, isCoord, onEdit, onDel, onExplain }) {
               {formatDate(slot.date)} · {formatTime(slot.start_time)} · {slot.duration_mins}min ·{' '}
               {slot.rooms?.map(r => r.room_no).join(', ') || (slot.exam_mode === 'online' ? 'Online' : 'No rooms')} ·{' '}
               {slot.student_count} students
-              {slot.course_type && <span style={{ marginLeft: 6, color: '#A3A3A3' }}>{slot.course_type}</span>}
+              {slot.course_type && <span style={{ marginLeft: 6, color: '#767680' }}>{slot.course_type}</span>}
             </div>
           </div>
           <div className="flex-row" style={{ gap: 4 }}>
@@ -856,3 +856,9 @@ function ExplainModal({ cycleId, slotId, onClose }) {
     </div>
   );
 }
+
+
+
+
+
+
