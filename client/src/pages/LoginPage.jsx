@@ -16,6 +16,211 @@ const features = [
   { icon: FileDown, text: 'PDF export: seating, duty, timetable' },
 ];
 
+function WireframeVisual() {
+  return (
+    <div style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      perspective: 1000,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* 3D Scene Wrapper */}
+      <div style={{
+        width: 320,
+        height: 320,
+        transformStyle: 'preserve-3d',
+        animation: 'rotateStructure 24s linear infinite',
+        position: 'relative',
+      }}>
+        {/* CSS Keyframes for structure rotation */}
+        <style>{`
+          @keyframes rotateStructure {
+            0% { transform: rotateX(60deg) rotateY(0deg) rotateZ(0deg); }
+            100% { transform: rotateX(60deg) rotateY(0deg) rotateZ(360deg); }
+          }
+        `}</style>
+
+        {/* 1. Base Grid Plane */}
+        <div style={{
+          position: 'absolute',
+          inset: '-40px',
+          background: 'radial-gradient(circle, transparent 20%, #ffffff 80%), linear-gradient(rgba(98, 0, 234, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(98, 0, 234, 0.08) 1px, transparent 1px)',
+          backgroundSize: '16px 16px',
+          transform: 'translateZ(-40px)',
+          opacity: 0.8,
+        }} />
+
+        {/* 2. Concentric Layered Tracks (Winding Figure-8 Loop) */}
+        {Array.from({ length: 8 }).map((_, i) => {
+          const z = i * 16;
+          const scale = 1 - i * 0.02;
+          return (
+            <svg
+              key={`track-${i}`}
+              viewBox="0 0 400 400"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                transform: `translateZ(${z}px) scale(${scale})`,
+                transformStyle: 'preserve-3d',
+                overflow: 'visible',
+              }}
+            >
+              <path
+                d="M 60,200 C 60,100 150,100 200,200 C 250,300 340,300 340,200 C 340,100 250,100 200,200 C 150,300 60,300 60,200 Z"
+                fill="none"
+                stroke="#6200ea"
+                strokeWidth={1.2}
+                opacity={0.15 + (i / 8) * 0.45}
+              />
+            </svg>
+          );
+        })}
+
+        {/* 3. Winding Ribbon Struts (Connecting Top & Bottom Tracks) */}
+        <svg
+          viewBox="0 0 400 400"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            transformStyle: 'preserve-3d',
+            overflow: 'visible',
+          }}
+        >
+          <g stroke="#6200ea" strokeWidth="0.8" opacity="0.3" fill="none">
+            {Array.from({ length: 24 }).map((_, idx) => {
+              const t = (idx / 24) * Math.PI * 2;
+              const x = 200 + Math.sin(idx * 0.26) * 110;
+              const y = 200 + Math.sin(idx * 0.52) * 80;
+              return (
+                <line
+                  key={`strut-${idx}`}
+                  x1={x}
+                  y1={y}
+                  x2={x}
+                  y2={y + 110}
+                  style={{
+                    transform: `translateZ(0px) scaleZ(1.2)`,
+                  }}
+                />
+              );
+            })}
+          </g>
+        </svg>
+
+        {/* 4. Center Pillars (Futuristic 3D cylinder terminals) */}
+        {/* Left cylinder tower */}
+        <div style={{
+          position: 'absolute',
+          left: '30%',
+          top: '50%',
+          width: '50px',
+          height: '120px',
+          transform: 'translate3d(-50%, -50%, 0px) rotateX(90deg)',
+          transformStyle: 'preserve-3d',
+        }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={`ring1-${i}`}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                border: '1px solid rgba(98, 0, 234, 0.3)',
+                borderRadius: '50%',
+                transform: `translateZ(${i * 30}px)`,
+              }}
+            />
+          ))}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={`rib1-${i}`}
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: 0,
+                bottom: 0,
+                width: 1,
+                background: 'rgba(98, 0, 234, 0.25)',
+                transform: `rotateY(${i * 60}deg) translateZ(25px)`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Right cylinder tower */}
+        <div style={{
+          position: 'absolute',
+          left: '70%',
+          top: '50%',
+          width: '50px',
+          height: '120px',
+          transform: 'translate3d(-50%, -50%, 0px) rotateX(90deg)',
+          transformStyle: 'preserve-3d',
+        }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={`ring2-${i}`}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                border: '1px solid rgba(98, 0, 234, 0.3)',
+                borderRadius: '50%',
+                transform: `translateZ(${i * 30}px)`,
+              }}
+            />
+          ))}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={`rib2-${i}`}
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: 0,
+                bottom: 0,
+                width: 1,
+                background: 'rgba(98, 0, 234, 0.25)',
+                transform: `rotateY(${i * 60}deg) translateZ(25px)`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* 5. Floating satellite/particles wireframe */}
+        {Array.from({ length: 12 }).map((_, i) => {
+          const angle = (i / 12) * Math.PI * 2;
+          const x = 160 + Math.cos(angle) * 130;
+          const y = 160 + Math.sin(angle) * 100;
+          const z = 80 + Math.sin(i) * 30;
+          return (
+            <div
+              key={`part-${i}`}
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                border: '1px solid #6200ea',
+                background: '#ffffff',
+                transform: `translateZ(${z}px)`,
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const { login, isLoading } = useAuthStore();
   const { theme, toggleTheme } = useAppStore();
@@ -119,21 +324,9 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* Inline MP4 video playing the rotating monorail wireframe loop */}
+          {/* Procedural 3D Wireframe Scene */}
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <video
-              src="/landing_animation.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{
-                width: '108%',
-                height: 'auto',
-                objectFit: 'contain',
-                transform: 'translateX(-4%)',
-              }}
-            />
+            <WireframeVisual />
           </div>
 
           {/* Curved purple arrow overlay pointing to the Get Started button */}
