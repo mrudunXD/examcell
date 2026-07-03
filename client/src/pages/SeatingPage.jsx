@@ -356,7 +356,7 @@ export default function SeatingPage() {
                     </div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
                       {currentRoom.room.block} · {currentRoom.room.bench_rows} rows x {currentRoom.room.bench_cols} cols · capacity {currentRoom.room.capacity}
-                      {!isApproved && <span style={{ marginLeft: 8, color: '#166534', fontWeight: 600 }}>— 💡 Drag and drop seats to rearrange visually</span>}
+                      {!isApproved && <span style={{ marginLeft: 8, color: '#166534', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lightbulb size={12} strokeWidth={1.8} style={{ color: '#16a34a' }} /> Drag and drop seats to rearrange visually</span>}
                     </div>
                   </div>
                   <div className="flex-row" style={{ gap: 12 }}>

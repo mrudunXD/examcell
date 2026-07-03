@@ -25,9 +25,9 @@ export default function WireframeCanvas({ style }) {
     camera.lookAt(0, 0, 0);
 
     // ─── Material ────────────────────────────────────────────────────
-    const mat = new THREE.LineBasicMaterial({ color: 0x6200ea, transparent: true, opacity: 0.55 });
-    const matDark = new THREE.LineBasicMaterial({ color: 0x3d0099, transparent: true, opacity: 0.35 });
-    const matLight = new THREE.LineBasicMaterial({ color: 0x9b5cff, transparent: true, opacity: 0.3 });
+    const mat = new THREE.LineBasicMaterial({ color: 0x14b8a6, transparent: true, opacity: 0.55 });
+    const matDark = new THREE.LineBasicMaterial({ color: 0x0f766e, transparent: true, opacity: 0.35 });
+    const matLight = new THREE.LineBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0.3 });
 
     // Helper: Wireframe from geometry
     function wireframe(geo, m = mat) {

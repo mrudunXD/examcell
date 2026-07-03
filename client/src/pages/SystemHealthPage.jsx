@@ -13,7 +13,9 @@ import {
   CheckCircle, 
   Clock, 
   DatabaseZap, 
-  ServerCrash
+  ServerCrash,
+  Lock,
+  CheckCircle2
 } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -458,13 +460,13 @@ export default function SystemHealthPage() {
           {/* Cryptographic Hash Chain Audit */}
           <div style={{ border: '1px solid var(--border)', padding: 16, background: metrics?.security?.auditLogSecurity?.valid ? '#f0fdf4' : '#fff5f5' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 16 }}>🔒</span>
+              <Lock size={16} style={{ color: 'var(--text-primary)' }} />
               <h4 style={{ margin: 0, fontWeight: 700 }}>Cryptographic Audit Chain Integrity</h4>
             </div>
             {metrics?.security?.auditLogSecurity?.valid ? (
               <div>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#166534', display: 'block', marginBottom: 4 }}>
-                  ✓ SECURE (Chain verified)
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#166534', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <CheckCircle2 size={13} style={{ color: '#16a34a' }} /> SECURE (Chain verified)
                 </span>
                 <span style={{ fontSize: '12px', color: 'var(--np-n600)' }}>
                   All database transaction audit logs are cryptographically linked using SHA-256 hash chaining. Tamper check passed.

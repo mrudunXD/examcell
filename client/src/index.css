@@ -8,63 +8,63 @@
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  /* Core backgrounds - SaaS UI Dark Vibe */
-  --bg-base:     #050505;   /* Page background */
-  --bg-sidebar:  #0b0b0e;   /* Sidebar background */
-  --bg-surface:  #0d0d0e;   /* Panels, dropdowns */
-  --bg-elevated: #16161a;   /* Hover states, cards */
-  --bg-input:    #0b0b0d;   /* Input backgrounds */
+  /* Core backgrounds - Premium Dark Vibe with Sea Green Tint */
+  --bg-base:     #050c0c;   /* Deep sea green black */
+  --bg-sidebar:  #081212;   /* Dark sea green sidebar */
+  --bg-surface:  #0c1919;   /* Sea green panels, dropdowns */
+  --bg-elevated: #142a2a;   /* Hover states, cards */
+  --bg-input:    #060f0f;   /* Input backgrounds */
 
   /* Borders */
-  --border:      rgba(255,255,255,0.07); /* 1px subtle borders */
-  --border-faint:rgba(255,255,255,0.04); /* Faint divider */
-  --border-focus:#7c3aed; /* Purple focus ring */
+  --border:      rgba(20,160,160,0.12); /* Subtle sea-green borders */
+  --border-faint:rgba(20,160,160,0.06); /* Faint divider */
+  --border-focus:#0d9488; /* Teal/Sea green focus ring */
 
   /* Text */
-  --text-primary:   #f4f4f5;  /* Primary white */
-  --text-secondary: #8a8a93;  /* Secondary gray */
-  --text-tertiary:  #52525a;  /* Muted hints */
+  --text-primary:   #f0faf9;  /* Primary tealish white */
+  --text-secondary: #8fa8a6;  /* Secondary tealish gray */
+  --text-tertiary:  #566e6c;  /* Muted tealish hints */
 
   /* Accent colors */
-  --accent-blue:   #3B82F6;
-  --accent-green:  #10B981;
-  --accent-amber:  #FBBF24;
-  --accent-red:    #EF4444;
-  --accent-purple: #7C3AED;
-  --accent-cyan:   #06B6D4;
+  --accent-blue:   #06b6d4;   /* Cyan */
+  --accent-green:  #10b981;   /* Emerald */
+  --accent-amber:  #f59e0b;   /* Amber */
+  --accent-red:    #ef4444;   /* Red */
+  --accent-purple: #0d9488;   /* Teal accent */
+  --accent-cyan:   #14b8a6;   /* Bright sea green */
 
-  /* Status badge colors */
-  --badge-blue-bg:   rgba(59,130,246,0.04);
-  --badge-blue-text: #60A5FA;
-  --badge-blue-border: rgba(59,130,246,0.12);
+  /* Status badge colors (themed to sea green) */
+  --badge-blue-bg:   rgba(13,148,136,0.06);
+  --badge-blue-text: #2dd4bf;
+  --badge-blue-border: rgba(13,148,136,0.2);
 
-  --badge-green-bg:   rgba(16,185,129,0.04);
-  --badge-green-text: #34D399;
-  --badge-green-border: rgba(16,185,129,0.12);
+  --badge-green-bg:   rgba(16,185,129,0.06);
+  --badge-green-text: #34d399;
+  --badge-green-border: rgba(16,185,129,0.2);
 
-  --badge-amber-bg:   rgba(245,158,11,0.04);
-  --badge-amber-text: #FBBF24;
-  --badge-amber-border: rgba(245,158,11,0.12);
+  --badge-amber-bg:   rgba(245,158,11,0.06);
+  --badge-amber-text: #fbbf24;
+  --badge-amber-border: rgba(245,158,11,0.2);
 
-  --badge-red-bg:   rgba(239,68,68,0.04);
-  --badge-red-text: #F87171;
-  --badge-red-border: rgba(239,68,68,0.12);
+  --badge-red-bg:   rgba(239,68,68,0.06);
+  --badge-red-text: #f87171;
+  --badge-red-border: rgba(239,68,68,0.2);
 
-  --badge-neutral-bg:   rgba(113,113,122,0.04);
-  --badge-neutral-text: #A1A1AA;
-  --badge-neutral-border: rgba(113,113,122,0.12);
+  --badge-neutral-bg:   rgba(86,110,108,0.06);
+  --badge-neutral-text: #94a3b8;
+  --badge-neutral-border: rgba(86,110,108,0.2);
 
   /* Legacy vars (used by CSS classes and kiosk) */
-  --np-bg:    #050505;
-  --np-ink:   #FFFFFF;
-  --np-muted: rgba(255,255,255,0.07);
-  --np-red:   #EF4444;
-  --np-n100:  #0D0D0D;
-  --np-n200:  #111111;
-  --np-n400:  #71717A;
-  --np-n500:  #A1A1AA;
-  --np-n600:  #A1A1AA;
-  --np-n700:  #FFFFFF;
+  --np-bg:    #050c0c;
+  --np-ink:   #f0faf9;
+  --np-muted: rgba(20,160,160,0.12);
+  --np-red:   #ef4444;
+  --np-n100:  #081212;
+  --np-n200:  #0c1919;
+  --np-n400:  #566e6c;
+  --np-n500:  #8fa8a6;
+  --np-n600:  #8fa8a6;
+  --np-n700:  #f0faf9;
 
   /* Typography */
   --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -73,8 +73,8 @@
   --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
   /* Custom Sidebar/Topbar Variables */
-  --bg-sidebar-active: rgba(255,255,255,0.06);
-  --bg-topbar: #050505;
+  --bg-sidebar-active: #0d9488;  /* Active link is beautiful solid teal! */
+  --bg-topbar: #050c0c;
 }
 
 [data-theme="light"] {
@@ -868,7 +868,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.02) !important; }
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  background: linear-gradient(135deg, #14b8a6, #0f766e);
   color: #ffffff;
   display: flex;
   align-items: center;

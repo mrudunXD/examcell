@@ -521,7 +521,7 @@ export default function DashboardPage() {
                             <option value="">Broadcast to All Rooms</option>
                             {activeClassrooms.map(c => {
                               const isOnline = onlineKiosks.some(k => String(k.classroomId) === String(c.classroomId) && k.status === 'online');
-                              return <option key={c.classroomId} value={c.classroomId}>Room {c.roomNo} {c.block ? `(${c.block})` : ''} {isOnline ? '🟢' : '⚪'}</option>;
+                              return <option key={c.classroomId} value={c.classroomId}>Room {c.roomNo} {c.block ? `(${c.block})` : ''} {isOnline ? '● Online' : '○ Offline'}</option>;
                             })}
                           </select>
                         </div>
@@ -531,9 +531,9 @@ export default function DashboardPage() {
                           <div>
                             <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: 5 }}>Severity Priority</label>
                             <select className="select" value={broadcastPriority} onChange={e => setBroadcastPriority(e.target.value)} style={{ width: '100%', fontSize: 13 }}>
-                              <option value="normal">🟢 Normal</option>
-                              <option value="urgent">🟡 Urgent</option>
-                              <option value="critical">🔴 Critical</option>
+                              <option value="normal">● Normal</option>
+                              <option value="urgent">◆ Urgent</option>
+                              <option value="critical">▲ Critical</option>
                             </select>
                           </div>
                           <div>

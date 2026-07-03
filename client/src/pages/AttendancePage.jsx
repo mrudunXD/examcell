@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, X, Clock, Save, Users, RefreshCw, CheckSquare, Camera, AlertTriangle, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, Check, X, Clock, Save, Users, RefreshCw, CheckSquare, Camera, AlertTriangle, FileText, Plus, ScanLine } from 'lucide-react';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
@@ -687,7 +687,7 @@ export default function AttendancePage() {
           <div className="modal" style={{ maxWidth: '480px', border: '4px solid #111111', boxShadow: '8px 8px 0 0 #111111' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid #222225', paddingBottom: 10 }}>
               <h2 className="modal-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                📷 Ticket scanner
+                <ScanLine size={18} strokeWidth={1.5} /> Ticket scanner
               </h2>
               <button className="btn btn-ghost btn-sm" onClick={() => setScannerOpen(false)} style={{ padding: 4 }}>
                 <X size={16} />
