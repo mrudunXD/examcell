@@ -495,18 +495,18 @@ export default function LoginPage() {
           {/* Left: Three.js Wireframe Visualizer */}
           <div style={{
             height: 400,
-            background: 'var(--bg-base)',
+            background: '#050a0a',
             borderRadius: 16,
             overflow: 'hidden',
             position: 'relative',
-            border: '1px solid var(--border)',
+            border: '1px solid rgba(22, 184, 151, 0.1)',
           }}>
             {/* Visualizer header */}
             <div style={{
               position: 'absolute', top: 16, left: 16, zIndex: 10,
               display: 'flex', alignItems: 'center', gap: 8,
               background: 'rgba(5, 12, 12, 0.6)', padding: '6px 12px', borderRadius: 8,
-              border: '1px solid var(--border)'
+              border: '1px solid rgba(22, 184, 151, 0.1)'
             }}>
               <Radio size={12} style={{ color: '#16B897' }} className="animate-pulse" />
               <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 700 }}>
@@ -661,10 +661,10 @@ export default function LoginPage() {
           <div style={{
             width: '100%',
             maxWidth: 960,
-            background: 'var(--bg-sidebar)',
+            background: '#cbd5e1',
             border: '12px solid #1e293b',
             borderRadius: '24px 24px 0 0',
-            boxShadow: '0 32px 80px rgba(0, 0, 0, 0.18)',
+            boxShadow: '0 32px 80px rgba(0, 0, 0, 0.12)',
             position: 'relative',
           }}>
             {/* Camera dot */}
@@ -672,7 +672,7 @@ export default function LoginPage() {
 
             {/* Dashboard Inner Screen Mockup */}
             <div style={{
-              background: 'var(--bg-base)',
+              background: '#f8fafc',
               padding: 24,
               minHeight: 480,
               display: 'flex',
@@ -681,13 +681,13 @@ export default function LoginPage() {
               fontFamily: 'var(--font-sans)',
             }}>
               {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(22, 184, 151, 0.08)', paddingBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Operations Control Center</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>MIT WPU Campus Overview</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>Operations Control Center</div>
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>MIT WPU Campus Overview</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, background: 'rgba(20, 184, 166, 0.15)', color: 'var(--accent-cyan)', borderRadius: 4, padding: '2px 8px', border: '1px solid var(--border)' }}>ACTIVE</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, background: 'rgba(22, 184, 166, 0.15)', color: '#0d9488', borderRadius: 4, padding: '2px 8px', border: '1px solid rgba(22, 184, 151, 0.08)' }}>ACTIVE</span>
                 </div>
               </div>
 
@@ -699,10 +699,10 @@ export default function LoginPage() {
                   { label: 'Faculty on Duty', val: '56 Members', sub: '4 alerts pending' },
                   { label: 'Smartboard Terminals', val: '3 Online', sub: 'kiosks broadcast' },
                 ].map((wid, idx) => (
-                  <div key={idx} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
-                    <div style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{wid.label}</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{wid.val}</div>
-                    <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>{wid.sub}</div>
+                  <div key={idx} style={{ background: '#ffffff', border: '1px solid rgba(22, 184, 151, 0.08)', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#64748b' }}>{wid.label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#111111', marginTop: 4 }}>{wid.val}</div>
+                    <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }}>{wid.sub}</div>
                   </div>
                 ))}
               </div>
@@ -710,16 +710,16 @@ export default function LoginPage() {
               {/* Main row */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr', gap: 20 }}>
                 {/* Seating map preview */}
-                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>Room Allocation Layout Mapping</div>
+                <div style={{ background: '#ffffff', border: '1px solid rgba(22, 184, 151, 0.08)', borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 12 }}>Room Allocation Layout Mapping</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
                     {Array.from({ length: 24 }).map((_, j) => (
                       <div key={j} style={{
                         height: 24, borderRadius: 4,
-                        background: j % 5 === 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(20, 184, 166, 0.25)',
-                        border: '1px solid var(--border)',
+                        background: j % 5 === 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(22, 184, 151, 0.12)',
+                        border: '1px solid rgba(22, 184, 151, 0.08)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 8, color: 'var(--text-primary)', fontWeight: 700
+                        fontSize: 8, color: j % 5 === 0 ? '#ef4444' : '#16B897', fontWeight: 700
                       }}>
                         {j % 5 === 0 ? 'ABS' : `S-${j+1}`}
                       </div>
@@ -728,11 +728,11 @@ export default function LoginPage() {
                 </div>
 
                 {/* Broadcast Composer */}
-                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>Immediate Alert Notice</div>
-                  <input className="input" placeholder="Title" value="Room Correction" disabled style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', fontSize: 11, padding: '6px 10px', height: 28 }} />
-                  <textarea className="textarea" placeholder="Message details..." disabled style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', fontSize: 10, minHeight: 48, resize: 'none', padding: '6px 10px' }}>Notice: Q4 has a typo. Correct 'x' to 'y'.</textarea>
-                  <button className="btn btn-primary btn-sm" disabled style={{ background: 'var(--accent-purple)', borderColor: 'var(--accent-purple)', cursor: 'not-allowed', justifyContent: 'center' }}>Dispatch Broadcast</button>
+                <div style={{ background: '#ffffff', border: '1px solid rgba(22, 184, 151, 0.08)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Immediate Alert Notice</div>
+                  <input className="input" placeholder="Title" value="Room Correction" disabled style={{ background: '#f8fafc', border: '1px solid rgba(22, 184, 151, 0.1)', fontSize: 11, padding: '6px 10px', height: 28 }} />
+                  <textarea className="textarea" placeholder="Message details..." disabled style={{ background: '#f8fafc', border: '1px solid rgba(22, 184, 151, 0.1)', fontSize: 10, minHeight: 48, resize: 'none', padding: '6px 10px' }}>Notice: Q4 has a typo. Correct 'x' to 'y'.</textarea>
+                  <button className="btn btn-primary btn-sm" disabled style={{ background: '#16B897', borderColor: '#16B897', cursor: 'not-allowed', justifyContent: 'center' }}>Dispatch Broadcast</button>
                 </div>
               </div>
             </div>
@@ -789,8 +789,8 @@ export default function LoginPage() {
 
           {/* Interactive Heatmap Matrix */}
           <div style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
+            background: '#ffffff',
+            border: '1px solid rgba(22, 184, 151, 0.08)',
             borderRadius: 16,
             padding: 24,
             display: 'flex',
@@ -798,8 +798,8 @@ export default function LoginPage() {
             gap: 16,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>INVIGILATOR ALLOCATION ROTAS</span>
-              <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>9 departments loaded</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>INVIGILATOR ALLOCATION ROTAS</span>
+              <span style={{ fontSize: 10, color: '#94a3b8' }}>9 departments loaded</span>
             </div>
 
             {/* Matrix grids */}
@@ -812,14 +812,14 @@ export default function LoginPage() {
                 { name: 'Dr. Sanjay Kelkar', dept: 'Physics Dept', load: 10, cells: [2, 3, 3, 4, 1, 0] },
               ].map((fac, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 120, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ width: 120, fontSize: 12, fontWeight: 700, color: '#111111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {fac.name}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flex: 1 }}>
                     {fac.cells.map((c, cellIdx) => {
                       // Determine background color based on load severity (0-5 scale)
                       const colors = [
-                        'rgba(255, 255, 255, 0.05)',
+                        '#f1f5f9',
                         'rgba(22, 184, 151, 0.15)',
                         'rgba(22, 184, 151, 0.35)',
                         'rgba(22, 184, 151, 0.55)',
@@ -836,7 +836,7 @@ export default function LoginPage() {
                             flex: 1,
                             height: 24,
                             background: colors[c],
-                            border: '1px solid var(--border)',
+                            border: '1px solid rgba(22, 184, 151, 0.08)',
                             borderRadius: 4,
                           }}
                         />
@@ -880,7 +880,7 @@ export default function LoginPage() {
             ].map((st, i) => (
               <div key={i} style={{
                 position: 'relative', zIndex: 1,
-                background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                background: '#ffffff', border: '1px solid rgba(22, 184, 151, 0.08)',
                 borderRadius: 16, padding: '20px 16px', width: 180,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.02)',
               }}>
@@ -893,8 +893,8 @@ export default function LoginPage() {
                 }}>
                   {st.step}
                 </div>
-                <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{st.title}</h4>
-                <p style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4, margin: 0 }}>{st.desc}</p>
+                <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: '#111111' }}>{st.title}</h4>
+                <p style={{ fontSize: 10, color: '#475569', marginTop: 4, margin: 0 }}>{st.desc}</p>
               </div>
             ))}
           </div>
