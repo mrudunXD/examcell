@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Shield, BookOpen, Users, FileDown, Mail, Lock, Sun, Moon, ArrowLeft, Menu, X, ArrowRight, CheckCircle2, ChevronRight, Play, Check, AlertTriangle, Radio, Cpu } from 'lucide-react';
+import { Eye, EyeOff, Shield, BookOpen, Users, FileDown, Mail, Lock, Sun, Moon, ArrowLeft, Menu, X, ArrowRight, CheckCircle2, ChevronRight, Play, Check, AlertTriangle, Radio, Cpu, Monitor } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
