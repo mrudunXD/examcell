@@ -17,28 +17,28 @@ import toast from 'react-hot-toast';
 function IllustrationCalendar() {
   return (
     <svg width="90" height="70" viewBox="0 0 90 70" fill="none" style={{ position: 'absolute', right: 0, bottom: 0, opacity: 0.18 }}>
-      <rect x="10" y="8" width="68" height="56" rx="6" stroke="#6366f1" strokeWidth="2" fill="none"/>
-      <rect x="10" y="8" width="68" height="16" rx="6" fill="#6366f1" opacity="0.4"/>
-      <line x1="10" y1="24" x2="78" y2="24" stroke="#6366f1" strokeWidth="1.5"/>
-      <rect x="20" y="30" width="10" height="8" rx="2" fill="#6366f1" opacity="0.5"/>
-      <rect x="38" y="30" width="10" height="8" rx="2" fill="#6366f1" opacity="0.3"/>
-      <rect x="56" y="30" width="10" height="8" rx="2" fill="#6366f1" opacity="0.3"/>
-      <rect x="20" y="44" width="10" height="8" rx="2" fill="#6366f1" opacity="0.2"/>
-      <rect x="38" y="44" width="10" height="8" rx="2" fill="#6366f1" opacity="0.4"/>
+      <rect x="10" y="8" width="68" height="56" rx="6" stroke="#14b8a6" strokeWidth="2" fill="none"/>
+      <rect x="10" y="8" width="68" height="16" rx="6" fill="#14b8a6" opacity="0.4"/>
+      <line x1="10" y1="24" x2="78" y2="24" stroke="#14b8a6" strokeWidth="1.5"/>
+      <rect x="20" y="30" width="10" height="8" rx="2" fill="#14b8a6" opacity="0.5"/>
+      <rect x="38" y="30" width="10" height="8" rx="2" fill="#14b8a6" opacity="0.3"/>
+      <rect x="56" y="30" width="10" height="8" rx="2" fill="#14b8a6" opacity="0.3"/>
+      <rect x="20" y="44" width="10" height="8" rx="2" fill="#14b8a6" opacity="0.2"/>
+      <rect x="38" y="44" width="10" height="8" rx="2" fill="#14b8a6" opacity="0.4"/>
     </svg>
   );
 }
 function IllustrationBuilding() {
   return (
     <svg width="90" height="70" viewBox="0 0 90 70" fill="none" style={{ position: 'absolute', right: 0, bottom: 0, opacity: 0.18 }}>
-      <rect x="15" y="20" width="28" height="44" rx="3" stroke="#3b82f6" strokeWidth="2" fill="none"/>
-      <rect x="47" y="32" width="22" height="32" rx="3" stroke="#3b82f6" strokeWidth="2" fill="none"/>
-      <rect x="20" y="27" width="7" height="7" rx="1" fill="#3b82f6" opacity="0.4"/>
-      <rect x="32" y="27" width="7" height="7" rx="1" fill="#3b82f6" opacity="0.4"/>
-      <rect x="20" y="39" width="7" height="7" rx="1" fill="#3b82f6" opacity="0.3"/>
-      <rect x="32" y="39" width="7" height="7" rx="1" fill="#3b82f6" opacity="0.3"/>
-      <rect x="52" y="38" width="7" height="7" rx="1" fill="#3b82f6" opacity="0.4"/>
-      <rect x="52" y="50" width="7" height="7" rx="1" fill="#3b82f6" opacity="0.3"/>
+      <rect x="15" y="20" width="28" height="44" rx="3" stroke="#0d9488" strokeWidth="2" fill="none"/>
+      <rect x="47" y="32" width="22" height="32" rx="3" stroke="#0d9488" strokeWidth="2" fill="none"/>
+      <rect x="20" y="27" width="7" height="7" rx="1" fill="#0d9488" opacity="0.4"/>
+      <rect x="32" y="27" width="7" height="7" rx="1" fill="#0d9488" opacity="0.4"/>
+      <rect x="20" y="39" width="7" height="7" rx="1" fill="#0d9488" opacity="0.3"/>
+      <rect x="32" y="39" width="7" height="7" rx="1" fill="#0d9488" opacity="0.3"/>
+      <rect x="52" y="38" width="7" height="7" rx="1" fill="#0d9488" opacity="0.4"/>
+      <rect x="52" y="50" width="7" height="7" rx="1" fill="#0d9488" opacity="0.3"/>
     </svg>
   );
 }
@@ -69,10 +69,10 @@ function IllustrationChart() {
 /* ─── KPI Card ─────────────────────────────────────────────────────── */
 function KpiCard({ icon: Icon, value, label, sub, tint, Illustration, live }) {
   const tints = {
-    purple: { bg: '#f0efff', icon: '#6366f1' },
-    blue:   { bg: '#eff6ff', icon: '#3b82f6' },
-    green:  { bg: '#f0fdf4', icon: '#10b981' },
-    orange: { bg: '#fffbeb', icon: '#f59e0b' },
+    purple: { bg: 'rgba(20, 184, 166, 0.15)', icon: '#14b8a6' },
+    blue:   { bg: 'rgba(13, 148, 136, 0.15)', icon: '#0d9488' },
+    green:  { bg: 'rgba(16, 185, 129, 0.15)', icon: '#10b981' },
+    orange: { bg: 'rgba(245, 158, 11, 0.15)', icon: '#f59e0b' },
   };
   const c = tints[tint] || tints.purple;
   return (
@@ -294,8 +294,8 @@ export default function DashboardPage() {
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div style={{ padding: '24px 28px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <TrendingUp size={18} strokeWidth={1.8} style={{ color: '#3b82f6' }} />
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(20, 184, 166, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <TrendingUp size={18} strokeWidth={1.8} style={{ color: 'var(--accent-cyan)' }} />
           </div>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Operations Control Center</h1>
@@ -414,7 +414,7 @@ export default function DashboardPage() {
                     padding: '14px 4px', marginRight: 24,
                     fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer',
                     color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    borderBottom: activeTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
+                    borderBottom: activeTab === tab ? '2px solid var(--accent-cyan)' : '2px solid transparent',
                     transition: 'all 0.12s',
                   }}
                 >
@@ -437,7 +437,7 @@ export default function DashboardPage() {
                           <Calendar size={14} strokeWidth={1.5} style={{ color: 'var(--text-secondary)' }} />
                           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Today's Exam Schedule</span>
                         </div>
-                        <Link to={activeCycleId ? `/exam-cycles` : '#'} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
+                        <Link to={activeCycleId ? `/exam-cycles` : '#'} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 500 }}>
                           View Schedule <ViewIcon size={11} />
                         </Link>
                       </div>
@@ -468,8 +468,8 @@ export default function DashboardPage() {
 
                       {(!liveData?.todaySlots || liveData.todaySlots.length === 0) && (
                         <div style={{ textAlign: 'center', padding: '40px 24px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-base)' }}>
-                          <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                            <CheckCircle2 size={24} strokeWidth={1.5} style={{ color: '#3b82f6' }} />
+                          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(20, 184, 166, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <CheckCircle2 size={24} strokeWidth={1.5} style={{ color: 'var(--accent-cyan)' }} />
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>No exams scheduled for today</div>
                           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Enjoy the calm before the schedule!</div>
@@ -504,7 +504,7 @@ export default function DashboardPage() {
                     <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '20px', background: 'var(--bg-base)' }}>
                       {/* Console Header */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(249, 115, 22, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <Radio size={14} strokeWidth={1.8} style={{ color: '#f97316' }} />
                         </div>
                         <div>
