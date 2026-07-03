@@ -4,7 +4,6 @@ import { GraduationCap, Eye, EyeOff, Shield, BookOpen, Users, FileDown, Mail, Lo
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
-import LineWaves from '../components/ReactBits/LineWaves.jsx';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const d = new Date();
@@ -60,21 +59,16 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#c8c2d5', // Light purple/lavender background matching the video backdrop
+      background: '#b9b3cc', // Lavender-gray outer background matching the user image
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: 'var(--font-sans)',
       padding: '24px',
-      position: 'relative',
       overflow: 'hidden',
     }}>
       {/* 3D rotate and radar ripple CSS animations */}
       <style>{`
-        @keyframes rotate3d {
-          0% { transform: rotateX(60deg) rotateY(0deg) rotateZ(0deg); }
-          100% { transform: rotateX(60deg) rotateY(0deg) rotateZ(360deg); }
-        }
         @keyframes radar-ripple {
           0% { transform: scale(0.6); opacity: 1; }
           100% { transform: scale(2.4); opacity: 0; }
@@ -93,257 +87,233 @@ export default function LoginPage() {
         }
       `}</style>
 
-      {/* Centered browser mock frame container */}
+      {/* Centered canvas matching the mockup */}
       <div style={{
         background: '#ffffff',
-        borderRadius: 24,
-        boxShadow: '0 24px 64px rgba(40, 30, 60, 0.12)',
-        border: '1px solid rgba(0, 0, 0, 0.04)',
+        borderRadius: 8,
+        boxShadow: '0 24px 64px rgba(40, 30, 60, 0.08)',
+        border: '1px solid rgba(0, 0, 0, 0.03)',
         display: 'grid',
-        gridTemplateColumns: '1.1fr 1fr',
+        gridTemplateColumns: '1fr 1fr',
         width: '100%',
-        maxWidth: 1060,
-        minHeight: 620,
+        maxWidth: 1020,
+        height: 640,
         position: 'relative',
-        zIndex: 2,
+        zIndex: 1,
         overflow: 'hidden',
       }}>
-        {/* Left Side: Animated wireframe visual (rotating 3D loop) */}
+        {/* Left Side: Winding monorail 3D wireframe render video loop */}
         <div style={{
-          background: '#f8f9fc',
-          borderRight: '1px solid #f1f3f7',
-          padding: '48px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
+          background: '#ffffff',
           position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px 0 24px 24px',
           overflow: 'hidden',
         }}>
-          {/* Top Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, zIndex: 2 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 6,
-              background: 'rgba(98, 0, 234, 0.08)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <GraduationCap size={15} color="#6200ea" strokeWidth={2} />
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#1a1a1a', letterSpacing: '0.12em' }}>EXAMCELL</span>
-          </div>
-
-          {/* Centered rotating 3D wireframe ribbon */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            perspective: 800,
-            zIndex: 1,
-            position: 'relative',
-            margin: '40px 0',
-          }}>
-            <div style={{ width: 340, height: 340, transformStyle: 'preserve-3d', position: 'relative' }}>
-              <svg width="340" height="340" viewBox="0 0 400 400" style={{ transformStyle: 'preserve-3d', animation: 'rotate3d 28s linear infinite', width: '100%', height: '100%', overflow: 'visible' }}>
-                <g stroke="#6200ea" strokeWidth="1.5" fill="none" opacity="0.5">
-                  {/* Outer layered tracks */}
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <path
-                      key={`layer-${i}`}
-                      d="M 50 200 C 50 100, 150 100, 200 200 C 250 300, 350 300, 350 200 C 350 100, 250 100, 200 200 C 150 300, 50 300, 50 200 Z"
-                      style={{ transform: `translateZ(${i * 14}px) scale(${1 - i * 0.025})` }}
-                    />
-                  ))}
-                  {/* Connector pillars / lines linking the layered curves */}
-                  {Array.from({ length: 16 }).map((_, i) => {
-                    const angle = (i / 16) * Math.PI * 2;
-                    const x = 200 + Math.cos(angle) * 120;
-                    const y = 200 + Math.sin(angle) * 90;
-                    return (
-                      <line
-                        key={`pillar-${i}`}
-                        x1={x}
-                        y1={y}
-                        x2={x}
-                        y2={y}
-                        style={{ transform: `translateZ(0px) scale(${0.9})`, stroke: '#6200ea', opacity: 0.25 }}
-                      />
-                    );
-                  })}
-                </g>
-              </svg>
-            </div>
-          </div>
-
-          {/* Left footer details */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
-            <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: '#909090', letterSpacing: '0.05em' }}>
-              Restricted Access · MIT WPU
+          {/* Logo brand placed top-left inside the white canvas */}
+          <div style={{ position: 'absolute', left: 48, top: 48, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: '#1a1a1a', letterSpacing: '0.15em', fontFamily: 'var(--font-sans)' }}>
+              EXAMCELL
             </span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#6200ea' }} />
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#6200ea', opacity: 0.5 }} />
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#6200ea', opacity: 0.2 }} />
-            </div>
           </div>
+
+          {/* Inline MP4 video playing the rotating monorail wireframe loop */}
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <video
+              src="/landing_animation.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: '108%',
+                height: 'auto',
+                objectFit: 'contain',
+                transform: 'translateX(-4%)',
+              }}
+            />
+          </div>
+
+          {/* Curved purple arrow overlay pointing to the Get Started button */}
+          {!showLoginForm && (
+            <svg style={{ position: 'absolute', right: '-40px', bottom: '150px', width: '140px', height: '80px', pointerEvents: 'none', overflow: 'visible', zIndex: 10 }}>
+              <path d="M 0,10 C 40,45 80,45 110,25" fill="none" stroke="#6200ea" strokeWidth="1.2" />
+              <polygon points="110,25 102,23 107,26 104,31" fill="#6200ea" />
+            </svg>
+          )}
         </div>
 
-        {/* Right Side: Cards Slider / Login Forms */}
+        {/* Right Side: Navigation header, floating cards, and sliding forms */}
         <div style={{
-          padding: '48px',
+          padding: '48px 48px 48px 24px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           background: '#ffffff',
           position: 'relative',
         }}>
-          {/* Top header row: Theme toggle & Hamburger menu */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Top header row: Theme toggle & Hamburger menu icon */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, zIndex: 10 }}>
             <button
               onClick={toggleTheme}
               style={{
-                background: 'none', border: 'none', cursor: 'pointer', color: '#606060',
-                padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: 8, border: '1px solid #f1f3f7',
+                background: 'none',
+                border: '1px solid #eef0f5',
+                cursor: 'pointer',
+                color: '#606060',
+                padding: '6px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 6,
               }}
             >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
             </button>
             <button
               style={{
-                background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a',
-                padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#1a1a1a',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <Menu size={16} />
+              <Menu size={20} strokeWidth={2.5} />
             </button>
           </div>
 
-          {/* Core Content Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', margin: '32px 0' }}>
+          {/* Main Content Area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', margin: '40px 0' }}>
             {!showLoginForm ? (
-              // OVERVIEW STATE: Video Mockup UI
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-                <div>
-                  <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.02em', margin: '0 0 8px' }}>
-                    Redefine Operations
-                  </h1>
-                  <p style={{ fontSize: 13, color: '#808080', margin: 0 }}>
-                    Automated conflict-free scheduling and real-time exam telemetry.
-                  </p>
-                </div>
-
-                {/* Grid layout containing two floating stats cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              // OVERVIEW STATE: Matches the user's mockup image exactly
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingLeft: 24 }}>
+                {/* Horizontal row of floating cards */}
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
                   {/* Card 1: Redefine Data */}
                   <div style={{
-                    background: '#ffffff',
-                    border: '1px solid #f0f0f0',
+                    background: '#f8f9fa',
                     borderRadius: 16,
-                    padding: '20px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.02)',
+                    padding: '24px 20px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    minHeight: 150,
+                    width: 175,
+                    height: 180,
+                    border: '1px solid #f1f3f7',
                   }}>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>Redefine Data</div>
-                      <div style={{ fontSize: 10, color: '#909090', marginTop: 2 }}>in this semester</div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#6200ea' }}>Redefine</span>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a', marginTop: 1 }}>Data</div>
+                      <div style={{ fontSize: 10, color: '#909090', marginTop: 2 }}>in this month</div>
                     </div>
-                    <div style={{ margin: '16px 0' }}>
-                      <div style={{ fontSize: 24, fontWeight: 800, color: '#6200ea' }}>1.4K</div>
-                      <div style={{ fontSize: 10, color: '#606060', marginTop: 2 }}>Seated students</div>
+                    <div style={{ margin: '16px 0 10px 0' }}>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: '#1a1a1a' }}>3.4<span style={{ fontSize: 14, fontWeight: 700 }}>PB</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#808080', marginTop: 4 }}>
+                        <span>Encrypted data</span>
+                        <span style={{ color: '#6200ea', fontWeight: 700 }}>↗ 25.6%</span>
+                      </div>
                     </div>
                     {/* Progress Bar */}
-                    <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: '72%', background: '#6200ea', borderRadius: 2 }} />
+                    <div style={{ height: 4, background: '#e9ecef', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: '75%', background: '#6200ea', borderRadius: 2 }} />
                     </div>
                   </div>
 
-                  {/* Card 2: Secure Scan (Expanding ripple effect) */}
+                  {/* Card 2: Secure Scan */}
                   <div style={{
-                    background: '#ffffff',
-                    border: '1px solid #f0f0f0',
+                    background: '#f8f9fa',
                     borderRadius: 16,
-                    padding: '20px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.02)',
+                    padding: '24px 20px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    minHeight: 150,
-                    position: 'relative',
-                    overflow: 'hidden',
+                    width: 175,
+                    height: 180,
+                    border: '1px solid #f1f3f7',
                   }}>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>Secure Scan</div>
-                      <div style={{ fontSize: 10, color: '#909090', marginTop: 2 }}>System status</div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#6200ea' }}>Secure</span>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a', marginTop: 1 }}>Scan</div>
                     </div>
 
-                    {/* Radar wave animation container */}
-                    <div style={{
-                      height: 48,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                      margin: '12px 0',
-                    }}>
-                      <div className="radar-ring" style={{ width: 40, height: 40 }} />
-                      <div className="radar-ring" style={{ width: 40, height: 40 }} />
-                      <div className="radar-ring" style={{ width: 40, height: 40 }} />
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#6200ea', zIndex: 2 }} />
+                    {/* Concentric offset scanner circles vector graphic matching the mockup */}
+                    <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto' }}>
+                      <div style={{ position: 'absolute', inset: '0px', border: '1px solid #dedbea', borderRadius: '50%', transform: 'scale(1) translateY(4px)' }} />
+                      <div style={{ position: 'absolute', inset: '5px', border: '1px solid #c4bfdd', borderRadius: '50%', transform: 'scale(1) translateY(7px)' }} />
+                      <div style={{ position: 'absolute', inset: '10px', border: '1px solid #a89fcf', borderRadius: '50%', transform: 'scale(1) translateY(10px)' }} />
+                      <div style={{
+                        position: 'absolute', inset: '15px', background: '#6200ea', borderRadius: '50%', transform: 'scale(1) translateY(13px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(98, 0, 234, 0.3)'
+                      }}>
+                        <div style={{ width: 6, height: 6, background: '#000000', borderRadius: '50%' }} />
+                      </div>
                     </div>
 
-                    <div style={{ fontSize: 10, color: '#808080', textAlign: 'center', zIndex: 2 }}>
-                      Conflict-free active
+                    <div style={{ fontSize: 9, color: '#808080', textAlign: 'center', fontWeight: 500 }}>
+                      Comprehensive<br />De-cryption
                     </div>
                   </div>
                 </div>
 
-                {/* Primary purple action button */}
-                <button
-                  onClick={() => setShowLoginForm(true)}
-                  style={{
-                    background: '#6200ea',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '12px 24px',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 20px rgba(98, 0, 234, 0.15)',
-                    transition: 'all 0.15s',
-                    width: '100%',
-                    maxWidth: 160,
-                    textAlign: 'center',
-                  }}
-                >
-                  Get Started
-                </button>
+                {/* Pill-shaped Get Started button */}
+                <div style={{ paddingLeft: 4 }}>
+                  <button
+                    onClick={() => setShowLoginForm(true)}
+                    style={{
+                      background: '#6200ea',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: 24,
+                      padding: '11px 32px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 24px rgba(98, 0, 234, 0.25)',
+                      transition: 'transform 0.15s, box-shadow 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 10px 28px rgba(98, 0, 234, 0.3)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(98, 0, 234, 0.25)';
+                    }}
+                  >
+                    Get Started
+                  </button>
+                </div>
               </div>
             ) : (
               // FORM LOGIN STATE: operator sign-in and kiosk mode selector
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.25s' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingLeft: 24, animation: 'fadeIn 0.2s ease-out' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button
                     onClick={() => setShowLoginForm(false)}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer', color: '#606060',
-                      padding: 4, display: 'flex', alignItems: 'center',
+                      padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
                     <ArrowLeft size={16} />
                   </button>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#808080' }}>Overview</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#808080', letterSpacing: '0.05em' }}>BACK TO OVERVIEW</span>
                 </div>
 
                 <div>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: '0 0 6px' }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1a1a1a', margin: '0 0 4px', letterSpacing: '-0.01em' }}>
                     Access Portal
                   </h2>
-                  <p style={{ fontSize: 12, color: '#808080', margin: 0 }}>
-                    Select credential type to launch session.
+                  <p style={{ fontSize: 11, color: '#808080', margin: 0 }}>
+                    Sign in to manage scheduling, seating, and invigilation.
                   </p>
                 </div>
 
@@ -354,31 +324,31 @@ export default function LoginPage() {
                     onClick={() => setActiveTab('operator')}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 11, fontWeight: 700, paddingBottom: 8,
+                      fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 800, paddingBottom: 8,
                       color: activeTab === 'operator' ? '#6200ea' : '#909090',
                       borderBottom: activeTab === 'operator' ? '2px solid #6200ea' : '2px solid transparent',
                     }}
                   >
-                    Operator Login
+                    OPERATOR LOGIN
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('kiosk')}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 11, fontWeight: 700, paddingBottom: 8,
+                      fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 800, paddingBottom: 8,
                       color: activeTab === 'kiosk' ? '#6200ea' : '#909090',
                       borderBottom: activeTab === 'kiosk' ? '2px solid #6200ea' : '2px solid transparent',
                     }}
                   >
-                    Smartboard Kiosk
+                    SMARTBOARD KIOSK
                   </button>
                 </div>
 
                 {activeTab === 'operator' ? (
-                  <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div className="form-group">
-                      <label className="form-label" style={{ fontSize: 10, color: '#606060', marginBottom: 6 }}>Email Address</label>
+                      <label className="form-label" style={{ fontSize: 10, color: '#606060', marginBottom: 4 }}>Email Address</label>
                       <div style={{ position: 'relative' }}>
                         <Mail size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#909090' }} />
                         <input
@@ -395,13 +365,14 @@ export default function LoginPage() {
                             border: '1px solid #e2e8f0',
                             borderRadius: 8,
                             fontSize: 12,
+                            height: 38,
                           }}
                         />
                       </div>
                     </div>
 
                     <div className="form-group">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <label className="form-label" style={{ fontSize: 10, color: '#606060', margin: 0 }}>Password</label>
                         <button
                           type="button"
@@ -410,9 +381,9 @@ export default function LoginPage() {
                             setPassword('admin123');
                             toast.success('Default credentials applied');
                           }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6200ea', fontSize: 10, padding: 0, fontWeight: 600 }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6200ea', fontSize: 10, padding: 0, fontWeight: 700 }}
                         >
-                          Auto fill credentials?
+                          Auto fill?
                         </button>
                       </div>
                       <div style={{ position: 'relative' }}>
@@ -431,6 +402,7 @@ export default function LoginPage() {
                             border: '1px solid #e2e8f0',
                             borderRadius: 8,
                             fontSize: 12,
+                            height: 38,
                           }}
                         />
                         <button
@@ -457,7 +429,7 @@ export default function LoginPage() {
                       style={{
                         width: '100%',
                         justifyContent: 'center',
-                        minHeight: 40,
+                        minHeight: 38,
                         fontSize: 12,
                         background: '#6200ea',
                         color: '#ffffff',
@@ -467,7 +439,7 @@ export default function LoginPage() {
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        marginTop: 8,
+                        marginTop: 4,
                         boxShadow: '0 8px 20px rgba(98, 0, 234, 0.15)',
                       }}
                     >
@@ -475,9 +447,9 @@ export default function LoginPage() {
                     </button>
                   </form>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div className="form-group">
-                      <label className="form-label" style={{ fontSize: 10, color: '#606060', marginBottom: 6 }}>Exam Cycle</label>
+                      <label className="form-label" style={{ fontSize: 10, color: '#606060', marginBottom: 4 }}>Exam Cycle</label>
                       <select
                         className="select"
                         value={kioskCycle}
@@ -489,6 +461,7 @@ export default function LoginPage() {
                           borderRadius: 8,
                           fontSize: 12,
                           padding: '10px 12px',
+                          height: 38,
                         }}
                       >
                         <option value="">Select Cycle...</option>
@@ -497,7 +470,7 @@ export default function LoginPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" style={{ fontSize: 10, color: '#606060', marginBottom: 6 }}>Classroom (Optional)</label>
+                      <label className="form-label" style={{ fontSize: 10, color: '#606060', marginBottom: 4 }}>Classroom (Optional)</label>
                       <select
                         className="select"
                         value={kioskRoom}
@@ -509,6 +482,7 @@ export default function LoginPage() {
                           borderRadius: 8,
                           fontSize: 12,
                           padding: '10px 12px',
+                          height: 38,
                         }}
                       >
                         <option value="">All Classrooms</option>
@@ -524,7 +498,7 @@ export default function LoginPage() {
                       style={{
                         width: '100%',
                         justifyContent: 'center',
-                        minHeight: 40,
+                        minHeight: 38,
                         fontSize: 12,
                         background: '#6200ea',
                         color: '#ffffff',
@@ -534,7 +508,7 @@ export default function LoginPage() {
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        marginTop: 8,
+                        marginTop: 4,
                         boxShadow: '0 8px 20px rgba(98, 0, 234, 0.15)',
                       }}
                     >
@@ -547,17 +521,13 @@ export default function LoginPage() {
           </div>
 
           {/* Right Footer list */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f3f7', paddingTop: 20 }}>
-            <span style={{ fontSize: 9, color: '#909090', fontWeight: 600 }}>SECURE AUTH</span>
-            <span style={{ fontSize: 9, color: '#909090', fontWeight: 600 }}>RBAC</span>
-            <span style={{ fontSize: 9, color: '#909090', fontWeight: 600 }}>SSL ENCRYPTION</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f3f7', paddingTop: 20, zIndex: 10 }}>
+            <span style={{ fontSize: 8, color: '#959598', fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>SECURE AUTH</span>
+            <span style={{ fontSize: 8, color: '#959598', fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>RBAC ENABLED</span>
+            <span style={{ fontSize: 8, color: '#959598', fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>SSL ENCRYPTED</span>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-
-
-
