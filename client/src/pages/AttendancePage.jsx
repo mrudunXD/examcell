@@ -316,20 +316,25 @@ export default function AttendancePage() {
 
   if (!slot && loading) return <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>;
 
+  // Calculations
+  const markedPercentage = summary.total ? Math.round(((summary.total - summary.unmarked) / summary.total) * 100) : 0;
+
   return (
-    <div className="fade-in">
-      <div className="page-header">
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      {/* Page Header */}
+      <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <div className="flex-row" style={{ gap: 6, marginBottom: 8 }}>
-            <Link to="/exam-cycles" className="btn btn-ghost btn-sm">
-              <ArrowLeft size={12} strokeWidth={1.5} /> Cycles
+            <Link to="/exam-cycles" className="btn btn-ghost btn-sm" style={{ borderRadius: 8 }}>
+              <ArrowLeft size={12} strokeWidth={1.5} style={{ marginRight: 4 }} /> Back to Cycles
             </Link>
           </div>
-          
-          <h1 className="page-title">Attendance Marking</h1>
-          <p className="page-subtitle">
-            {slot?.subject_code} — {slot?.subject_name} · {formatDate(slot?.date)} · {formatTime(slot?.start_time)}
-          </p>
+          <h1 className="page-title">Candidate Attendance Terminal</h1>
+          {slot && (
+            <p className="page-subtitle">
+              {slot.subject_code} — {slot.subject_name} · {formatDate(slot.date)} · {formatTime(slot.start_time)}
+            </p>
+          )}
         </div>
         <div className="flex-row" style={{ gap: 8 }}>
           <button 
@@ -345,90 +350,125 @@ export default function AttendancePage() {
               Save Changes
             </button>
           )}
-          <button className="btn btn-ghost btn-sm" onClick={() => { fetchAttendance(selectedRoom); if (activeTab === 'logs') fetchLogs(selectedRoom); }}>
-            <RefreshCw size={12} strokeWidth={1.5} />
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => { fetchAttendance(selectedRoom); if (activeTab === 'logs') fetchLogs(selectedRoom); }} style={{ borderRadius: 8 }}>
+            <RefreshCw size={13} strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
-      {/* Summary bar */}
-      <div className="attendance-summary-bar">
-        {[
-          { label: 'Total',    value: summary.total,    color: '#111' },
-          { label: 'Present',  value: summary.present,  color: '#166534' },
-          { label: 'Absent',   value: summary.absent,   color: '#FF453A' },
-          { label: 'Late',     value: summary.late,     color: '#92400e' },
-          { label: 'Unmarked', value: summary.unmarked, color: '#767680' },
-        ].map((item) => (
-          <div key={item.label} className="attendance-summary-item">
-            <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontFamily: 'var(--font-mono)' }}>{item.value}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--np-n500)', marginTop: 2 }}>{item.label}</div>
+      {/* Row 1: KPI Summary Row */}
+      <div className="kpi-grid">
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>Registered Candidates</span>
+            <Users size={14} color="#0A84FF" strokeWidth={1.5} />
           </div>
-        ))}
-      </div>
-
-      <div className="attendance-main-layout">
-        {/* Room selector */}
-        <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 10, borderBottom: '1px solid #222225', paddingBottom: 6 }}>
-            Rooms
-          </div>
-          <div className="attendance-rooms-container">
-            {rooms.map(item => (
-              <button
-                key={item.room.id}
-                onClick={() => setSelectedRoom(item.room.id)}
-                className={`attendance-room-btn ${selectedRoom === item.room.id ? 'active' : ''}`}
-              >
-                {item.room.room_no}
-                <div className="btn-subtext" style={{ fontSize: 9, opacity: 0.65, marginTop: 2 }}>{item.assignments?.length || 0} students</div>
-              </button>
-            ))}
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{summary.total}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>Total seating entries</div>
           </div>
         </div>
 
-        {/* Right side: Tabs & Panels */}
-        <div>
-          {/* Tab buttons */}
-          <div style={{ display: 'flex', borderBottom: '1px solid #222225', marginBottom: 16 }}>
-            <button
-              onClick={() => setActiveTab('attendance')}
-              style={{
-                padding: '8px 16px',
-                fontFamily: 'var(--font-serif)',
-                fontSize: 14,
-                fontWeight: 700,
-                border: 'none',
-                borderBottom: activeTab === 'attendance' ? '4px solid #111111' : 'none',
-                background: activeTab === 'attendance' ? '#F5F5F7' : 'transparent',
-                color: activeTab === 'attendance' ? '#0C0C0E' : '#A3A3AC',
-                cursor: 'pointer',
-                transition: 'all 0.12s',
-              }}
-            >
-              Student Attendance Register
-            </button>
-            <button
-              onClick={() => setActiveTab('logs')}
-              style={{
-                padding: '8px 16px',
-                fontFamily: 'var(--font-serif)',
-                fontSize: 14,
-                fontWeight: 700,
-                border: 'none',
-                borderBottom: activeTab === 'logs' ? '4px solid #111111' : 'none',
-                background: activeTab === 'logs' ? '#F5F5F7' : 'transparent',
-                color: activeTab === 'logs' ? '#0C0C0E' : '#A3A3AC',
-                cursor: 'pointer',
-                transition: 'all 0.12s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <FileText size={14} /> Invigilator Activity Log
-            </button>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>Present Candidates</span>
+            <Check size={14} color="#30D158" strokeWidth={1.5} />
           </div>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#30D158', fontFamily: 'var(--font-mono)' }}>{summary.present}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>Marked present count</div>
+          </div>
+        </div>
+
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>Verification Rate</span>
+            <CheckSquare size={14} color="#FFD60A" strokeWidth={1.5} />
+          </div>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#FFD60A', fontFamily: 'var(--font-mono)' }}>{markedPercentage}%</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>{summary.total - summary.unmarked} of {summary.total} marked</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Room & Student Attendance Registers (Primary Content Area) */}
+      <div className="card" style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div className="attendance-main-layout" style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 24 }}>
+          {/* Room Selector */}
+          <div style={{ borderRight: '1px solid var(--border)', paddingRight: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+              Exam Rooms
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {rooms.map(item => (
+                <button
+                  key={item.room.id}
+                  onClick={() => setSelectedRoom(item.room.id)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    background: selectedRoom === item.room.id ? 'var(--bg-surface)' : 'transparent',
+                    color: selectedRoom === item.room.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    width: '100%',
+                    textAlign: 'left'
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 12 }}>Room {item.room.room_no}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>{item.assignments?.length || 0} candidates seated</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right side: Register */}
+          <div>
+            {/* Tab buttons */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+              <button
+                onClick={() => setActiveTab('attendance')}
+                style={{
+                  padding: '8px 16px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: 'none',
+                  borderBottom: activeTab === 'attendance' ? '2px solid var(--accent-blue)' : 'none',
+                  background: activeTab === 'attendance' ? 'rgba(255,255,255,0.03)' : 'transparent',
+                  color: activeTab === 'attendance' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.12s',
+                }}
+              >
+                Student Attendance Register
+              </button>
+              <button
+                onClick={() => setActiveTab('logs')}
+                style={{
+                  padding: '8px 16px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: 'none',
+                  borderBottom: activeTab === 'logs' ? '2px solid var(--accent-blue)' : 'none',
+                  background: activeTab === 'logs' ? 'rgba(255,255,255,0.03)' : 'transparent',
+                  color: activeTab === 'logs' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.12s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <FileText size={14} /> Invigilator Activity Log
+              </button>
+            </div>
 
           {/* TAB 1: Attendance marking register */}
           {activeTab === 'attendance' && (
@@ -453,13 +493,13 @@ export default function AttendancePage() {
                   No students in this room, or no seating generated yet.
                 </div>
               ) : (
-                <div style={{ border: '1px solid #222225' }}>
+                <div style={{ border: '1px solid var(--border)' }}>
                   {records.map((student, i) => {
                     const status = student.attendance_status || null;
                     const isDirty = dirty[student.student_id];
                     return (
                       <div key={student.student_id} className={`attendance-student-row ${isDirty ? 'dirty' : ''}`} style={{
-                        borderBottom: i < records.length - 1 ? '1px solid #222225' : 'none',
+                        borderBottom: i < records.length - 1 ? '1px solid var(--border)' : 'none',
                       }}>
                       <div className="attendance-student-header">
                         <div className="attendance-student-seat">
@@ -485,7 +525,7 @@ export default function AttendancePage() {
                                 onClick={() => markStatus(student.student_id, s)}
                                 title={cfg.label}
                                 style={{
-                                  padding: '5px 10px', border: `1px solid ${isActive ? cfg.color : '#222225'}`,
+                                  padding: '5px 10px', border: `1px solid ${isActive ? cfg.color : 'var(--border)'}`,
                                   background: isActive ? cfg.bg : 'transparent',
                                   color: isActive ? cfg.color : '#767680',
                                   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
@@ -517,8 +557,8 @@ export default function AttendancePage() {
           {activeTab === 'logs' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
               {/* Timeline panel */}
-              <div style={{ border: '1px solid #222225', background: '#FFF', padding: 20, boxShadow: '4px 4px 0 0 #111111' }}>
-                <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 16px 0', borderBottom: '1px solid #222225', paddingBottom: 8 }}>
+              <div style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)', padding: 20, borderRadius: 12 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px 0', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
                   Room Activity Timeline
                 </h3>
                 
@@ -537,7 +577,7 @@ export default function AttendancePage() {
                       if (log.type === 'extra_booklet') typeColor = '#1d4ed8';
 
                       return (
-                        <div key={log.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #222225', paddingBottom: 10 }}>
+                        <div key={log.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
                           <div style={{
                             width: 6, alignSelf: 'stretch', background: typeColor, flexShrink: 0
                           }} />
@@ -549,12 +589,12 @@ export default function AttendancePage() {
                               }}>
                                 {log.type.replace('_', ' ')}
                               </span>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)' }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>
                                 {new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                               </span>
                             </div>
                             
-                            <div style={{ fontSize: 12, marginTop: 4, fontWeight: 600, color: '#111' }}>
+                            <div style={{ fontSize: 12, marginTop: 4, fontWeight: 600, color: 'var(--text-primary)' }}>
                               {log.details}
                             </div>
                             
@@ -576,8 +616,8 @@ export default function AttendancePage() {
               </div>
 
               {/* Log entry composer */}
-              <div style={{ border: '1px solid #222225', background: '#0C0C0E', padding: 20, boxShadow: '4px 4px 0 0 #111111', position: 'sticky', top: 10 }}>
-                <h4 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 16px 0', borderBottom: '1px solid #222225', paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)', padding: 20, borderRadius: 12, position: 'sticky', top: 10 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px 0', borderBottom: '1px solid var(--border)', paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Plus size={16} /> Add Log Entry
                 </h4>
                 
@@ -638,6 +678,7 @@ export default function AttendancePage() {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Barcode scanner dialog */}

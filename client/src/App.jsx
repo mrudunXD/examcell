@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useAuthStore } from './store/index.js';
+import { useAuthStore, useAppStore } from './store/index.js';
 import Layout from './components/Layout.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
@@ -24,6 +25,7 @@ import KioskPage from './pages/KioskPage.jsx';
 import SystemHealthPage from './pages/SystemHealthPage.jsx';
 import HistoricalAnalyticsPage from './pages/HistoricalAnalyticsPage.jsx';
 import PlannerPage from './pages/PlannerPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
 
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
@@ -34,6 +36,11 @@ function ProtectedRoute({ children, role }) {
 
 export default function App() {
   const { user } = useAuthStore();
+  const { theme } = useAppStore();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <BrowserRouter>
@@ -41,18 +48,18 @@ export default function App() {
         position="top-right"
         toastOptions={{
           style: {
-            background: '#1C1C1F',
-            color: '#F5F5F7',
-            border: '1px solid #2C2C2E',
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             fontFamily: "'Inter', sans-serif",
             fontSize: '13px',
             fontWeight: 500,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
             padding: '12px 16px',
           },
-          success: { iconTheme: { primary: '#30D158', secondary: '#1C1C1F' } },
-          error:   { iconTheme: { primary: '#FF453A', secondary: '#1C1C1F' } },
+          success: { iconTheme: { primary: '#30D158', secondary: 'var(--bg-elevated)' } },
+          error:   { iconTheme: { primary: '#FF453A', secondary: 'var(--bg-elevated)' } },
         }}
       />
       <Routes>
@@ -83,8 +90,9 @@ export default function App() {
           <Route path="heatmap" element={<ProtectedRoute role="coordinator"><HeatmapPage /></ProtectedRoute>} />
           <Route path="analytics" element={<ProtectedRoute role="coordinator"><HistoricalAnalyticsPage /></ProtectedRoute>} />
           <Route path="health" element={<ProtectedRoute role="coordinator"><SystemHealthPage /></ProtectedRoute>} />
+          <Route path="settings" element={<ProtectedRoute role="coordinator"><SettingsPage /></ProtectedRoute>} />
         </Route>
-        <Route path="kiosk/:cycleId" element={<KioskPage />} />
+        <Route path="kiosk/:cycleId" element={<div className="kiosk-theme" style={{ height: '100vh', width: '100vw' }}><KioskPage /></div>} />
       </Routes>
     </BrowserRouter>
   );

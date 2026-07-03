@@ -51,7 +51,7 @@ export default function HistoricalAnalyticsPage() {
       <div className="card" style={{ textAlign: 'center', padding: 64, margin: '24px 0' }}>
         <BarChart3 size={48} strokeWidth={1} style={{ margin: '0 auto 16px', color: '#767680' }} />
         <h2 className="font-serif" style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Historical Data Available</h2>
-        <p style={{ fontSize: 13, color: '#8E8E93', maxWidth: 400, margin: '0 auto' }}>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto' }}>
           Execute optimization solver runs within your exam cycles to generate historical telemetry and track performance.
         </p>
       </div>
@@ -82,20 +82,20 @@ export default function HistoricalAnalyticsPage() {
           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
             {label} Trend
           </span>
-          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: '#8E8E93' }}>
+          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
             {chartCycles.length} Cycles Evaluated
           </span>
         </div>
         <div style={{ position: 'relative', overflowX: 'auto' }}>
-          <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} style={{ border: '1px solid #222225' }}>
+          <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} style={{ border: '1px solid var(--border)' }}>
             {/* Grid Lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((p, index) => {
               const y = padding + p * (height - padding * 2);
               const val = Math.round(maxVal * (1 - p));
               return (
                 <g key={index}>
-                  <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#222225" strokeDasharray="3,3" />
-                  <text x={padding - 8} y={y + 4} textAnchor="end" style={{ fontSize: 8, fontFamily: 'var(--font-mono)', fill: '#8E8E93' }}>
+                  <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--border)" strokeDasharray="3,3" />
+                  <text x={padding - 8} y={y + 4} textAnchor="end" style={{ fontSize: 8, fontFamily: 'var(--font-mono)', fill: 'var(--text-secondary)' }}>
                     {val}
                   </text>
                 </g>
@@ -119,7 +119,7 @@ export default function HistoricalAnalyticsPage() {
                 <text x={p.x} y={p.y - 10} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                   {p.val}
                 </text>
-                <text x={p.x} y={height - padding + 15} textAnchor="middle" transform={`rotate(-15, ${p.x}, ${height - padding + 15})`} style={{ fontSize: 8, fill: '#A3A3AC', fontWeight: 600 }}>
+                <text x={p.x} y={height - padding + 15} textAnchor="middle" transform={`rotate(-15, ${p.x}, ${height - padding + 15})`} style={{ fontSize: 8, fill: 'var(--text-secondary)', fontWeight: 600 }}>
                   {p.name.length > 10 ? p.name.substring(0, 10) + '..' : p.name}
                 </text>
               </g>
@@ -139,7 +139,7 @@ export default function HistoricalAnalyticsPage() {
           <h1 className="page-title">Historical Analytics</h1>
           <p className="page-subtitle">Multi-cycle performance indicators, workload equity metrics, and solver benchmarks.</p>
         </div>
-        <div style={{ display: 'flex', border: '1px solid #222225' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--border)' }}>
           {['overview', 'trends', 'equity'].map(t => (
             <button
               key={t}
@@ -165,7 +165,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">Total Solver Executions</div>
                   <div className="stat-card-sub">{overall.successRuns} successful / {overall.failRuns} failed</div>
                 </div>
-                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
+                <div style={{ border: '1px solid var(--border)', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   <Activity size={16} />
                 </div>
               </div>
@@ -180,7 +180,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">Solver Success Rate</div>
                   <div className="stat-card-sub">Infeasibility-free ratio</div>
                 </div>
-                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
+                <div style={{ border: '1px solid var(--border)', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   {successRate > 80 ? <CheckCircle2 size={16} color="#166534" /> : <XCircle size={16} color="#FF453A" />}
                 </div>
               </div>
@@ -195,7 +195,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">Average Solve Duration</div>
                   <div className="stat-card-sub">Google OR-Tools benchmark</div>
                 </div>
-                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
+                <div style={{ border: '1px solid var(--border)', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   <Clock size={16} />
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function HistoricalAnalyticsPage() {
                   <div className="stat-card-label">All-Time Incidents</div>
                   <div className="stat-card-sub">Malpractices & disturbances</div>
                 </div>
-                <div style={{ border: '1px solid #222225', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
+                <div style={{ border: '1px solid var(--border)', padding: 8, color: '#F5F5F7', opacity: 0.6 }}>
                   <ShieldAlert size={16} />
                 </div>
               </div>
@@ -230,7 +230,7 @@ export default function HistoricalAnalyticsPage() {
             <div style={{ overflowX: 'auto' }}>
               <table className="table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#1C1C1F', borderBottom: '1px solid #222225' }}>
+                  <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
                     <th style={{ padding: '12px 16px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Cycle Name</th>
                     <th style={{ padding: '12px 16px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Status</th>
                     <th style={{ padding: '12px 16px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', textAlign: 'right' }}>Slots</th>
@@ -244,10 +244,10 @@ export default function HistoricalAnalyticsPage() {
                 </thead>
                 <tbody>
                   {cycles.map((c, idx) => (
-                    <tr key={c.id} style={{ borderBottom: idx < cycles.length - 1 ? '1px solid #222225' : 'none', background: '#FFF' }}>
+                    <tr key={c.id} style={{ borderBottom: idx < cycles.length - 1 ? '1px solid var(--border)' : 'none', background: '#FFF' }}>
                       <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>
                         {c.name}
-                        <div style={{ fontSize: 9, color: '#8E8E93', fontWeight: 500, fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                        <div style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 500, fontFamily: 'var(--font-mono)', marginTop: 2 }}>
                           {formatDate(c.startDate)} to {formatDate(c.endDate)}
                         </div>
                       </td>
@@ -305,7 +305,7 @@ export default function HistoricalAnalyticsPage() {
                 Faculty Workload Balance Equity
               </h3>
             </div>
-            <p style={{ fontSize: 13, color: '#A3A3AC', marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
               The load balancing index reflects the equity in duty rotations. A lower range (difference between maximum and minimum duties) signifies better equity and prevents supervisor fatigue.
             </p>
 
@@ -315,7 +315,7 @@ export default function HistoricalAnalyticsPage() {
                 const equityScore = c.maxDuties > 0 ? Math.max(0, 100 - (range * 20)) : 100;
                 
                 return (
-                  <div key={c.id} style={{ padding: '12px 14px', border: '1px solid #222225', background: '#0C0C0E' }}>
+                  <div key={c.id} style={{ padding: '12px 14px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <span style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</span>
                       <span className="badge badge-ink" style={{ fontSize: 9, fontFamily: 'var(--font-mono)' }}>
@@ -324,22 +324,22 @@ export default function HistoricalAnalyticsPage() {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, textAlign: 'center', marginBottom: 10 }}>
-                      <div style={{ borderRight: '1px solid #222225' }}>
-                        <div style={{ fontSize: 10, color: '#8E8E93', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Min Duties</div>
+                      <div style={{ borderRight: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Min Duties</div>
                         <div style={{ fontSize: 16, fontWeight: 700 }}>{c.minDuties}</div>
                       </div>
-                      <div style={{ borderRight: '1px solid #222225' }}>
-                        <div style={{ fontSize: 10, color: '#8E8E93', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Avg Duties</div>
+                      <div style={{ borderRight: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Avg Duties</div>
                         <div style={{ fontSize: 16, fontWeight: 700 }}>{c.avgDuties}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, color: '#8E8E93', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Max Duties</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Max Duties</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: range > 3 ? '#FF453A' : 'inherit' }}>{c.maxDuties}</div>
                       </div>
                     </div>
 
                     {/* Progress representation */}
-                    <div style={{ height: 6, background: '#222225', position: 'relative' }}>
+                    <div style={{ height: 6, background: 'var(--border)', position: 'relative' }}>
                       <div 
                         style={{ 
                           position: 'absolute', 
@@ -366,16 +366,16 @@ export default function HistoricalAnalyticsPage() {
             <h3 className="font-serif" style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
               Rotation Integrity Analysis
             </h3>
-            <p style={{ fontSize: 13, color: '#A3A3AC', marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
               Audit details regarding active supervisor engagement and total duty execution across cycles.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {cycles.map(c => (
-                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222225', paddingBottom: 10 }}>
+                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</span>
-                    <div style={{ fontSize: 10, color: '#8E8E93', marginTop: 2 }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
                       {c.assignedFacultyCount} distinct invigilators assigned
                     </div>
                   </div>
@@ -383,7 +383,7 @@ export default function HistoricalAnalyticsPage() {
                     <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                       {c.totalDuties}
                     </span>
-                    <div style={{ fontSize: 9, color: '#8E8E93', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
                       Total Duties
                     </div>
                   </div>
@@ -391,9 +391,9 @@ export default function HistoricalAnalyticsPage() {
               ))}
             </div>
             
-            <div style={{ marginTop: 24, padding: 12, border: '1px solid #222225', background: '#1C1C1F', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <div style={{ marginTop: 24, padding: 12, border: '1px solid var(--border)', background: 'var(--bg-elevated)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2, color: '#92400e' }} />
-              <div style={{ fontSize: 11, color: '#A3A3AC' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                 <strong>Recommendation:</strong> Ensure that the load balancing difference (Max - Min) stays below 3 duties. High variance indicate possible rule bias or constraint overrides that skew supervisor fairness.
               </div>
             </div>

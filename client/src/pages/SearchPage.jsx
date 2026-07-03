@@ -102,7 +102,7 @@ export default function SearchPage() {
       {/* Search Header */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
-        background: '#0C0C0E', paddingBottom: 24,
+        background: 'var(--bg-base)', paddingBottom: 24,
         borderBottom: '2px solid #111', marginBottom: 32,
       }}>
         <div className="accent-bar" style={{ marginBottom: 16 }} />
@@ -111,7 +111,7 @@ export default function SearchPage() {
         <div style={{ position: 'relative' }}>
           <Search
             size={16} strokeWidth={1.5}
-            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#A3A3AC', pointerEvents: 'none' }}
+            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}
           />
           <input
             ref={inputRef}
@@ -130,7 +130,7 @@ export default function SearchPage() {
           {query && (
             <button
               onClick={() => { setQuery(''); setResults({ students: [], subjects: [], faculty: [], cycles: [] }); inputRef.current?.focus(); }}
-              style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#A3A3AC', display: 'flex', alignItems: 'center' }}
+              style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
             >
               <X size={14} strokeWidth={1.5} />
             </button>
@@ -174,13 +174,13 @@ export default function SearchPage() {
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase',
               letterSpacing: '0.12em', color: 'var(--np-n500)',
-              borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12,
+              borderBottom: '1px solid var(--border)', paddingBottom: 8, marginBottom: 12,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
               <Icon size={11} strokeWidth={1.5} />
               {LABELS[type]} — {items.length} result{items.length !== 1 ? 's' : ''}
             </div>
-            <div style={{ border: '1px solid #222225' }}>
+            <div style={{ border: '1px solid var(--border)' }}>
               {items.map((item, i) => {
                 const globalIdx = flatResults.findIndex(r => r.type === type && r.item.id === item.id);
                 const isActive = activeIdx === globalIdx;
@@ -192,8 +192,8 @@ export default function SearchPage() {
                       display: 'flex', alignItems: 'center', gap: 16, width: '100%',
                       padding: '12px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
                       background: isActive ? '#111' : 'transparent',
-                      color: isActive ? '#0C0C0E' : '#111',
-                      borderBottom: i < items.length - 1 ? '1px solid #222225' : 'none',
+                      color: isActive ? 'var(--bg-base)' : '#111',
+                      borderBottom: i < items.length - 1 ? '1px solid var(--border)' : 'none',
                       transition: 'background 0.1s',
                     }}
                   >

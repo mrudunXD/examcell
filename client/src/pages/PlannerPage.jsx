@@ -303,7 +303,7 @@ export default function PlannerPage() {
       <div className="page-header" style={{ paddingBottom: 12, borderBottom: '3px solid #111111', flexShrink: 0 }}>
         <div>
           <div className="flex-row" style={{ gap: 6, marginBottom: 8 }}>
-            <Link to="/exam-cycles" className="btn btn-ghost btn-sm" style={{ border: '1px solid #222225', fontWeight: 'bold' }}>
+            <Link to="/exam-cycles" className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)', fontWeight: 'bold' }}>
               <ArrowLeft size={12} strokeWidth={2} /> Back to Cycles
             </Link>
           </div>
@@ -331,7 +331,7 @@ export default function PlannerPage() {
           padding: 16,
           overflowY: 'auto'
         }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: 8, marginBottom: 12 }}>
             Unscheduled Subjects ({unscheduledSubjects.length})
           </h2>
 
@@ -343,7 +343,7 @@ export default function PlannerPage() {
               placeholder="Search code/name..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              style={{ border: '1px solid #222225', padding: '6px 10px', fontSize: 12 }}
+              style={{ border: '1px solid var(--border)', padding: '6px 10px', fontSize: 12 }}
             />
             
             <div style={{ display: 'flex', gap: 6 }}>
@@ -351,7 +351,7 @@ export default function PlannerPage() {
                 className="input" 
                 value={branchFilter} 
                 onChange={e => setBranchFilter(e.target.value)}
-                style={{ border: '1px solid #222225', padding: '4px 6px', fontSize: 11, flex: 1 }}
+                style={{ border: '1px solid var(--border)', padding: '4px 6px', fontSize: 11, flex: 1 }}
               >
                 <option value="">All Branches</option>
                 {uniqueBranches.map(b => <option key={b} value={b}>{b}</option>)}
@@ -361,7 +361,7 @@ export default function PlannerPage() {
                 className="input" 
                 value={yearFilter} 
                 onChange={e => setYearFilter(e.target.value)}
-                style={{ border: '1px solid #222225', padding: '4px 6px', fontSize: 11, flex: 1 }}
+                style={{ border: '1px solid var(--border)', padding: '4px 6px', fontSize: 11, flex: 1 }}
               >
                 <option value="">All Years</option>
                 {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -372,7 +372,7 @@ export default function PlannerPage() {
           {/* Unscheduled Subjects List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, overflowY: 'auto', paddingRight: 4 }}>
             {unscheduledSubjects.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--np-n500)', fontSize: 12, padding: 24, border: '2px dashed #222225', fontStyle: 'italic' }}>
+              <div style={{ textAlign: 'center', color: 'var(--np-n500)', fontSize: 12, padding: 24, border: '2px dashed var(--border)', fontStyle: 'italic' }}>
                 No unscheduled subjects match the filters.
               </div>
             ) : (
@@ -383,7 +383,7 @@ export default function PlannerPage() {
                   onDragStart={(e) => handleDragStart(e, 'subject', sub)}
                   onDragEnd={handleDragEnd}
                   style={{
-                    border: '1px solid #222225',
+                    border: '1px solid var(--border)',
                     background: '#FFF',
                     padding: 10,
                     cursor: 'grab',
@@ -400,7 +400,7 @@ export default function PlannerPage() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 'bold', background: '#222225', padding: '2px 6px', border: '1px solid #111111' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 'bold', background: 'var(--border)', padding: '2px 6px', border: '1px solid #111111' }}>
                       {sub.code}
                     </span>
                     <span style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n500)', fontWeight: 600 }}>
@@ -419,7 +419,7 @@ export default function PlannerPage() {
         {/* Calendar Timetable Timeline Grid */}
         <div style={{
           flex: 1,
-          background: '#0C0C0E',
+          background: 'var(--bg-base)',
           padding: 16,
           overflow: 'auto',
           display: 'flex',
@@ -455,12 +455,12 @@ export default function PlannerPage() {
           <div style={{ border: '3px solid #111111', background: '#FFF', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
-                <tr style={{ borderBottom: '3px solid #111111', background: '#222225' }}>
-                  <th style={{ width: 120, padding: 12, borderRight: '1px solid #222225', textAlign: 'left', fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 900 }}>
+                <tr style={{ borderBottom: '3px solid #111111', background: 'var(--border)' }}>
+                  <th style={{ width: 120, padding: 12, borderRight: '1px solid var(--border)', textAlign: 'left', fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 900 }}>
                     SHIFT
                   </th>
                   {dates.map(date => (
-                    <th key={date} style={{ padding: 12, borderRight: '1px solid #222225', textAlign: 'center', minWidth: 160 }}>
+                    <th key={date} style={{ padding: 12, borderRight: '1px solid var(--border)', textAlign: 'center', minWidth: 160 }}>
                       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 900 }}>
                         {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                       </div>
@@ -473,11 +473,11 @@ export default function PlannerPage() {
               </thead>
               <tbody>
                 {SHIFTS.map(shift => (
-                  <tr key={shift.id} style={{ borderBottom: '1px solid #222225' }}>
+                  <tr key={shift.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{
                       padding: 12,
-                      borderRight: '1px solid #222225',
-                      background: '#1C1C1F',
+                      borderRight: '1px solid var(--border)',
+                      background: 'var(--bg-elevated)',
                       verticalAlign: 'top',
                       fontFamily: 'var(--font-sans)',
                       fontWeight: 'bold'
@@ -496,7 +496,7 @@ export default function PlannerPage() {
                       // Calculate border styling for active drag actions
                       let cellStyle = {
                         padding: 12,
-                        borderRight: '1px solid #222225',
+                        borderRight: '1px solid var(--border)',
                         verticalAlign: 'top',
                         background: '#FFF',
                         minHeight: 120,
@@ -533,8 +533,8 @@ export default function PlannerPage() {
                                   onDragStart={(e) => handleDragStart(e, 'slot', slot)}
                                   onDragEnd={handleDragEnd}
                                   style={{
-                                    border: '1px solid #222225',
-                                    background: isClashingSource ? 'rgba(204, 0, 0, 0.15)' : '#0C0C0E',
+                                    border: '1px solid var(--border)',
+                                    background: isClashingSource ? 'rgba(204, 0, 0, 0.15)' : 'var(--bg-base)',
                                     padding: 8,
                                     cursor: 'grab',
                                     position: 'relative',
@@ -571,7 +571,7 @@ export default function PlannerPage() {
 
                                   {/* Room allocations count */}
                                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                                    <span style={{ fontSize: 9, color: 'var(--np-n600)', background: 'rgba(0,0,0,0.05)', padding: '1px 4px', border: '1px solid #222225' }}>
+                                    <span style={{ fontSize: 9, color: 'var(--np-n600)', background: 'rgba(0,0,0,0.05)', padding: '1px 4px', border: '1px solid var(--border)' }}>
                                       Rooms: {slot.rooms?.map(r => r.room_no).join(', ') || 'None'}
                                     </span>
                                   </div>

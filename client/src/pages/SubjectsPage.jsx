@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Lock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Lock, BookOpen, Layers, Award, ShieldAlert, Activity, Search, X } from 'lucide-react';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
+import CountUp from '../components/ReactBits/CountUp.jsx';
+import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
+import DecryptedText from '../components/ReactBits/DecryptedText.jsx';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const EMPTY = { code: '', name: '', branch: '', year: 'FY', semester: 1, abbreviation: '', course_type: '' };
@@ -76,7 +79,7 @@ function SubjectModal({ subject, onClose, onSave }) {
               <option value="INP">INP — Internship/Project</option>
             </select>
           </div>
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (subject?.id ? 'Update' : 'Add Subject')}
@@ -146,14 +149,14 @@ function SubjectConstraintsModal({ subject, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-lg" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, maxWidth: '800px', border: '4px solid #111111', boxShadow: '8px 8px 0 0 #111111' }}>
+      <div className="modal modal-lg" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, maxWidth: '800px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', borderRadius: 16 }}>
         
         {/* Left Panel: Active Constraints List */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: '#FF453A', textTransform: 'uppercase' }}>
             {subject.code}
           </span>
-          <h3 style={{ fontFamily: 'var(--font-serif)', margin: '2px 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: '4px 0 12px 0', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
             Constraints: {subject.name}
           </h3>
 
@@ -161,40 +164,41 @@ function SubjectConstraintsModal({ subject, onClose }) {
             {loading ? (
               <div style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
             ) : constraints.length === 0 ? (
-              <div style={{ fontStyle: 'italic', color: '#666', fontSize: 13, padding: 12 }}>
-                No scheduling locks or lockout dates registered for this subject.
+              <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 12, padding: 12 }}>
+                No scheduling locks or lockout dates registered.
               </div>
             ) : (
               <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #222225', fontWeight: 'bold' }}>
-                    <th style={{ padding: 4 }}>Type</th>
-                    <th style={{ padding: 4 }}>Date</th>
-                    <th style={{ padding: 4 }}>Shift</th>
-                    <th style={{ padding: 4 }}>Action</th>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: 6 }}>Type</th>
+                    <th style={{ padding: 6 }}>Date</th>
+                    <th style={{ padding: 6 }}>Shift</th>
+                    <th style={{ padding: 6 }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {constraints.map((c) => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #222225' }}>
-                      <td style={{ padding: '6px 4px' }}>
+                    <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '6px' }}>
                         <span style={{ 
                           fontSize: 9, 
-                          background: c.type === 'fixed_slot' ? '#dcfce7' : '#fee2e2', 
-                          color: c.type === 'fixed_slot' ? '#166534' : '#991b1b', 
-                          border: `1px solid ${c.type === 'fixed_slot' ? '#166534' : '#991b1b'}`, 
-                          padding: '1px 4px', 
+                          background: c.type === 'fixed_slot' ? 'rgba(48,209,88,0.15)' : 'rgba(255,69,58,0.15)', 
+                          color: c.type === 'fixed_slot' ? '#30D158' : '#FF453A', 
+                          border: `1px solid ${c.type === 'fixed_slot' ? '#30D158' : '#FF453A'}`, 
+                          padding: '2px 6px', 
+                          borderRadius: 4,
                           fontWeight: 'bold',
                           textTransform: 'uppercase'
                         }}>
                           {c.type === 'fixed_slot' ? 'Lock Date' : 'Lockout'}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{c.date}</td>
-                      <td style={{ padding: '6px 4px' }}>
+                      <td style={{ padding: '6px', fontFamily: 'var(--font-mono)' }}>{c.date}</td>
+                      <td style={{ padding: '6px', color: 'var(--text-secondary)' }}>
                         {c.shift_id ? `Shift ${c.shift_id}` : 'Full Day'}
                       </td>
-                      <td style={{ padding: '6px 4px' }}>
+                      <td style={{ padding: '6px' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.id)} style={{ color: '#FF453A', padding: '2px 4px' }}>
                           Remove
                         </button>
@@ -208,43 +212,25 @@ function SubjectConstraintsModal({ subject, onClose }) {
         </div>
 
         {/* Right Panel: Add Constraint Form */}
-        <div>
-          <h3 style={{ fontFamily: 'var(--font-serif)', margin: '0 0 12px 0', borderBottom: '2px solid #111', paddingBottom: 6 }}>
-            Add Constraint Rule
-          </h3>
+        <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 20 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Register Schedule Rule</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
-              <label className="form-label">Constraint Type *</label>
-              <select 
-                className="select" 
-                value={type} 
-                onChange={e => setType(e.target.value)}
-                style={{ fontSize: 12 }}
-              >
-                <option value="excluded_date">Lockout Date (Avoid scheduling here)</option>
-                <option value="fixed_slot">Lock to Slot (Force schedule on this slot)</option>
+              <label className="form-label">Rule Mode</label>
+              <select className="select" value={type} onChange={e => setType(e.target.value)}>
+                <option value="excluded_date">Excluded Date (Lockout)</option>
+                <option value="fixed_slot">Fixed Target Slot (Strict Pin)</option>
               </select>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Date *</label>
-              <input 
-                type="date" 
-                className="input" 
-                value={date} 
-                onChange={e => setDate(e.target.value)}
-                required
-              />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Shift Duration</label>
-              <select 
-                className="select" 
-                value={shiftId} 
-                onChange={e => setShiftId(e.target.value)}
-                style={{ fontSize: 12 }}
-              >
+              <label className="form-label">Target Date</label>
+              <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} required />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Target Shift (Optional)</label>
+              <select className="select" value={shiftId} onChange={e => setShiftId(e.target.value)}>
                 <option value="">Full Day (All Shifts)</option>
                 <option value="1">Shift 1 (Morning)</option>
                 <option value="2">Shift 2 (Afternoon)</option>
@@ -265,249 +251,363 @@ function SubjectConstraintsModal({ subject, onClose }) {
   );
 }
 
-const ACCENT_COLORS = { FY: '#FF453A', SY: '#166534', TY: '#b45309', LY: '#7c3aed' };
-
-function SubjectStatCard({ label, value, sub, onClick, accent }) {
-  const [hovered, setHovered] = useState(false);
-  const ac = accent ? ACCENT_COLORS[accent] || '#F5F5F7' : '#F5F5F7';
-  return (
-    <div onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        padding: '24px 22px',
-        cursor: 'pointer',
-        border: '4px solid var(--np-ink)',
-        background: hovered ? '#F5F5F2' : '#FDFDFB',
-        boxShadow: hovered ? '8px 8px 0 0 var(--np-ink)' : '4px 4px 0 0 var(--np-ink)',
-        transform: hovered ? 'translate(-4px, -4px)' : 'none',
-        transition: 'transform 0.15s ease-out, box-shadow 0.15s ease-out, background 0.15s ease-out',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        height: '100%',
-        minHeight: '140px',
-      }}
-    >
-      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: ac }} />}
-      <div>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 900, color: '#F5F5F7', lineHeight: 1.1 }}>
-          {value}
-        </div>
-        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, marginTop: 8, color: '#F5F5F7' }}>
-          {label}
-        </div>
-      </div>
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        {sub && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n500)', letterSpacing: '0.02em' }}>
-            {sub}
-          </div>
-        )}
-        <div style={{ 
-          fontFamily: 'var(--font-mono)', 
-          fontSize: 10, 
-          color: ac === '#F5F5F7' ? '#FF453A' : ac, 
-          fontWeight: 'bold',
-          textTransform: 'uppercase', 
-          letterSpacing: '0.08em',
-          textDecoration: hovered ? 'underline' : 'none'
-        }}>
-          View →
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SubjectsBreadcrumb({ year, yearName, branch, sem, onHome, onYear, onBranch }) {
-  const crumbs = [{ label: 'All Years', onClick: onHome }];
-  if (year)      crumbs.push({ label: yearName, onClick: (branch != null || sem != null) ? onYear : null });
-  if (branch)    crumbs.push({ label: branch, onClick: sem != null ? onBranch : null });
-  if (sem != null) crumbs.push({ label: `Semester ${sem}`, onClick: null });
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 2 }}>
-      {crumbs.map((c, i) => (
-        <span key={i} style={{ display: 'flex', alignItems: 'center' }}>
-          {i > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n400)', padding: '0 5px' }}>/</span>}
-          <button onClick={c.onClick} disabled={!c.onClick} style={{
-            fontFamily: 'var(--font-mono)', fontSize: 11,
-            color: c.onClick ? '#FF453A' : 'var(--np-n600)',
-            background: 'none', border: 'none', cursor: c.onClick ? 'pointer' : 'default',
-            padding: '4px 0', fontWeight: c.onClick ? 400 : 600,
-            textDecoration: c.onClick ? 'underline' : 'none',
-          }}>{c.label}</button>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export default function SubjectsPage() {
-  const [subjects,      setSubjects]    = useState([]);
-  const [loading,       setLoading]     = useState(true);
-  const [modal,         setModal]       = useState(null);
-  const [editing,       setEditing]     = useState(null);
-  const [drillYear,     setDrillYear]   = useState(null);
-  const [drillBranch,   setDrillBranch] = useState(null);
-  const [drillSem,      setDrillSem]    = useState(null);
-  const { user }   = useAuthStore();
-  const isCoord    = user?.role === 'coordinator';
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
+  const [filterCourseType, setFilterCourseType] = useState('');
+  const [modal, setModal] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [showFiltersMenu, setShowFiltersMenu] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const { user } = useAuthStore();
+  const isCoord = user?.role === 'coordinator';
 
   const loadSubjects = async () => {
     setLoading(true);
-    try { const { data } = await api.get('/subjects'); setSubjects(data); }
-    catch { toast.error('Failed to load subjects'); }
-    finally { setLoading(false); }
+    try {
+      const { data } = await api.get('/subjects');
+      setSubjects(data);
+    } catch {
+      toast.error('Failed to load subjects');
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(() => { loadSubjects(); }, []);
+
+  useEffect(() => {
+    loadSubjects();
+  }, []);
 
   const del = async (id) => {
     if (!confirm('Delete this subject?')) return;
-    await api.delete(`/subjects/${id}`); toast.success('Deleted'); loadSubjects();
+    try {
+      await api.delete(`/subjects/${id}`);
+      toast.success('Deleted');
+      loadSubjects();
+    } catch {
+      toast.error('Delete failed');
+    }
   };
 
-  const resetDrill = () => { setDrillYear(null); setDrillBranch(null); setDrillSem(null); };
+  const branches = [...new Set(subjects.map(s => s.branch))].sort();
+  const courseTypes = [...new Set(subjects.map(s => s.course_type).filter(Boolean))].sort();
+  
+  // Statistics
+  const totalSubjects = subjects.length;
+  const uniqueBranches = branches.length;
+  const dscCount = subjects.filter(s => s.course_type === 'DSC').length;
+  const electiveCount = subjects.filter(s => s.course_type === 'DSE' || s.course_type === 'GE').length;
 
-  // Build groups: Year → Branch → Semester → subjects[]
-  const YEAR_ORDER = ['FY', 'SY', 'TY', 'LY'];
-  const YEAR_NAMES = { FY: 'First Year', SY: 'Second Year', TY: 'Third Year', LY: 'Last Year' };
-  const grouped = {};
-  for (const s of subjects) {
-    if (!grouped[s.year])                        grouped[s.year]                        = {};
-    if (!grouped[s.year][s.branch])              grouped[s.year][s.branch]              = {};
-    if (!grouped[s.year][s.branch][s.semester])  grouped[s.year][s.branch][s.semester]  = [];
-    grouped[s.year][s.branch][s.semester].push(s);
-  }
+  // Local filtering (extremely responsive)
+  const filteredSubjects = subjects.filter(s => {
+    const matchesSearch = !search || 
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.code.toLowerCase().includes(search.toLowerCase()) ||
+      (s.abbreviation && s.abbreviation.toLowerCase().includes(search.toLowerCase()));
+    
+    const matchesYear = !filterYear || s.year === filterYear;
+    const matchesBranch = !filterBranch || s.branch === filterBranch;
+    const matchesCourseType = !filterCourseType || s.course_type === filterCourseType;
 
-  const SubjectTable = ({ subs }) => (
-    <div className="table-wrap" style={{ marginTop: 12 }}>
-      <table>
-        <thead>
-          <tr>
-            <th>Code</th><th>Abbr.</th><th>Name</th><th>Type</th>
-            {isCoord && <th>Actions</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {subs.map(s => (
-            <tr key={s.id}>
-              <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#FF453A', fontSize: 12 }}>{s.code}</td>
-              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--np-n600)' }}>{s.abbreviation || '—'}</td>
-              <td style={{ fontWeight: 600 }}>{s.name}</td>
-              <td>{s.course_type && <span className="badge badge-neutral" style={{ fontSize: 9 }}>{s.course_type}</span>}</td>
-              {isCoord && (
-                <td>
-                  <div className="flex-row" style={{ gap: 4 }}>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(s); setModal('constraints'); }} title="Lock or Exclude scheduling slots">
-                      <Lock size={12} strokeWidth={1.5} /> Lock
-                    </button>
-                    <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditing(s); setModal('form'); }}><Pencil size={12} strokeWidth={1.5} /></button>
-                    <button className="btn btn-danger btn-icon btn-sm" onClick={() => del(s.id)}><Trash2 size={12} strokeWidth={1.5} /></button>
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+    return matchesSearch && matchesYear && matchesBranch && matchesCourseType;
+  });
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds(new Set());
+  }, [search, filterYear, filterBranch, filterCourseType]);
+
+  // Pagination derived data
+  const totalPages = Math.ceil(filteredSubjects.length / itemsPerPage) || 1;
+  const paginatedSubjects = filteredSubjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(paginatedSubjects.map(s => s.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
-    <div className="fade-in">
-      <div className="page-header">
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '24px 28px 40px' }}>
+      {/* Top Section: Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          
-          <h1 className="page-title">Subjects</h1>
-          <p className="page-subtitle">{subjects.length} subjects configured</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            <DecryptedText text="Curriculum Registry" />
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Academic program courses, credit counts, and schedule blackouts.</p>
         </div>
-        {isCoord && (
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }}>
-            <Plus size={13} strokeWidth={1.5} /> Add Subject
-          </button>
-        )}
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
-      ) : subjects.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
-          <p style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--np-n500)' }}>No subjects configured yet.</p>
-        </div>
-      ) : drillYear && drillBranch && drillSem != null ? (
-        // ── Level 3: subject table ───────────────────────────
-        <>
-          <SubjectsBreadcrumb
-            year={drillYear} yearName={YEAR_NAMES[drillYear]}
-            branch={drillBranch} sem={drillSem}
-            onHome={resetDrill}
-            onYear={() => { setDrillBranch(null); setDrillSem(null); }}
-            onBranch={() => setDrillSem(null)}
-          />
-          <SubjectTable subs={grouped[drillYear]?.[drillBranch]?.[drillSem] || []} />
-        </>
-      ) : drillYear && drillBranch ? (
-        // ── Level 2: semester cards ──────────────────────────
-        <>
-          <SubjectsBreadcrumb
-            year={drillYear} yearName={YEAR_NAMES[drillYear]}
-            branch={drillBranch}
-            onHome={resetDrill}
-            onYear={() => { setDrillBranch(null); setDrillSem(null); }}
-          />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 16 }}>
-            {Object.entries(grouped[drillYear][drillBranch]).sort(([a],[b]) => parseInt(a)-parseInt(b)).map(([sem, subs]) => (
-              <SubjectStatCard key={sem}
-                label={`Semester ${sem}`}
-                sub={`${parseInt(sem) % 2 === 1 ? 'Odd' : 'Even'} · ${subs.length} subjects`}
-                value={subs.length}
-                onClick={() => setDrillSem(parseInt(sem))}
-              />
-            ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
+        <SpotlightCard style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Subjects</span>
+            <BookOpen size={14} color="#3b82f6" strokeWidth={1.5} />
           </div>
-        </>
-      ) : drillYear ? (
-        // ── Level 1: branch cards ────────────────────────────
-        <>
-          <SubjectsBreadcrumb
-            year={drillYear} yearName={YEAR_NAMES[drillYear]}
-            onHome={resetDrill}
-          />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 16 }}>
-            {Object.entries(grouped[drillYear]).sort(([a],[b]) => a.localeCompare(b)).map(([branch, semMap]) => {
-              const total = Object.values(semMap).flat().length;
-              const sems  = Object.keys(semMap).length;
-              return (
-                <SubjectStatCard key={branch}
-                  label={branch}
-                  value={total}
-                  sub={`${sems} semester(s)`}
-                  onClick={() => setDrillBranch(branch)}
-                />
-              );
-            })}
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              <CountUp to={totalSubjects} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>Registered courses</div>
           </div>
-        </>
-      ) : (
-        // ── Level 0: year cards ──────────────────────────────
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '24px', marginTop: 12 }}>
-          {YEAR_ORDER.filter(y => grouped[y]).map(year => {
-            const total    = Object.values(grouped[year]).flatMap(b => Object.values(b)).flat().length;
-            const branches = Object.keys(grouped[year]).length;
-            return (
-              <SubjectStatCard key={year}
-                label={YEAR_NAMES[year]}
-                value={total}
-                sub={`${branches} branch(es)`}
-                accent={year}
-                onClick={() => setDrillYear(year)}
+        </SpotlightCard>
+
+        <SpotlightCard style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Covered Branches</span>
+            <Layers size={14} color="#10b981" strokeWidth={1.5} />
+          </div>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
+              <CountUp to={uniqueBranches} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>Different academic branches</div>
+          </div>
+        </SpotlightCard>
+
+        <SpotlightCard style={{ padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Core vs Elective</span>
+            <Award size={14} color="#f59e0b" strokeWidth={1.5} />
+          </div>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>
+              <CountUp to={dscCount} /> / <CountUp to={electiveCount} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>Discipline Core vs Elective courses</div>
+          </div>
+        </SpotlightCard>
+      </div>
+
+      {/* Bottom Section: Primary Content Area */}
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* SaaS UI Header Bar */}
+        <div className="saas-page-header-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Subjects</span>
+            
+            {/* Year tabs */}
+            <div className="saas-filter-tabs">
+              <button className={`saas-filter-tab${filterYear === '' ? ' active' : ''}`} onClick={() => setFilterYear('')}>All</button>
+              <button className={`saas-filter-tab${filterYear === 'FY' ? ' active' : ''}`} onClick={() => setFilterYear('FY')}>FY</button>
+              <button className={`saas-filter-tab${filterYear === 'SY' ? ' active' : ''}`} onClick={() => setFilterYear('SY')}>SY</button>
+              <button className={`saas-filter-tab${filterYear === 'TY' ? ' active' : ''}`} onClick={() => setFilterYear('TY')}>TY</button>
+              <button className={`saas-filter-tab${filterYear === 'LY' ? ' active' : ''}`} onClick={() => setFilterYear('LY')}>LY</button>
+            </div>
+
+            {/* Filter button */}
+            <button className={`btn btn-ghost btn-sm${showFiltersMenu ? ' active' : ''}`} onClick={() => setShowFiltersMenu(!showFiltersMenu)} style={{ borderRadius: 6, padding: '4px 10px' }}>
+              <Layers size={12} strokeWidth={1.5} style={{ marginRight: 4 }} /> Filter
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Search Input */}
+            <div className="saas-search-input-wrapper" style={{ width: 240 }}>
+              <Search size={12} color="var(--text-tertiary)" strokeWidth={1.5} />
+              <input 
+                placeholder="Search code, title..." 
+                className="saas-search-input" 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
               />
-            );
-          })}
+              {search && <X size={12} color="var(--text-tertiary)" style={{ cursor: 'pointer' }} onClick={() => setSearch('')} />}
+            </div>
+
+            {/* Add Subject button */}
+            {isCoord && (
+              <button className="btn btn-primary" onClick={() => { setEditing(null); setModal('form'); }} style={{ borderRadius: 6 }}>
+                + Add Subject
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Filter Selection Panel */}
+        {showFiltersMenu && (
+          <div style={{ padding: '12px 28px', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Branch:</span>
+              <select className="select" style={{ fontSize: 12, minHeight: 28, height: 28, padding: '2px 8px', borderRadius: 4, background: 'var(--bg-input)' }} value={filterBranch} onChange={e => setFilterBranch(e.target.value)}>
+                <option value="">All Branches</option>
+                {branches.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Course Type:</span>
+              <select className="select" style={{ fontSize: 12, minHeight: 28, height: 28, padding: '2px 8px', borderRadius: 4, background: 'var(--bg-input)' }} value={filterCourseType} onChange={e => setFilterCourseType(e.target.value)}>
+                <option value="">All Types</option>
+                {courseTypes.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {(filterBranch || filterCourseType) && (
+              <button className="btn btn-ghost btn-sm" style={{ height: 28, minHeight: 28, borderRadius: 4, fontSize: 11, padding: '0 8px' }} onClick={() => { setFilterBranch(''); setFilterCourseType(''); }}>
+                Clear Program Filters
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Active Filter Chips */}
+        {(filterBranch || filterCourseType) && (
+          <div style={{ padding: '8px 28px', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+            {filterBranch && (
+              <div className="saas-filter-chip">
+                <span>Branch is {filterBranch}</span>
+                <button className="saas-filter-chip-close" onClick={() => setFilterBranch('')}>×</button>
+              </div>
+            )}
+            {filterCourseType && (
+              <div className="saas-filter-chip">
+                <span>Type is {filterCourseType}</span>
+                <button className="saas-filter-chip-close" onClick={() => setFilterCourseType('')}>×</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Subjects Table */}
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+          ) : paginatedSubjects.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 64, color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: 13 }}>
+              No subjects matched the filters.
+            </div>
+          ) : (
+            <table style={{ width: '100%' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 40, paddingLeft: 28 }}>
+                    <input 
+                      type="checkbox" 
+                      onChange={handleSelectAll} 
+                      checked={paginatedSubjects.length > 0 && paginatedSubjects.every(s => selectedIds.has(s.id))}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
+                  <th>Code</th>
+                  <th>Abbreviation</th>
+                  <th>Subject Title</th>
+                  <th>Branch</th>
+                  <th>Year</th>
+                  <th>Sem</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  {isCoord && <th style={{ width: 60, paddingRight: 28, textAlign: 'right' }}>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedSubjects.map((s) => (
+                  <tr key={s.id}>
+                    <td style={{ paddingLeft: 28 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.has(s.id)} 
+                        onChange={() => handleSelectOne(s.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-purple)' }}>{s.code}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>{s.abbreviation || '—'}</td>
+                    <td style={{ fontWeight: 600 }}>{s.name}</td>
+                    <td>{s.branch}</td>
+                    <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>Sem {s.semester}</td>
+                    <td>
+                      {s.course_type ? (
+                        <span className="badge badge-neutral" style={{ fontSize: 10 }}>{s.course_type}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-tertiary)' }}>—</span>
+                      )}
+                    </td>
+                    <td><span className="badge badge-success">Active</span></td>
+                    {isCoord && (
+                      <td style={{ paddingRight: 28, textAlign: 'right', position: 'relative' }}>
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ border: 'none', background: 'transparent' }} onClick={() => setActiveMenuId(activeMenuId === s.id ? null : s.id)}>
+                          <span style={{ fontSize: 16, fontWeight: 'bold' }}>···</span>
+                        </button>
+                        {activeMenuId === s.id && (
+                          <>
+                            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} onClick={() => setActiveMenuId(null)} />
+                            <div style={{
+                              position: 'absolute', right: 28, top: 32, zIndex: 999,
+                              background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                              borderRadius: 6, padding: '4px 0', minWidth: 120,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.5)', textAlign: 'left'
+                            }}>
+                              <button onClick={() => { setEditing(s); setModal('constraints'); setActiveMenuId(null); }} style={{ display: 'block', width: '100%', padding: '6px 12px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>Constraints</button>
+                              <button onClick={() => { setEditing(s); setModal('form'); setActiveMenuId(null); }} style={{ display: 'block', width: '100%', padding: '6px 12px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>Edit Subject</button>
+                              <button onClick={() => { del(s.id); setActiveMenuId(null); }} style={{ display: 'block', width: '100%', padding: '6px 12px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--accent-red)', cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                            </div>
+                          </>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="saas-pagination-footer">
+          <div>
+            Page <input 
+              type="text" 
+              value={currentPage} 
+              onChange={e => {
+                const val = parseInt(e.target.value);
+                if (!isNaN(val) && val >= 1 && val <= totalPages) setCurrentPage(val);
+              }}
+              style={{ width: 32, height: 22, textAlign: 'center', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 4, fontFamily: 'var(--font-mono)', fontSize: 11, margin: '0 4px' }}
+            /> of {totalPages}
+          </div>
+          
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button 
+              className="btn btn-ghost btn-sm" 
+              style={{ padding: '0 8px', height: 24, minHeight: 24, borderRadius: 4 }} 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            >
+              &lt;
+            </button>
+            <button 
+              className="btn btn-ghost btn-sm" 
+              style={{ padding: '0 8px', height: 24, minHeight: 24, borderRadius: 4 }} 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            >
+              &gt;
+            </button>
+          </div>
+        </div>
+      </div>
 
       {isCoord && modal === 'form' && <SubjectModal subject={editing} onClose={() => setModal(null)} onSave={loadSubjects} />}
       {isCoord && modal === 'constraints' && editing && (
@@ -516,12 +616,3 @@ export default function SubjectsPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

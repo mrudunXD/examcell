@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-14T13:49:42.348Z",
+  "timestamp": "2026-06-16T17:17:47.724Z",
   "tables": {
     "users": [
       {
@@ -93366,6 +93366,28 @@
         "created_at": "2026-06-09T09:05:18.727Z",
         "hash": "e8256442e36462d2b9e9789bc0933949923902fbb61f0c9dd39b16c194b7278f",
         "prev_hash": "2064b669319fa5a7c434ba13685b4bf90d86ea447d4b9b466c239f1cfd970f5e"
+      },
+      {
+        "id": "360b10bc-7d17-4d57-ae2d-7b9ed994d9d4",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "c9d8dfa0-71db-4529-ac5f-89b4c4127f21",
+        "details": "Sent broadcast: Urgent Exam Correction for Room 103 (priority: critical)",
+        "created_at": "2026-06-14T14:15:12.159Z",
+        "hash": "96fae2dda524467878e0a754602d7fd959a88ef72bef6d595ef68540449332b4",
+        "prev_hash": "e8256442e36462d2b9e9789bc0933949923902fbb61f0c9dd39b16c194b7278f"
+      },
+      {
+        "id": "f5957a9f-ebe3-4d92-9eed-2883e4c27a02",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "d68312a4-c251-4a4d-9423-c71bedc4303d",
+        "details": "Sent broadcast: Meowww (priority: critical)",
+        "created_at": "2026-06-14T14:25:21.205Z",
+        "hash": "e10454438ac003d27bca2d09d6d8851c405d25bab6c2d6155c1b9251a54b2bbf",
+        "prev_hash": "96fae2dda524467878e0a754602d7fd959a88ef72bef6d595ef68540449332b4"
       }
     ],
     "attendance": [
@@ -93387,7 +93409,8 @@
         "message": "hurryy",
         "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
         "priority": "critical",
-        "created_at": "2026-06-09T08:04:25.058Z"
+        "created_at": "2026-06-09T08:04:25.058Z",
+        "classroom_id": null
       },
       {
         "id": "1bb564ac-42ef-4731-a0ce-603ffaf33efd",
@@ -93395,7 +93418,8 @@
         "message": "meow",
         "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
         "priority": "normal",
-        "created_at": "2026-06-09T14:33:47.542Z"
+        "created_at": "2026-06-09T14:33:47.542Z",
+        "classroom_id": null
       },
       {
         "id": "150e09ab-1462-4e02-abde-d7ecb598cbcf",
@@ -93403,7 +93427,26 @@
         "message": "Good luck loosers",
         "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
         "priority": "critical",
-        "created_at": "2026-06-09T14:35:18.707Z"
+        "created_at": "2026-06-09T14:35:18.707Z",
+        "classroom_id": null
+      },
+      {
+        "id": "c9d8dfa0-71db-4529-ac5f-89b4c4127f21",
+        "title": "Urgent Exam Correction for Room 103",
+        "message": "Correction on Q3: Please change value x to y.",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "critical",
+        "created_at": "2026-06-14T19:45:12.150Z",
+        "classroom_id": "4e588143-41eb-4b77-b671-c62134d81377"
+      },
+      {
+        "id": "d68312a4-c251-4a4d-9423-c71bedc4303d",
+        "title": "Meowww",
+        "message": "Ghop Ghop",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "critical",
+        "created_at": "2026-06-14T19:55:21.180Z",
+        "classroom_id": null
       }
     ],
     "broadcast_reads": [],
@@ -93442,6 +93485,134 @@
         "message": "High average database query latency: 95ms.",
         "resolved": 0,
         "created_at": "2026-06-09T14:33:29.750Z"
+      },
+      {
+        "id": "5fbaf2fa-ddd4-4974-92af-02ca2a46abec",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 61ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:54:29.957Z"
+      },
+      {
+        "id": "528e4056-f61b-4149-a038-8d20a1bd6a8e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 57ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:54:59.963Z"
+      },
+      {
+        "id": "cd4b5e90-5380-4e2e-b5fd-5522cfd5c656",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 53ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:55:59.982Z"
+      },
+      {
+        "id": "05e7bde5-b098-4898-933e-bbbede4a6128",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 52ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:56:59.996Z"
+      },
+      {
+        "id": "c39210ee-9b0c-406a-b580-a357e5f7353f",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 51ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:00:00.054Z"
+      },
+      {
+        "id": "50dd60dd-4bf9-4e7f-af6c-edd62194844e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 72ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:13:30.284Z"
+      },
+      {
+        "id": "a106b7c2-9083-4ede-a04f-704bf56d3dbe",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 71ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:14:00.292Z"
+      },
+      {
+        "id": "dc2ce199-cb8c-4eb6-8546-3ff340c75968",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 70ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:15:30.323Z"
+      },
+      {
+        "id": "dd04d40d-0aee-49fa-a906-d0ea8698a162",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 68ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:16:00.335Z"
+      },
+      {
+        "id": "e4af1a19-b841-4a84-b492-5575c3213ef2",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 67ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:18:00.357Z"
+      },
+      {
+        "id": "47b0a0d0-705f-4c43-b089-44b138d1d726",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 66ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:22:30.411Z"
+      },
+      {
+        "id": "a86d4dc1-82dd-4754-aa7c-859d89b7fa10",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 65ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:23:00.424Z"
+      },
+      {
+        "id": "dc77f6ae-45af-4eec-babd-8b8c470c7daf",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 64ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:25:30.470Z"
+      },
+      {
+        "id": "6da2e098-64b3-444a-831d-2eb0cfe9765f",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 56ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:33:00.629Z"
+      },
+      {
+        "id": "b60f14ed-2187-4baa-8e8c-269124e22b1e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 55ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:41:30.768Z"
+      },
+      {
+        "id": "e94a4924-6ee9-44ef-9f81-de89a34c30a2",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 54ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:42:30.786Z"
       }
     ]
   }

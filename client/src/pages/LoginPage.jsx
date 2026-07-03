@@ -4,6 +4,7 @@ import { GraduationCap, Eye, EyeOff, Shield, BookOpen, Users, FileDown } from 'l
 import { useAuthStore } from '../store/index.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import LineWaves from '../components/ReactBits/LineWaves.jsx';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const d = new Date();
@@ -56,67 +57,86 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#080809',
+      background: 'var(--bg-base)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: 'var(--font-sans)',
-      padding: '32px 20px',
+      padding: 0,
     }}>
-      {/* Background pattern */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none',
-        backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(10,132,255,0.04) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(48,209,88,0.03) 0%, transparent 50%)',
-      }} />
+      {/* Background line waves animation */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, opacity: 0.25 }}>
+        <LineWaves
+          speed={0.4}
+          innerLineCount={40}
+          outerLineCount={45}
+          warpIntensity={1.2}
+          rotation={-35}
+          edgeFadeWidth={0.0}
+          colorCycleSpeed={0.8}
+          brightness={0.3}
+          color1="#8b5cf6"
+          color2="#3b82f6"
+          color3="#a78bfa"
+          enableMouseInteraction={true}
+          mouseInfluence={2.0}
+        />
+      </div>
 
       <div style={{
-        width: '100%', maxWidth: 960,
+        width: '100vw',
+        height: '100vh',
+        maxWidth: 'none',
         display: 'grid',
-        gridTemplateColumns: '1fr 420px',
+        gridTemplateColumns: '1.2fr 1fr',
         gap: 0,
-        background: '#111113',
-        border: '1px solid #222225',
-        borderRadius: 16,
+        background: 'transparent',
+        border: 'none',
+        borderRadius: 0,
         overflow: 'hidden',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+        boxShadow: 'none',
         position: 'relative',
       }}>
         {/* Left panel — branding */}
         <div style={{
-          padding: '52px 48px',
-          background: '#0C0C0E',
-          borderRight: '1px solid #222225',
+          padding: '64px',
+          background: 'rgba(5, 5, 5, 0.45)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.06)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
+          height: '100vh',
+          overflowY: 'auto',
         }}>
           {/* Logo */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 8,
-                background: 'rgba(10,132,255,0.15)',
-                border: '1px solid rgba(10,132,255,0.3)',
+                background: 'rgba(59,130,246,0.1)',
+                border: '1px solid rgba(59,130,246,0.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <GraduationCap size={18} strokeWidth={1.5} color="#0A84FF" />
+                <GraduationCap size={18} strokeWidth={1.5} color="var(--accent-blue)" />
               </div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.01em' }}>ExamCell</div>
-                <div style={{ fontSize: 10, color: '#4A4A4F', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>MIT WPU</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>ExamCell</div>
+                <div style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>MIT WPU</div>
               </div>
             </div>
 
             <h1 style={{
-              fontSize: 36, fontWeight: 800,
-              color: '#FFFFFF',
+              fontSize: 32, fontWeight: 700,
+              color: 'var(--text-primary)',
               letterSpacing: '-0.03em',
-              lineHeight: 1.15,
+              lineHeight: 1.2,
               margin: '0 0 16px',
             }}>
               Examination<br />Management<br />System
             </h1>
-            <p style={{ fontSize: 14, color: '#8E8E93', lineHeight: 1.6, maxWidth: 320, margin: '0 0 40px' }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 320, margin: '0 0 40px' }}>
               Internal operations platform for MIT WPU Examination Cell. Manage seating, supervisors, and exam logistics.
             </p>
 
@@ -125,14 +145,15 @@ export default function LoginPage() {
               {features.map(({ icon: Icon, text }) => (
                 <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
-                    width: 28, height: 28, borderRadius: 6,
-                    background: '#1C1C1F',
+                    width: 28, height: 28, borderRadius: 8,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
-                    <Icon size={13} strokeWidth={1.5} color="#8E8E93" />
+                    <Icon size={13} strokeWidth={1.5} color="var(--text-secondary)" />
                   </div>
-                  <span style={{ fontSize: 13, color: '#8E8E93' }}>{text}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{text}</span>
                 </div>
               ))}
             </div>
@@ -142,12 +163,12 @@ export default function LoginPage() {
           <div style={{
             marginTop: 40,
             padding: '14px 16px',
-            background: '#0A0A0C',
-            border: '1px solid #222225',
-            borderRadius: 8,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
           }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#4A4A4F', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-              System
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+              System Status
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
@@ -157,8 +178,8 @@ export default function LoginPage() {
                 ['Access', 'Internal Only'],
               ].map(([k, v]) => (
                 <div key={k}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#3A3A3C', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k}</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#767680', marginTop: 2 }}>{v}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{v}</div>
                 </div>
               ))}
             </div>
@@ -166,12 +187,22 @@ export default function LoginPage() {
         </div>
 
         {/* Right panel — login form */}
-        <div style={{ padding: '52px 44px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{
+          padding: '64px 48px',
+          background: 'rgba(11, 11, 14, 0.65)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          height: '100vh',
+          overflowY: 'auto',
+        }}>
           <div style={{ marginBottom: 36 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', marginBottom: 6 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>
               Sign in
             </div>
-            <div style={{ fontSize: 13, color: '#8E8E93' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
               Use your institutional credentials
             </div>
           </div>
@@ -211,7 +242,7 @@ export default function LoginPage() {
                     position: 'absolute', right: 10, top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'none', border: 'none',
-                    color: '#8E8E93', cursor: 'pointer',
+                    color: 'var(--text-secondary)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', padding: 4,
                   }}
                   aria-label={showPwd ? 'Hide password' : 'Show password'}
@@ -224,14 +255,14 @@ export default function LoginPage() {
             {/* Default creds hint */}
             <div style={{
               padding: '10px 14px',
-              background: 'rgba(10,132,255,0.06)',
-              border: '1px solid rgba(10,132,255,0.15)',
-              borderRadius: 8,
+              background: 'rgba(59,130,246,0.04)',
+              border: '1px solid rgba(59,130,246,0.1)',
+              borderRadius: 12,
             }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#0A84FF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
                 Default Credentials
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#A3A3AC' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
                 admin@mitwpu.edu.in<br />admin123
               </div>
             </div>
@@ -241,7 +272,7 @@ export default function LoginPage() {
               type="submit"
               className="btn btn-primary"
               disabled={isLoading}
-              style={{ width: '100%', justifyContent: 'center', minHeight: 44, fontSize: 14, marginTop: 4 }}
+              style={{ width: '100%', justifyContent: 'center', minHeight: 44, fontSize: 13, marginTop: 4 }}
             >
               {isLoading
                 ? <><div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> Signing in…</>
@@ -250,11 +281,11 @@ export default function LoginPage() {
           </form>
 
           {/* Kiosk launcher */}
-          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid #222225' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#E5E5EA', marginBottom: 4 }}>
+          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
               Smartboard Kiosk Mode
             </div>
-            <div style={{ fontSize: 12, color: '#4A4A4F', marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 14 }}>
               Launch kiosk display for smartboards or door screens.
             </div>
 
@@ -279,7 +310,7 @@ export default function LoginPage() {
               type="button"
               className="btn btn-ghost"
               onClick={handleLaunchKiosk}
-              style={{ width: '100%', justifyContent: 'center', fontSize: 12 }}
+              style={{ width: '100%', justifyContent: 'center', fontSize: 12, border: '1px solid var(--border)' }}
               disabled={!kioskCycle}
             >
               Launch Kiosk Display
@@ -291,7 +322,7 @@ export default function LoginPage() {
       {/* Footer */}
       <div style={{
         position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-        fontFamily: 'var(--font-mono)', fontSize: 10, color: '#2A2A2E',
+        fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)',
         textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap',
       }}>
         MIT WPU Examination Cell · {today} · Restricted Access

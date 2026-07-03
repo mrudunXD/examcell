@@ -29,10 +29,21 @@ export const useAuthStore = create((set) => ({
 
 export const useAppStore = create((set, get) => ({
   activeCycleId: localStorage.getItem('activeCycleId') || null,
+  theme: localStorage.getItem('theme') || 'dark',
 
   setActiveCycle: (id) => {
     if (id) localStorage.setItem('activeCycleId', id);
     else localStorage.removeItem('activeCycleId');
     set({ activeCycleId: id });
+  },
+
+  setTheme: (theme) => {
+    localStorage.setItem('theme', theme);
+    set({ theme });
+  },
+
+  toggleTheme: () => {
+    const nextTheme = get().theme === 'dark' ? 'light' : 'dark';
+    get().setTheme(nextTheme);
   },
 }));

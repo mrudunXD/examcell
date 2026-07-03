@@ -124,7 +124,7 @@ export default function CalendarPage() {
 
         {/* Weeks */}
         {grid.map((week, wi) => (
-          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < grid.length - 1 ? '1px solid #222225' : 'none' }}>
+          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < grid.length - 1 ? '1px solid var(--border)' : 'none' }}>
             {week.map((day, di) => {
               const isSun = di === 0;
               const dateStr = day ? `${viewYear}-${String(viewMonth + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : null;
@@ -137,8 +137,8 @@ export default function CalendarPage() {
                   key={di}
                   style={{
                     minHeight: 90, padding: '6px 8px',
-                    borderRight: di < 6 ? '1px solid #222225' : 'none',
-                    background: !day ? '#FAFAFA' : isSun ? '#FFF5F5' : isInCycle ? '#FEFEFE' : '#FAFAFA',
+                    borderRight: di < 6 ? '1px solid var(--border)' : 'none',
+                    background: !day ? 'var(--text-primary)' : isSun ? '#FFF5F5' : isInCycle ? '#FEFEFE' : 'var(--text-primary)',
                     cursor: daySlots.length ? 'pointer' : 'default',
                     position: 'relative',
                   }}
@@ -151,7 +151,7 @@ export default function CalendarPage() {
                         color: isSun ? '#FF453A' : !isInCycle ? '#CCCCCC' : '#111',
                         fontWeight: isToday ? 700 : 400,
                         marginBottom: 4,
-                        ...(isToday ? { background: '#111', color: '#0C0C0E', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 10 } : {}),
+                        ...(isToday ? { background: '#111', color: 'var(--bg-base)', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 10 } : {}),
                       }}>
                         {day}
                       </div>
@@ -193,7 +193,7 @@ export default function CalendarPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {selected.slots.map(slot => (
-              <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid #222225', background: '#FEFEFE' }}>
+              <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid var(--border)', background: '#FEFEFE' }}>
                 <div style={{ width: 4, alignSelf: 'stretch', background: SEM_COLORS[slot.subject_semester] || '#374151', flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
@@ -201,7 +201,7 @@ export default function CalendarPage() {
                     {slot.branch} · {slot.year} · Sem {slot.subject_semester} · {formatTime(slot.start_time)} · {slot.student_count} students
                   </div>
                 </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', padding: '2px 8px', border: '1px solid #222225', color: 'var(--np-n500)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', padding: '2px 8px', border: '1px solid var(--border)', color: 'var(--np-n500)' }}>
                   {slot.status}
                 </span>
               </div>

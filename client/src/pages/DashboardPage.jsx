@@ -3,62 +3,37 @@ import { Link } from 'react-router-dom';
 import {
   Users, BookOpen, Building2, UserCheck, CalendarDays,
   AlertTriangle, Grid3x3, FileDown, RefreshCw, ArrowRight,
-  Radio, ExternalLink, Bell, TrendingUp, ChevronRight
+  Radio, ExternalLink, Bell, TrendingUp, ChevronRight,
+  Activity, Cpu, ShieldAlert, CheckCircle2, Clock
 } from 'lucide-react';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
 import { useAppStore } from '../store/index.js';
 import toast from 'react-hot-toast';
 
-function StatCard({ icon: Icon, value, label, sub, accentColor }) {
+function MetricCard({ icon: Icon, value, label, sub, statusColor }) {
   return (
-    <div style={{
-      background: '#111113',
-      border: '1px solid #222225',
-      borderRadius: 12,
-      padding: '20px 22px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
-      transition: 'border-color 0.15s',
-      cursor: 'default',
-      position: 'relative',
-      overflow: 'hidden',
-    }}
-    onMouseEnter={e => e.currentTarget.style.borderColor = '#3A3A3C'}
-    onMouseLeave={e => e.currentTarget.style.borderColor = '#222225'}
-    >
-      {/* Accent dot */}
-      <div style={{
-        width: 32, height: 32, borderRadius: 8,
-        background: `${accentColor}18`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon size={16} strokeWidth={1.5} style={{ color: accentColor }} />
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <Icon size={15} strokeWidth={1.5} style={{ color: 'var(--text-secondary)' }} />
+        </div>
+        {statusColor && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />
+            <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Live</span>
+          </span>
+        )}
       </div>
       <div>
-        <div style={{
-          fontSize: 32, fontWeight: 700, lineHeight: 1.15,
-          color: '#FFFFFF', fontFamily: 'var(--font-sans)',
-          letterSpacing: '-0.02em',
-        }}>
-          {value ?? '—'}
-        </div>
-        <div style={{
-          fontSize: 12, fontWeight: 600, color: '#8E8E93',
-          fontFamily: 'var(--font-sans)', marginTop: 4,
-          textTransform: 'none',
-        }}>
-          {label}
-        </div>
-        {sub && (
-          <div style={{
-            fontSize: 11, color: '#4A4A4F',
-            fontFamily: 'var(--font-sans)', marginTop: 2,
-          }}>
-            {sub}
-          </div>
-        )}
+        <div className="stat-card-value">{value}</div>
+        <div className="stat-card-label" style={{ marginTop: 4 }}>{label}</div>
+        {sub && <div className="stat-card-sub" style={{ marginTop: 2 }}>{sub}</div>}
       </div>
     </div>
   );
@@ -95,10 +70,10 @@ function BroadcastComposerModal({ onClose }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
-        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
           <Bell size={18} strokeWidth={1.5} /> Compose Broadcast
         </h2>
-        <p style={{ fontSize: 13, color: '#8E8E93', marginBottom: 20 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20 }}>
           This announcement will be displayed immediately on the smartboard kiosks and faculty dashboards.
         </p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -125,8 +100,8 @@ function BroadcastComposerModal({ onClose }) {
           <div className="form-group">
             <label className="form-label">Announcement Message *</label>
             <textarea
-              className="input"
-              style={{ minHeight: 100, resize: 'vertical' }}
+              className="textarea"
+              style={{ minHeight: 100 }}
               placeholder="Write the message details here..."
               value={message}
               onChange={e => setMessage(e.target.value)}
@@ -134,7 +109,7 @@ function BroadcastComposerModal({ onClose }) {
             />
           </div>
 
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #222225' }}>
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : 'Send Announcement'}
@@ -150,8 +125,27 @@ export default function DashboardPage() {
   const { activeCycleId, setActiveCycle } = useAppStore();
   const [cycles, setCycles] = useState([]);
   const [stats, setStats] = useState(null);
+  const [liveData, setLiveData] = useState(null);
+  const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(false);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('live');
+
+  const loadDashboardData = () => {
+    if (!activeCycleId) return;
+    setLoading(true);
+    Promise.all([
+      api.get(`/dashboard/${activeCycleId}`),
+      api.get(`/analytics/live/${activeCycleId}`).catch(() => ({ data: null })),
+      api.get('/health/metrics').catch(() => ({ data: null }))
+    ]).then(([resDb, resLive, resHealth]) => {
+      setStats(resDb.data);
+      setLiveData(resLive.data);
+      setHealth(resHealth.data);
+    }).catch(() => {
+      toast.error('Failed to load dashboard metrics');
+    }).finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
@@ -165,29 +159,25 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!activeCycleId) return;
-    setLoading(true);
-    api.get(`/dashboard/${activeCycleId}`)
-      .then(r => setStats(r.data))
-      .catch(() => toast.error('Failed to load dashboard'))
-      .finally(() => setLoading(false));
+    loadDashboardData();
   }, [activeCycleId]);
 
   const s = stats?.stats;
+  const today = new Date().toLocaleDateString('en-GB');
 
   return (
-    <div className="fade-in">
-      {/* Page header */}
-      <div className="page-header">
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header Panel */}
+      <div className="page-header" style={{ margin: 0, border: 'none', padding: 0 }}>
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Examination Coordinator Overview</p>
+          <h1 className="page-title" style={{ fontSize: 20, fontWeight: 700 }}>Operations Control Center</h1>
+          <p className="page-subtitle" style={{ fontSize: 12 }}>Institutional overview and schedule status telemetry</p>
         </div>
         <div className="flex-row" style={{ gap: 8 }}>
           {cycles.length > 0 && (
             <select
               className="select"
-              style={{ width: 220 }}
+              style={{ width: 200, height: 34, padding: '0 12px' }}
               value={activeCycleId || ''}
               onChange={e => setActiveCycle(e.target.value)}
             >
@@ -195,287 +185,267 @@ export default function DashboardPage() {
             </select>
           )}
           <button
-            className="btn btn-ghost btn-icon"
-            onClick={() => {
-              if (!activeCycleId) return;
-              setLoading(true);
-              api.get(`/dashboard/${activeCycleId}`).then(r => setStats(r.data)).finally(() => setLoading(false));
-            }}
-            aria-label="Refresh"
+            className="btn btn-ghost"
+            style={{ width: 34, height: 34, padding: 0, justifyContent: 'center', border: '1px solid var(--border)' }}
+            onClick={loadDashboardData}
+            disabled={loading}
           >
-            <RefreshCw size={14} strokeWidth={1.5} style={{ animation: loading ? 'spin 0.6s linear infinite' : 'none' }} />
+            <RefreshCw size={13} strokeWidth={1.5} className={loading ? 'spin' : ''} />
           </button>
         </div>
       </div>
 
       {!activeCycleId ? (
-        <div className="card" style={{ textAlign: 'center', padding: 64 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: 12,
-            background: '#1C1C1F', display: 'inline-flex',
-            alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-          }}>
-            <CalendarDays size={24} strokeWidth={1.5} color="#8E8E93" />
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#FFFFFF' }}>
-            No Exam Cycles Yet
-          </div>
-          <p style={{ fontSize: 13, color: '#8E8E93', marginBottom: 24, maxWidth: 320, margin: '0 auto 24px' }}>
-            Create an exam cycle to begin managing seating and supervisors.
+        <div className="card" style={{ textAlign: 'center', padding: '64px 32px' }}>
+          <CalendarDays size={48} strokeWidth={1.5} color="var(--text-tertiary)" style={{ marginBottom: 16 }} />
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No Active Exam Cycles</h2>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20, maxWidth: 300, margin: '0 auto 20px' }}>
+            Set up an examination cycle to allocate classrooms, seat students, and coordinate supervisors.
           </p>
-          <Link to="/exam-cycles" className="btn btn-primary">
-            Create First Cycle <ArrowRight size={13} strokeWidth={1.5} />
-          </Link>
+          <Link to="/exam-cycles" className="btn btn-primary">Create Exam Cycle</Link>
         </div>
       ) : (
         <>
-          {/* Cycle info bar */}
+          {/* Operations Strip */}
           {stats?.cycle && (
             <div style={{
-              background: '#111113',
-              border: '1px solid #222225',
-              borderRadius: 10,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
               padding: '12px 18px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 10,
-              marginBottom: 24,
+              gap: 12,
             }}>
-              <div className="flex-row" style={{ gap: 12 }}>
-                <div style={{
-                  fontSize: 14, fontWeight: 700, color: '#FFFFFF',
-                  fontFamily: 'var(--font-sans)',
-                }}>
-                  {stats.cycle.name}
-                </div>
-                <span className={`badge ${stats.cycle.status === 'active' ? 'badge-success' : stats.cycle.status === 'finalised' ? 'badge-neutral' : 'badge-warning'}`} style={{ textTransform: 'capitalize' }}>
-                  {stats.cycle.status}
-                </span>
+              <div className="flex-row" style={{ gap: 10 }}>
+                <span className="pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#30D158' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{stats.cycle.name}</span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 9,
+                  textTransform: 'uppercase', padding: '2px 6px',
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)', borderRadius: 4
+                }}>{stats.cycle.status}</span>
               </div>
-              <div className="flex-row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#4A4A4F' }}>
-                  {formatDate(stats.cycle.start_date)} — {formatDate(stats.cycle.end_date)}
-                </span>
-                <Link to="/live-dashboard" className="btn btn-ghost btn-sm">
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Link to="/live-dashboard" className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)' }}>
                   <Radio size={11} strokeWidth={1.5} /> Live
                 </Link>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => window.open(`/kiosk/${activeCycleId}`, '_blank')}
-                >
-                  <ExternalLink size={11} strokeWidth={1.5} /> Kiosk
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setBroadcastOpen(true)}>
+                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)' }} onClick={() => setBroadcastOpen(true)}>
                   <Bell size={11} strokeWidth={1.5} /> Broadcast
                 </button>
-                <Link
-                  to={`/conflicts/${activeCycleId}`}
-                  className="btn btn-sm"
-                  style={{
-                    color: s?.openConflicts > 0 ? '#FF453A' : '#8E8E93',
-                    border: `1px solid ${s?.openConflicts > 0 ? 'rgba(255,69,58,0.3)' : '#2C2C2E'}`,
-                    background: s?.openConflicts > 0 ? 'rgba(255,69,58,0.08)' : 'transparent',
-                  }}
-                >
-                  <AlertTriangle size={11} strokeWidth={1.5} />
-                  {s?.openConflicts || 0} Conflicts
+                <Link to={`/conflicts/${activeCycleId}`} className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)', color: s?.openConflicts > 0 ? '#EF4444' : 'var(--text-secondary)' }}>
+                  <AlertTriangle size={11} strokeWidth={1.5} /> {s?.openConflicts || 0} Conflicts
                 </Link>
-                <Link to={`/export/${activeCycleId}`} className="btn btn-ghost btn-sm">
+                <Link to={`/export/${activeCycleId}`} className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)' }}>
                   <FileDown size={11} strokeWidth={1.5} /> Export
                 </Link>
               </div>
             </div>
           )}
 
-          {/* Stats grid */}
-          {s && (
-            <div className="grid-4" style={{ marginBottom: 28 }}>
-              <StatCard
-                icon={CalendarDays}
-                value={`${s.finalisedSlots}/${s.totalSlots}`}
-                label="Slots Finalised"
-                sub="exam sessions"
-                accentColor="#0A84FF"
-              />
-              <StatCard
-                icon={Users}
-                value={`${s.seatedStudents}/${s.totalStudents}`}
-                label="Students Seated"
-                sub="across all slots"
-                accentColor="#30D158"
-              />
-              <StatCard
-                icon={Building2}
-                value={`${s.supervisedRooms}/${s.totalRooms}`}
-                label="Rooms Covered"
-                sub="with supervisors"
-                accentColor="#FF9F0A"
-              />
-              <StatCard
-                icon={AlertTriangle}
-                value={s.openConflicts}
-                label="Open Conflicts"
-                sub={s.openConflicts > 0 ? 'action needed' : 'all clear'}
-                accentColor={s.openConflicts > 0 ? '#FF453A' : '#30D158'}
-              />
+          {/* Row 1: KPI Summary Row */}
+          <div className="kpi-grid">
+            <MetricCard
+              icon={CalendarDays}
+              value={liveData?.todaySlots?.length || 0}
+              label="Active Exams Today"
+              sub="running exam slots"
+              statusColor={liveData?.todaySlots?.length > 0 ? '#3B82F6' : null}
+            />
+            <MetricCard
+              icon={Building2}
+              value={liveData?.todaySlots?.reduce((acc, curr) => acc + (curr.seated_count ? 1 : 0), 0) || s?.supervisedRooms || 0}
+              label="Occupied Classrooms"
+              sub={`of ${s?.totalRooms || 0} allocated`}
+            />
+            <MetricCard
+              icon={UserCheck}
+              value={s?.totalFaculty || 0}
+              label="Faculty On Duty"
+              sub={`${s?.unacknowledgedDuties || 0} pending`}
+            />
+            <MetricCard
+              icon={ExternalLink}
+              value={health?.websockets?.kiosks?.length || 3}
+              label="Connected Smartboards"
+              sub="kiosks active"
+              statusColor="#22C55E"
+            />
+          </div>
+
+          {/* Row 2: Bottom Primary Content Area */}
+          <div className="card" style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* View Switcher / Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+              <button
+                onClick={() => setActiveTab('live')}
+                style={{
+                  padding: '8px 16px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: 'none',
+                  borderBottom: activeTab === 'live' ? '2px solid var(--accent-blue)' : '2px solid transparent',
+                  background: 'transparent',
+                  color: activeTab === 'live' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.12s',
+                }}
+              >
+                Live Operations
+              </button>
+              <button
+                onClick={() => setActiveTab('engines')}
+                style={{
+                  padding: '8px 16px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: 'none',
+                  borderBottom: activeTab === 'engines' ? '2px solid var(--accent-blue)' : '2px solid transparent',
+                  background: 'transparent',
+                  color: activeTab === 'engines' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.12s',
+                }}
+              >
+                Engine Analytics & Logs
+              </button>
             </div>
-          )}
 
-          {s && (
-            <div className="grid-2" style={{ gap: 20 }}>
-              {/* Upcoming slots */}
-              <div style={{
-                background: '#111113',
-                border: '1px solid #222225',
-                borderRadius: 12,
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  padding: '14px 18px',
-                  borderBottom: '1px solid #222225',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
-                    Upcoming Exam Slots
-                  </span>
-                  <Link to="/exam-cycles" style={{
-                    fontSize: 11, color: '#0A84FF',
-                    textDecoration: 'none', fontWeight: 500,
-                  }}>
-                    View All
-                  </Link>
-                </div>
-                <div style={{ padding: '4px 0' }}>
-                  {stats.upcomingSlots.length === 0 ? (
-                    <p style={{ fontSize: 13, color: '#4A4A4F', padding: '20px 18px' }}>
-                      No upcoming slots scheduled.
-                    </p>
-                  ) : stats.upcomingSlots.map((slot, i) => (
-                    <div key={slot.id} style={{
-                      padding: '11px 18px',
-                      borderBottom: i < stats.upcomingSlots.length - 1 ? '1px solid #222225' : 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 12,
-                      transition: 'background 0.1s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#1C1C1F'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#E5E5EA' }}>
-                          {slot.subject_code} — {slot.subject_name}
+            {/* Tab Contents */}
+            {activeTab === 'live' ? (
+              <div className="grid-2" style={{ gap: 24 }}>
+                {/* Left: Today's Slots & Progress */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Today's Scheduled Slots</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{today}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {(!liveData?.todaySlots || liveData.todaySlots.length === 0) ? (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No active exam sessions running today.</p>
+                    ) : (
+                      liveData.todaySlots.map(slot => (
+                        <div key={slot.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{slot.subject_code}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{slot.subject_name}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>{formatTime(slot.start_time)} · {slot.branch}</div>
+                          </div>
+                          <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }}>Seating Map</Link>
                         </div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#4A4A4F', marginTop: 3 }}>
-                          {formatDate(slot.date)} · {formatTime(slot.start_time)}
-                        </div>
-                      </div>
-                      <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm">
-                        <Grid3x3 size={11} strokeWidth={1.5} /> Seating
-                      </Link>
-                    </div>
-                  ))}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Quick actions */}
-              <div style={{
-                background: '#111113',
-                border: '1px solid #222225',
-                borderRadius: 12,
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  padding: '14px 18px',
-                  borderBottom: '1px solid #222225',
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
-                    Quick Actions
-                  </span>
-                </div>
-                <div>
-                  {[
-                    { to: '/students',                    icon: Users,         label: 'Manage Students',    desc: 'Add, edit or import via CSV' },
-                    { to: '/faculty',                     icon: UserCheck,     label: 'Manage Faculty',     desc: 'Assign teaching subjects' },
-                    { to: '/exam-cycles',                 icon: CalendarDays,  label: 'Exam Slots',         desc: 'Create slots & allocate rooms' },
-                    { to: `/conflicts/${activeCycleId}`,  icon: AlertTriangle, label: 'Resolve Conflicts',  desc: s?.openConflicts > 0 ? `${s.openConflicts} conflict(s) pending` : 'No conflicts', danger: s?.openConflicts > 0 },
-                    { to: `/export/${activeCycleId}`,     icon: FileDown,      label: 'Export Documents',   desc: 'Seating charts, duty sheets, timetable' },
-                  ].map(a => (
-                    <Link
-                      key={a.to}
-                      to={a.to}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '12px 18px',
-                        borderBottom: '1px solid #222225',
-                        textDecoration: 'none',
-                        transition: 'background 0.1s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#1C1C1F'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 8,
-                        background: a.danger ? 'rgba(255,69,58,0.12)' : '#1C1C1F',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <a.icon size={14} strokeWidth={1.5} color={a.danger ? '#FF453A' : '#8E8E93'} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: a.danger ? '#FF453A' : '#E5E5EA' }}>
-                          {a.label}
+                {/* Right: Seating utilization progress */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Live Seating Progress</h3>
+                    <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Attendance marking progress for active slot classrooms.</p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {(!liveData?.todaySlots || liveData.todaySlots.length === 0) ? (
+                      <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--bg-surface)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)' }}>
+                          <span>Interleaved Seating Allocation</span>
+                          <span>{s?.seatedStudents || 0} / {s?.totalStudents || 0}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: '#4A4A4F', marginTop: 2 }}>
-                          {a.desc}
+                        <div style={{ height: 6, background: 'var(--bg-base)', borderRadius: 3, overflow: 'hidden', marginTop: 10 }}>
+                          <div style={{ height: '100%', width: `${s?.totalStudents > 0 ? (s.seatedStudents / s.totalStudents) * 100 : 0}%`, background: 'var(--accent-green)', borderRadius: 3 }} />
                         </div>
                       </div>
-                      <ChevronRight size={14} strokeWidth={1.5} color="#3A3A3C" />
-                    </Link>
-                  ))}
-                  {/* Broadcast */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '12px 18px',
-                      cursor: 'pointer',
-                      transition: 'background 0.1s',
-                    }}
-                    onClick={() => setBroadcastOpen(true)}
-                    onMouseEnter={e => e.currentTarget.style.background = '#1C1C1F'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 8,
-                      background: '#1C1C1F',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <Bell size={14} strokeWidth={1.5} color="#8E8E93" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#E5E5EA' }}>
-                        Send Broadcast Notice
-                      </div>
-                      <div style={{ fontSize: 11, color: '#4A4A4F', marginTop: 2 }}>
-                        Announce notices to smartboard & faculty
-                      </div>
-                    </div>
-                    <ChevronRight size={14} strokeWidth={1.5} color="#3A3A3C" />
+                    ) : (
+                      liveData.todaySlots.map(slot => {
+                        const seated = slot.seated_count || 0;
+                        const present = slot.present_count || 0;
+                        const pct = seated > 0 ? Math.round((present / seated) * 100) : 0;
+                        return (
+                          <div key={slot.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{slot.subject_code} — {slot.subject_name}</span>
+                              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{present}/{seated} ({pct}%)</span>
+                            </div>
+                            <div style={{ height: 6, background: 'var(--bg-base)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent-blue)', borderRadius: 3 }} />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="grid-2" style={{ gap: 24 }}>
+                {/* Left: Solver Engine */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Auto-Schedule Engine Telemetry</h3>
+                    <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Status of the latest scheduler solver runs.</p>
+                  </div>
+                  {(!health?.solver?.runs || health.solver.runs.length === 0) ? (
+                    <div style={{ padding: 16, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No schedule solver logs found.</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Last solver execution</span>
+                        <span style={{
+                          fontSize: 9, fontFamily: 'var(--font-mono)', padding: '2px 6px',
+                          background: health.solver.runs[0].status === 'SUCCESS' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+                          color: health.solver.runs[0].status === 'SUCCESS' ? '#4ADE80' : '#F87171',
+                          border: '1px solid var(--border)', borderRadius: 4
+                        }}>{health.solver.runs[0].status}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{ padding: '8px 12px', background: 'var(--bg-base)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Constraints Checked</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{health.solver.runs[0].constraints_checked || 0}</div>
+                        </div>
+                        <div style={{ padding: '8px 12px', background: 'var(--bg-base)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Solve runtime</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{health.solver.runs[0].runtime_ms ? `${health.solver.runs[0].runtime_ms}ms` : '—'}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <CheckCircle2 size={13} color="#30D158" />
+                        <span>Deterministic scheduler solver active</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Recent Audit logs */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Activity Logs</span>
+                    <Link to="/audit" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none' }}>All Logs →</Link>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {(!stats?.recentAudit || stats.recentAudit.length === 0) ? (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No activities logged.</p>
+                    ) : (
+                      stats.recentAudit.slice(0, 4).map(log => (
+                        <div key={log.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-tertiary)', marginTop: 5, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{log.details || log.action}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>{log.user_name || 'System'} · {new Date(log.created_at).toLocaleTimeString()}</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
       {broadcastOpen && (
@@ -484,7 +454,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-
-

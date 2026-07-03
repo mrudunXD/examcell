@@ -8,68 +8,123 @@
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  /* Core backgrounds */
-  --bg-base:     #09090B;   /* Page background */
-  --bg-surface:  #111113;   /* Card/panel surface */
-  --bg-elevated: #1C1C1F;   /* Hover, active, elevated */
-  --bg-input:    #0F0F11;   /* Input backgrounds */
+  /* Core backgrounds - SaaS UI Dark Vibe */
+  --bg-base:     #050505;   /* Page background */
+  --bg-sidebar:  #0b0b0e;   /* Sidebar background */
+  --bg-surface:  #0d0d0e;   /* Panels, dropdowns */
+  --bg-elevated: #16161a;   /* Hover states, cards */
+  --bg-input:    #0b0b0d;   /* Input backgrounds */
 
   /* Borders */
-  --border:      #27272A;   /* Default border */
-  --border-faint:#1C1C1E;   /* Faint divider */
-  --border-focus:#52525B;   /* Focus ring */
+  --border:      rgba(255,255,255,0.07); /* 1px subtle borders */
+  --border-faint:rgba(255,255,255,0.04); /* Faint divider */
+  --border-focus:#7c3aed; /* Purple focus ring */
 
   /* Text */
-  --text-primary:   #FAFAFA;  /* Primary text */
-  --text-secondary: #A1A1AA;  /* Secondary/muted */
-  --text-tertiary:  #52525B;  /* Very muted, hints */
+  --text-primary:   #f4f4f5;  /* Primary white */
+  --text-secondary: #8a8a93;  /* Secondary gray */
+  --text-tertiary:  #52525a;  /* Muted hints */
 
   /* Accent colors */
   --accent-blue:   #3B82F6;
-  --accent-green:  #22C55E;
-  --accent-amber:  #F59E0B;
+  --accent-green:  #10B981;
+  --accent-amber:  #FBBF24;
   --accent-red:    #EF4444;
-  --accent-purple: #A855F7;
+  --accent-purple: #7C3AED;
   --accent-cyan:   #06B6D4;
 
   /* Status badge colors */
-  --badge-blue-bg:   rgba(59,130,246,0.1);
+  --badge-blue-bg:   rgba(59,130,246,0.04);
   --badge-blue-text: #60A5FA;
-  --badge-blue-border: rgba(59,130,246,0.25);
+  --badge-blue-border: rgba(59,130,246,0.12);
 
-  --badge-green-bg:   rgba(34,197,94,0.1);
-  --badge-green-text: #4ADE80;
-  --badge-green-border: rgba(34,197,94,0.25);
+  --badge-green-bg:   rgba(16,185,129,0.04);
+  --badge-green-text: #34D399;
+  --badge-green-border: rgba(16,185,129,0.12);
 
-  --badge-amber-bg:   rgba(245,158,11,0.1);
+  --badge-amber-bg:   rgba(245,158,11,0.04);
   --badge-amber-text: #FBBF24;
-  --badge-amber-border: rgba(245,158,11,0.25);
+  --badge-amber-border: rgba(245,158,11,0.12);
 
-  --badge-red-bg:   rgba(239,68,68,0.1);
+  --badge-red-bg:   rgba(239,68,68,0.04);
   --badge-red-text: #F87171;
-  --badge-red-border: rgba(239,68,68,0.25);
+  --badge-red-border: rgba(239,68,68,0.12);
 
-  --badge-neutral-bg:   rgba(113,113,122,0.1);
+  --badge-neutral-bg:   rgba(113,113,122,0.04);
   --badge-neutral-text: #A1A1AA;
-  --badge-neutral-border: rgba(113,113,122,0.25);
+  --badge-neutral-border: rgba(113,113,122,0.12);
 
   /* Legacy vars (used by CSS classes and kiosk) */
-  --np-bg:    #09090B;
-  --np-ink:   #FAFAFA;
-  --np-muted: #27272A;
+  --np-bg:    #050505;
+  --np-ink:   #FFFFFF;
+  --np-muted: rgba(255,255,255,0.07);
   --np-red:   #EF4444;
-  --np-n100:  #111113;
-  --np-n200:  #1C1C1F;
+  --np-n100:  #0D0D0D;
+  --np-n200:  #111111;
   --np-n400:  #71717A;
   --np-n500:  #A1A1AA;
-  --np-n600:  #D4D4D8;
-  --np-n700:  #FAFAFA;
+  --np-n600:  #A1A1AA;
+  --np-n700:  #FFFFFF;
 
   /* Typography */
   --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: 'Inter', -apple-system, sans-serif;
   --font-body:  'Inter', -apple-system, sans-serif;
   --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Custom Sidebar/Topbar Variables */
+  --bg-sidebar-active: rgba(255,255,255,0.06);
+  --bg-topbar: #050505;
+}
+
+[data-theme="light"] {
+  --bg-base:     #FAFAFA;
+  --bg-surface:  #FFFFFF;
+  --bg-elevated: #F4F4F5;
+  --bg-input:    #FFFFFF;
+
+  --border:      #E4E4E7;
+  --border-faint:#F4F4F5;
+  --border-focus:#A1A1AA;
+
+  --text-primary:   #09090B;
+  --text-secondary: #52525B;
+  --text-tertiary:  #71717A;
+
+  --bg-sidebar: #F4F4F5;
+  --bg-sidebar-active: #E4E4E7;
+  --bg-topbar: #FFFFFF;
+
+  --badge-blue-bg:   rgba(59,130,246,0.08);
+  --badge-blue-text: #1D4ED8;
+  --badge-blue-border: rgba(59,130,246,0.15);
+
+  --badge-green-bg:   rgba(34,197,94,0.08);
+  --badge-green-text: #15803D;
+  --badge-green-border: rgba(34,197,94,0.15);
+
+  --badge-amber-bg:   rgba(245,158,11,0.08);
+  --badge-amber-text: #B45309;
+  --badge-amber-border: rgba(245,158,11,0.15);
+
+  --badge-red-bg:   rgba(239,68,68,0.08);
+  --badge-red-text: #B91C1C;
+  --badge-red-border: rgba(239,68,68,0.15);
+
+  --badge-neutral-bg:   rgba(113,113,122,0.08);
+  --badge-neutral-text: #4B5563;
+  --badge-neutral-border: rgba(113,113,122,0.15);
+
+  --np-bg:    #FAFAFA;
+  --np-ink:   #09090B;
+  --np-muted: #E4E4E7;
+  --np-red:   #EF4444;
+  --np-n100:  #FFFFFF;
+  --np-n200:  #F4F4F5;
+  --np-n400:  #A1A1AA;
+  --np-n500:  #71717A;
+  --np-n600:  #52525B;
+  --np-n700:  #09090B;
 }
 
 /* ── Kiosk Theme Override (newsprint light) ────────────────────────────────── */
@@ -133,10 +188,10 @@ body {
 
 /* ── Sidebar ───────────────────────────────────────────────────────────────── */
 .sidebar {
-  width: 232px;
+  width: 240px;
   flex-shrink: 0;
-  background: #09090B;
-  border-right: 1px solid var(--border-faint);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -228,7 +283,7 @@ body {
 
 .nav-link.active {
   color: var(--text-primary);
-  background: #27272A;
+  background: var(--bg-sidebar-active);
   font-weight: 600;
 }
 
@@ -249,7 +304,7 @@ body {
 .main-inner {
   flex: 1;
   padding: 28px 32px;
-  max-width: 1280px;
+  max-width: 1600px;
   width: 100%;
   margin: 0 auto;
 }
@@ -287,15 +342,15 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 6px 12px;
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
-  border-radius: 7px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.1s;
   white-space: nowrap;
-  min-height: 34px;
+  min-height: 32px;
   text-decoration: none;
   border: 1px solid transparent;
   box-sizing: border-box;
@@ -308,15 +363,15 @@ body {
   pointer-events: none;
 }
 
-/* Primary: solid white */
+/* Primary: Purple (SaaS UI style) */
 .btn-primary {
-  background: #FAFAFA;
-  color: #09090B;
-  border-color: #FAFAFA;
+  background: #6d28d9;
+  color: #FFFFFF;
+  border-color: #6d28d9;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #E4E4E7;
-  border-color: #E4E4E7;
+  background: #7c3aed;
+  border-color: #7c3aed;
 }
 
 /* Ghost: subtle dark outline */
@@ -326,8 +381,8 @@ body {
   border-color: var(--border);
 }
 .btn-ghost:hover:not(:disabled) {
-  background: var(--bg-elevated);
-  border-color: var(--border-focus);
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.12);
   color: var(--text-primary);
 }
 
@@ -335,22 +390,22 @@ body {
 .btn-danger {
   background: transparent;
   color: #F87171;
-  border-color: rgba(239,68,68,0.3);
+  border-color: rgba(239,68,68,0.25);
 }
 .btn-danger:hover:not(:disabled) {
-  background: rgba(239,68,68,0.1);
-  border-color: rgba(239,68,68,0.5);
+  background: rgba(239,68,68,0.06);
+  border-color: rgba(239,68,68,0.4);
 }
 
-/* Success */
+/* Success: green/teal (SaaS UI Upgrade style) */
 .btn-success {
-  background: transparent;
-  color: #4ADE80;
-  border-color: rgba(34,197,94,0.3);
+  background: #10b981;
+  color: #FFFFFF;
+  border-color: #10b981;
 }
 .btn-success:hover:not(:disabled) {
-  background: rgba(34,197,94,0.1);
-  border-color: rgba(34,197,94,0.5);
+  background: #059669;
+  border-color: #059669;
 }
 
 /* Warning */
@@ -388,8 +443,8 @@ body {
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  padding: 20px;
-  border-radius: 10px;
+  padding: 24px;
+  border-radius: 16px;
   transition: border-color 0.15s;
 }
 
@@ -401,8 +456,8 @@ body {
   background: #FAFAFA;
   color: #09090B;
   border: 1px solid #FAFAFA;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 24px;
+  border-radius: 16px;
 }
 
 /* ── Table ─────────────────────────────────────────────────────────────────── */
@@ -417,25 +472,25 @@ table {
   border-collapse: collapse;
   font-size: 13px;
   font-family: var(--font-sans);
-  background: var(--bg-surface);
+  background: transparent;
 }
 
 thead th {
-  background: var(--bg-elevated);
+  background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 10px 14px;
+  letter-spacing: 0.05em;
+  padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 tbody td {
-  padding: 11px 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-faint);
   color: var(--text-primary);
   vertical-align: middle;
@@ -444,7 +499,7 @@ tbody td {
 
 tbody tr:last-child td { border-bottom: none; }
 
-tbody tr:hover td { background: var(--bg-elevated); }
+tbody tr:hover td { background: rgba(255,255,255,0.02) !important; }
 
 /* ── Form Elements ─────────────────────────────────────────────────────────── */
 .form-group {
@@ -463,7 +518,7 @@ tbody tr:hover td { background: var(--bg-elevated); }
 .input, .select, .textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: 12px;
   padding: 8px 12px;
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -512,9 +567,9 @@ tbody tr:hover td { background: var(--bg-elevated); }
 
 /* ── Stat Cards ────────────────────────────────────────────────────────────── */
 .stat-card {
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 16px;
   padding: 20px;
   transition: border-color 0.15s;
   position: relative;
@@ -563,7 +618,7 @@ tbody tr:hover td { background: var(--bg-elevated); }
 .modal {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
   width: 100%;
   max-width: 520px;
@@ -742,9 +797,10 @@ tbody tr:hover td { background: var(--bg-elevated); }
 .flex-row     { display: flex; align-items: center; gap: 8px; }
 .flex-between { display: flex; align-items: center; justify-content: space-between; }
 .flex-col     { display: flex; flex-direction: column; gap: 8px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
 
 /* ── Collapsed Grid Borders ────────────────────────────────────────────────── */
 .col-grid {
@@ -794,6 +850,208 @@ tbody tr:hover td { background: var(--bg-elevated); }
 /* ── Edition strip (legacy — kept but unstyled) ─────────────────────────────── */
 .edition-strip { display: none; }
 
+/* ── SaaS UI Specific Components ────────────────────────────────────────────── */
+.saas-workspace-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.1s;
+}
+.saas-workspace-select:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.saas-avatar-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+}
+.saas-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  gap: 8px;
+}
+.saas-search-input-wrapper:focus-within {
+  border-color: var(--border-focus);
+}
+.saas-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 100%;
+}
+.saas-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+.saas-shortcut-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.saas-sidebar-nav-section {
+  margin-top: 20px;
+}
+.saas-sidebar-nav-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 12px 6px;
+}
+.saas-sidebar-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.1s;
+}
+.saas-sidebar-nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+.saas-sidebar-nav-link.active {
+  color: var(--text-primary);
+  background: var(--bg-sidebar-active);
+  font-weight: 500;
+}
+.saas-tag-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+}
+.saas-tag-item:hover {
+  color: var(--text-primary);
+}
+.saas-tag-hash {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.saas-trial-banner {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px;
+}
+.saas-trial-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.saas-progress-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.saas-progress-fill {
+  height: 100%;
+  background: #10b981; /* Green color exactly matching the upgrade button */
+  border-radius: 2px;
+}
+
+/* Page Headers & Filters */
+.saas-page-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-base);
+}
+.saas-filter-tabs {
+  display: flex;
+  gap: 4px;
+}
+.saas-filter-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.saas-filter-tab:hover {
+  color: var(--text-primary);
+}
+.saas-filter-tab.active {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+.saas-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.saas-filter-chip-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  padding: 1px;
+}
+.saas-filter-chip-close:hover {
+  color: var(--text-primary);
+}
+.saas-pagination-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 28px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-base);
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar { display: none; }
@@ -803,3 +1061,18 @@ tbody tr:hover td { background: var(--bg-elevated); }
   .modal { padding: 18px; }
   .page-title { font-size: 20px; }
 }
+
+/* Shiny Text Animation */
+.shiny-text {
+  color: rgba(255, 255, 255, 0.55);
+  background: linear-gradient(120deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 60%) 0 0 / 200% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: inline-block;
+  animation: shiny-text-animation 6s infinite linear;
+}
+@keyframes shiny-text-animation {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+

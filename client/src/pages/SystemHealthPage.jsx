@@ -185,8 +185,8 @@ export default function SystemHealthPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 24 }}>
         {/* WebSocket and Kiosk Connections */}
-        <div style={{ border: '1px solid #222225', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #222225', paddingBottom: 10, marginBottom: 16 }}>
+        <div style={{ border: '1px solid var(--border)', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
             <Radio size={18} />
             <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0 }}>WebSocket & Kiosks</h3>
           </div>
@@ -204,7 +204,7 @@ export default function SystemHealthPage() {
               <span style={{ fontStyle: 'italic', color: 'var(--np-n500)', fontSize: 12 }}>No classrooms are currently connected as active display kiosks.</span>
             ) : (
               metrics?.websockets?.kiosks?.map((k, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, border: '1px solid var(--np-muted)', padding: '6px 10px', background: '#0C0C0E' }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, border: '1px solid var(--np-muted)', padding: '6px 10px', background: 'var(--bg-base)' }}>
                   <span style={{ fontWeight: 600 }}>Room {k.roomNo}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)' }}>
@@ -229,8 +229,8 @@ export default function SystemHealthPage() {
         </div>
 
         {/* Database performance */}
-        <div style={{ border: '1px solid #222225', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #222225', paddingBottom: 10, marginBottom: 16 }}>
+        <div style={{ border: '1px solid var(--border)', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
             <Database size={18} />
             <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0 }}>DB performance</h3>
           </div>
@@ -246,8 +246,8 @@ export default function SystemHealthPage() {
         </div>
 
         {/* System & Server Stats */}
-        <div style={{ border: '1px solid #222225', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #222225', paddingBottom: 10, marginBottom: 16 }}>
+        <div style={{ border: '1px solid var(--border)', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
             <Cpu size={18} />
             <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0 }}>Server Resources</h3>
           </div>
@@ -282,8 +282,8 @@ export default function SystemHealthPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 24, alignItems: 'start' }}>
         {/* Solver Telemetry history */}
-        <div style={{ border: '1px solid #222225', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #222225', paddingBottom: 10, marginBottom: 16 }}>
+        <div style={{ border: '1px solid var(--border)', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Activity size={18} />
               <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0 }}>Solver Telemetry Logs</h3>
@@ -310,7 +310,7 @@ export default function SystemHealthPage() {
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #222225', textAlign: 'left', fontWeight: 700 }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', fontWeight: 700 }}>
                     <th style={{ padding: '8px 4px' }}>Cycle</th>
                     <th style={{ padding: '8px 4px' }}>Status</th>
                     <th style={{ padding: '8px 4px' }}>Duration</th>
@@ -354,8 +354,8 @@ export default function SystemHealthPage() {
         </div>
 
         {/* Database Backups Panel */}
-        <div style={{ border: '1px solid #222225', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #222225', paddingBottom: 10, marginBottom: 16 }}>
+        <div style={{ border: '1px solid var(--border)', background: '#fff', padding: 20, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <DatabaseZap size={18} />
               <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0 }}>Database Backups</h3>
@@ -366,7 +366,7 @@ export default function SystemHealthPage() {
           </div>
 
           {/* Direct upload Restore */}
-          <div style={{ border: '2px dashed var(--np-ink)', background: '#0C0C0E', padding: 12, marginBottom: 16, textAlign: 'center' }}>
+          <div style={{ border: '2px dashed var(--np-ink)', background: 'var(--bg-base)', padding: 12, marginBottom: 16, textAlign: 'center' }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <Upload size={12} />
               Upload & Restore Database JSON
@@ -401,7 +401,7 @@ export default function SystemHealthPage() {
               </div>
             ) : (
               backups.map((b, i) => (
-                <div key={i} style={{ border: '1px solid var(--np-ink)', padding: 12, background: '#0C0C0E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={i} style={{ border: '1px solid var(--np-ink)', padding: 12, background: 'var(--bg-base)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {b.filename}
@@ -446,7 +446,7 @@ export default function SystemHealthPage() {
       </div>
 
       {/* ── STAGE 5: OPERATIONAL MATURITY SERVICES ── */}
-      <div style={{ marginTop: 24, border: '1px solid #222225', background: '#fff', padding: 24, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+      <div style={{ marginTop: 24, border: '1px solid var(--border)', background: '#fff', padding: 24, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 800, margin: '0 0 4px 0', textTransform: 'uppercase' }}>
           Stage 5: Operational Maturity & Security Audit
         </h2>
@@ -456,8 +456,8 @@ export default function SystemHealthPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
           {/* Cryptographic Hash Chain Audit */}
-          <div style={{ border: '1px solid #222225', padding: 16, background: metrics?.security?.auditLogSecurity?.valid ? '#f0fdf4' : '#fff5f5' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
+          <div style={{ border: '1px solid var(--border)', padding: 16, background: metrics?.security?.auditLogSecurity?.valid ? '#f0fdf4' : '#fff5f5' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 16 }}>🔒</span>
               <h4 style={{ margin: 0, fontWeight: 700 }}>Cryptographic Audit Chain Integrity</h4>
             </div>
@@ -483,8 +483,8 @@ export default function SystemHealthPage() {
           </div>
 
           {/* Background Auto-Backup Monitor */}
-          <div style={{ border: '1px solid #222225', padding: 16, background: '#0C0C0E' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #222225', paddingBottom: 8, marginBottom: 12 }}>
+          <div style={{ border: '1px solid var(--border)', padding: 16, background: 'var(--bg-base)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 16 }}>⏰</span>
               <h4 style={{ margin: 0, fontWeight: 700 }}>Automated Snapshots Scheduler</h4>
             </div>
@@ -512,7 +512,7 @@ export default function SystemHealthPage() {
         </div>
 
         {/* Slow Queries Log Table */}
-        <div style={{ border: '1px solid #222225', padding: 16 }}>
+        <div style={{ border: '1px solid var(--border)', padding: 16 }}>
           <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 6 }}>
             Database slow statements log (&gt;50ms statement latency profiling)
           </div>

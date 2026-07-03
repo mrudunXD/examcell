@@ -4,11 +4,13 @@ import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
-  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp
+  ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp,
+  Sun, Moon, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
 import { ICONS, LABELS, getResultLink, getResultSub } from '../pages/SearchPage.jsx';
+import ShinyText from './ReactBits/ShinyText.jsx';
 
 const coordinatorNav = [
   { section: 'Overview' },
@@ -27,6 +29,7 @@ const coordinatorNav = [
   { to: '/search',    icon: SearchIcon,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
   { to: '/health',    icon: Activity,      label: 'System Health' },
+  { to: '/settings',  icon: UserCog,       label: 'Settings' },
 ];
 
 const facultyNav = [
@@ -109,11 +112,11 @@ function GlobalSearchModal({ onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ zIndex: 9999 }}>
-      <div className="modal modal-lg" style={{ padding: 0, overflow: 'hidden', maxWidth: 640, background: '#121214', border: '1px solid #222225' }}>
-        <div style={{ position: 'relative', borderBottom: '1px solid #222225', background: '#1C1C1F' }}>
+      <div className="modal modal-lg" style={{ padding: 0, overflow: 'hidden', maxWidth: 640, background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        <div style={{ position: 'relative', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
           <SearchIcon
             size={18} strokeWidth={1.5}
-            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#8E8E93', pointerEvents: 'none' }}
+            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}
           />
           <input
             ref={inputRef}
@@ -125,7 +128,7 @@ function GlobalSearchModal({ onClose }) {
               width: '100%', padding: '18px 48px 18px 50px',
               border: 'none', outline: 'none',
               fontFamily: 'var(--font-sans)', fontSize: 16,
-              background: 'transparent', color: '#FFFFFF',
+              background: 'transparent', color: 'var(--text-primary)',
               boxSizing: 'border-box',
             }}
           />
@@ -180,7 +183,7 @@ function GlobalSearchModal({ onClose }) {
                   <Icon size={10} strokeWidth={1.5} />
                   {LABELS[type]}
                 </div>
-                <div style={{ border: '1px solid #222225', background: '#121214', borderRadius: '6px', overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)', borderRadius: '6px', overflow: 'hidden' }}>
                   {items.map((item, i) => {
                     const globalIdx = flatResults.findIndex(r => r.type === type && r.item.id === item.id);
                     const isActive = activeIdx === globalIdx;
@@ -191,9 +194,9 @@ function GlobalSearchModal({ onClose }) {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 12, width: '100%',
                           padding: '10px 14px', border: 'none', textAlign: 'left', cursor: 'pointer',
-                          background: isActive ? '#1C1C1F' : 'transparent',
-                          color: isActive ? '#FFFFFF' : '#E5E5EA',
-                          borderBottom: i < items.length - 1 ? '1px solid #222225' : 'none',
+                          background: isActive ? 'var(--bg-elevated)' : 'transparent',
+                          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          borderBottom: i < items.length - 1 ? '1px solid var(--border)' : 'none',
                           transition: 'background 0.05s',
                         }}
                       >
@@ -216,9 +219,9 @@ function GlobalSearchModal({ onClose }) {
 
         {query.length >= 2 && (
           <div style={{
-            background: '#1C1C1F', borderTop: '1px solid #222225',
+            background: 'var(--bg-elevated)', borderTop: '1px solid var(--border)',
             padding: '8px 16px', display: 'flex', justifyContent: 'space-between',
-            fontFamily: 'var(--font-mono)', fontSize: 8, color: '#8E8E93',
+            fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-secondary)',
             textTransform: 'uppercase', letterSpacing: '0.08em'
           }}>
             <span>Total Results: {totalResults}</span>
@@ -232,10 +235,21 @@ function GlobalSearchModal({ onClose }) {
 
 export default function Layout() {
   const { user, logout } = useAuthStore();
+  const { theme, toggleTheme } = useAppStore();
   const navigate = useNavigate();
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsedSecs, setCollapsedSecs] = useState({
+    'Overview': false,
+    'Master Data': false,
+    'Exam Management': false,
+    'System': false,
+  });
+
+  const toggleSection = (secName) => {
+    setCollapsedSecs(prev => ({ ...prev, [secName]: !prev[secName] }));
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -259,9 +273,9 @@ export default function Layout() {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '12px 20px',
-        background: '#111',
-        color: '#fff',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--bg-surface)',
+        color: 'var(--text-primary)',
+        borderBottom: '1px solid var(--border)',
         position: 'sticky',
         top: 0,
         zIndex: 40,
@@ -269,7 +283,7 @@ export default function Layout() {
         boxSizing: 'border-box',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <GraduationCap size={20} strokeWidth={1.5} color="rgba(255,255,255,0.9)" />
+          <GraduationCap size={20} strokeWidth={1.5} color="var(--text-primary)" />
           <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.05em' }}>ExamCell</span>
         </div>
         <button 
@@ -277,7 +291,7 @@ export default function Layout() {
           style={{
             background: 'none',
             border: 'none',
-            color: '#fff',
+            color: 'var(--text-primary)',
             cursor: 'pointer',
             padding: 4,
             display: 'flex',
@@ -297,7 +311,7 @@ export default function Layout() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(17, 17, 17, 0.98)',
+          background: 'var(--bg-base)',
           zIndex: 50,
           display: 'flex',
           flexDirection: 'column',
@@ -306,9 +320,9 @@ export default function Layout() {
           animation: 'slideInMenu 0.2s ease-out',
         }}>
           {/* User badge */}
-          <div style={{ paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: 20 }}>
-            <div style={{ fontWeight: 800, fontSize: 18, color: '#fff' }}>{user?.name}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginTop: 4, fontWeight: 700, letterSpacing: '0.05em' }}>{user?.role}</div>
+          <div style={{ paddingBottom: 16, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+            <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--text-primary)' }}>{user?.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: 4, fontWeight: 700, letterSpacing: '0.05em' }}>{user?.role}</div>
           </div>
           
           {/* Links list */}
@@ -320,7 +334,7 @@ export default function Layout() {
                   fontWeight: 900, 
                   textTransform: 'uppercase', 
                   letterSpacing: '0.08em', 
-                  color: 'rgba(255,255,255,0.35)', 
+                  color: 'var(--text-tertiary)', 
                   marginTop: 16,
                   marginBottom: 6 
                 }}>{item.section}</div>
@@ -335,8 +349,8 @@ export default function Layout() {
                     gap: 12,
                     padding: '12px 16px',
                     borderRadius: '8px',
-                    color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
-                    background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    background: isActive ? 'var(--bg-elevated)' : 'transparent',
                     textDecoration: 'none',
                     fontWeight: 700,
                     fontSize: 14,
@@ -356,15 +370,33 @@ export default function Layout() {
             )}
           </div>
           
-          {/* Sign Out */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, marginTop: 16 }}>
+          {/* Theme Toggle & Sign Out */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               className="btn btn-ghost btn-sm"
               style={{
                 width: '100%',
                 justifyContent: 'center',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#fff',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '12px',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+              onClick={() => {
+                toggleTheme();
+              }}
+            >
+              {theme === 'dark' ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
+              <span style={{ marginLeft: 6 }}>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
                 padding: '12px',
                 fontSize: 13,
                 fontWeight: 700,
@@ -374,7 +406,8 @@ export default function Layout() {
                 handleLogout();
               }}
             >
-              Sign Out
+              <LogOut size={14} strokeWidth={1.5} />
+              <span style={{ marginLeft: 6 }}>Sign Out</span>
             </button>
           </div>
         </div>
@@ -383,79 +416,108 @@ export default function Layout() {
       {/* Main shell grid */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-        <nav className="sidebar">
-          {/* Publication flag */}
-          <div className="sidebar-flag">
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <GraduationCap
-                size={18}
-                color="rgba(255,255,255,0.7)"
-                style={{ marginTop: 2, flexShrink: 0 }}
-                strokeWidth={1.5}
-              />
-              <div>
-                <div className="sidebar-flag-title">ExamCell</div>
-                <div className="sidebar-flag-sub">MIT WPU · Exam Cell</div>
-              </div>
+        <nav className="sidebar" style={{ background: 'var(--bg-sidebar)', padding: '12px 0 0' }}>
+          {/* Workspace select header (SaaS UI style) */}
+          <div style={{ padding: '4px 12px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-faint)' }}>
+            <div className="saas-workspace-select" style={{ flex: 1 }} onClick={() => setSearchOpen(true)}>
+              <div className="saas-avatar-circle">EC</div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 8 }}>ExamCell</span>
+              <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 4 }} />
+            </div>
+            
+            {/* User profile picture avatar on the right */}
+            <div style={{
+              width: 24, height: 24, borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
+              display: 'flex', alignItems: 'center', justifySelf: 'flex-end', justifyContent: 'center',
+              fontWeight: 700, fontSize: 10, color: '#FFFFFF', cursor: 'pointer', flexShrink: 0
+            }} title={`${user?.name} (${user?.role})`}>
+              {user?.name ? user.name[0].toUpperCase() : 'U'}
             </div>
           </div>
 
-          {/* User info */}
-          <div className="sidebar-user">
-            <div className="sidebar-user-name">{user?.name}</div>
-            <div className="sidebar-user-role">{user?.role}</div>
+          {/* Search bar wrapper */}
+          <div style={{ padding: '12px 12px 8px' }}>
+            <div className="saas-search-input-wrapper" onClick={() => setSearchOpen(true)} style={{ cursor: 'pointer' }}>
+              <SearchIcon size={12} color="var(--text-tertiary)" strokeWidth={1.5} />
+              <input readOnly placeholder="Search" className="saas-search-input" style={{ cursor: 'pointer' }} />
+              <span className="saas-shortcut-tag">/</span>
+            </div>
           </div>
 
-          {/* Navigation */}
-          <div className="sidebar-nav">
-            {navItems.map((item, i) =>
-              item.section ? (
-                <div key={i} className="nav-section-label">{item.section}</div>
-              ) : (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-                  onClick={(e) => {
-                    if (item.to === '/search') {
-                      e.preventDefault();
-                      setSearchOpen(true);
-                    }
-                  }}
-                >
-                  <item.icon size={13} strokeWidth={1.5} />
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {item.shortcut && (
-                    <span style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 8,
-                      opacity: 0.45, letterSpacing: '0.05em',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      padding: '1px 4px', borderRadius: 2,
-                    }}>
-                      {item.shortcut}
-                    </span>
-                  )}
-                </NavLink>
-              )
-            )}
+          {/* Navigation Links */}
+          <div className="sidebar-nav" style={{ overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(() => {
+              let currentSec = '';
+              return navItems.map((item, i) => {
+                if (item.section) {
+                  currentSec = item.section;
+                  return (
+                    <div 
+                      key={i} 
+                      className="saas-sidebar-nav-section-title"
+                      style={{ marginTop: i > 0 ? 16 : 8 }}
+                    >
+                      {item.section}
+                    </div>
+                  );
+                }
+                
+                const isTagStyle = currentSec !== 'Overview' && currentSec !== '';
+                
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => `saas-sidebar-nav-link${isActive ? ' active' : ''}`}
+                    onClick={(e) => {
+                      if (item.to === '/search') {
+                        e.preventDefault();
+                        setSearchOpen(true);
+                      }
+                    }}
+                  >
+                    {isTagStyle ? (
+                      <span className="saas-tag-hash" style={{ marginRight: 2 }}>#</span>
+                    ) : (
+                      <item.icon size={13} strokeWidth={1.5} style={{ opacity: 0.7 }} />
+                    )}
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                  </NavLink>
+                );
+              });
+            })()}
           </div>
 
-          {/* Logout */}
-          <div className="sidebar-footer">
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{
-                width: '100%',
-                justifyContent: 'flex-start',
-                border: '1px solid rgba(255,255,255,0.12)',
-                color: 'rgba(255,255,255,0.45)',
-              }}
-              onClick={handleLogout}
-            >
-              <LogOut size={12} strokeWidth={1.5} />
-              Sign Out
+          {/* Footer list */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderTop: '1px solid var(--border-faint)' }}>
+            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={() => toast.success('Coordinators invite modal placeholder')}>
+              <span style={{ fontSize: 14, marginRight: 8, color: 'var(--text-tertiary)' }}>+</span> Invite people
             </button>
+            <a href="https://saas-ui.dev" target="_blank" rel="noreferrer" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: '6px 12px' }}>
+              <span style={{ fontSize: 13, marginRight: 8, color: 'var(--text-tertiary)' }}>?</span> Documentation
+            </a>
+            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={toggleTheme}>
+              <span style={{ fontSize: 13, marginRight: 8, color: 'var(--text-tertiary)' }}>{theme === 'dark' ? '☼' : '☾'}</span>
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </button>
+            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={handleLogout}>
+              <span style={{ fontSize: 13, marginRight: 8, color: 'var(--text-tertiary)' }}>→</span> Sign Out
+            </button>
+          </div>
+
+          {/* Trial progress banner */}
+          <div className="saas-trial-banner">
+            <div className="saas-trial-banner-header">
+              <ShinyText text="Trial ends in 14 days" style={{ fontSize: 11, fontWeight: 500 }} />
+              <button className="btn btn-success btn-sm" style={{ padding: '2px 8px', fontSize: 10, minHeight: 20, height: 20, borderRadius: 4 }} onClick={() => toast.success('Billing portal upgrade simulated')}>
+                Upgrade
+              </button>
+            </div>
+            <div className="saas-progress-bar">
+              <div className="saas-progress-fill" style={{ width: '45%' }} />
+            </div>
           </div>
         </nav>
 
@@ -463,8 +525,8 @@ export default function Layout() {
         <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Top bar */}
           <div style={{
-            background: '#0C0C0E',
-            borderBottom: '1px solid #1C1C1F',
+            background: 'var(--bg-topbar)',
+            borderBottom: '1px solid var(--border-faint)',
             padding: '0 28px',
             height: 52,
             display: 'flex',
@@ -472,10 +534,10 @@ export default function Layout() {
             justifyContent: 'space-between',
             flexShrink: 0,
           }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#8E8E93', fontWeight: 500 }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
               MIT WPU · Examination Cell Management System
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#4A4A4F', letterSpacing: '0.03em' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.03em' }}>
               {today}
             </span>
           </div>
