@@ -61,17 +61,25 @@ export default function LoginPage() {
     }}>
       <style>{`
         @keyframes radar-ripple {
-          0%   { transform: scale(0.6); opacity: 1; }
-          100% { transform: scale(2.4); opacity: 0; }
+          0%   { transform: scale(0.5); opacity: 0.9; }
+          100% { transform: scale(2.8); opacity: 0; }
         }
         .radar-ring {
           position: absolute;
-          border: 1px solid rgba(98, 0, 234, 0.22);
+          inset: 0;
+          border: 1px solid rgba(98, 0, 234, 0.35);
           border-radius: 50%;
-          animation: radar-ripple 2.5s cubic-bezier(0.25,0.46,0.45,0.94) infinite;
+          animation: radar-ripple 2.4s cubic-bezier(0.25,0.46,0.45,0.94) infinite;
         }
         .radar-ring:nth-child(2) { animation-delay: 0.8s; }
         .radar-ring:nth-child(3) { animation-delay: 1.6s; }
+        @keyframes beacon-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(98,0,234,0.55); }
+          50%       { box-shadow: 0 0 0 6px rgba(98,0,234,0); }
+        }
+        .scan-beacon {
+          animation: beacon-pulse 2.4s ease-in-out infinite;
+        }
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -215,38 +223,37 @@ export default function LoginPage() {
                     display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                     width: 175, height: 190,
                     border: '1px solid #f0f1f5',
+                    overflow: 'hidden',
                   }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#6200ea' }}>Secure</div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: '#1a1a1a', marginTop: 1 }}>Scan</div>
                     </div>
 
-                    {/* Offset concentric circles — matching the mockup exactly */}
-                    <div style={{ position: 'relative', width: 72, height: 72, margin: '4px auto' }}>
-                      {/* Outer rings grow from bottom-right */}
-                      <div style={{
-                        position: 'absolute', inset: 0,
-                        border: '1px solid #d8d3ee', borderRadius: '50%',
-                        transform: 'translate(6px,8px)',
-                      }} />
-                      <div style={{
-                        position: 'absolute', inset: '8px',
-                        border: '1px solid #bdb4e4', borderRadius: '50%',
-                        transform: 'translate(4px,6px)',
-                      }} />
-                      <div style={{
-                        position: 'absolute', inset: '16px',
-                        border: '1.5px solid #a097d8', borderRadius: '50%',
-                        transform: 'translate(2px,4px)',
-                      }} />
-                      {/* Solid purple inner beacon */}
-                      <div style={{
-                        position: 'absolute', inset: '24px',
-                        background: '#6200ea', borderRadius: '50%',
-                        transform: 'translate(0px,2px)',
-                        boxShadow: '0 4px 12px rgba(98,0,234,0.35)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
+                    {/* Animated radar scan: 3 expanding rings + pulsing beacon */}
+                    <div style={{
+                      position: 'relative',
+                      width: 56, height: 56,
+                      margin: '0 auto',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {/* Three expanding ripple rings */}
+                      <div className="radar-ring" />
+                      <div className="radar-ring" />
+                      <div className="radar-ring" />
+
+                      {/* Purple beacon dot — sits above the rings */}
+                      <div
+                        className="scan-beacon"
+                        style={{
+                          position: 'relative',
+                          zIndex: 2,
+                          width: 18, height: 18,
+                          borderRadius: '50%',
+                          background: '#6200ea',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
                         <div style={{ width: 7, height: 7, background: '#000', borderRadius: '50%' }} />
                       </div>
                     </div>
