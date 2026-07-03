@@ -5,17 +5,17 @@ import {
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
   ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp,
-  Sun, Moon, ChevronDown, ChevronRight
+  Sun, Moon, ChevronDown, ChevronRight, UserPlus, HelpCircle
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
 import { ICONS, LABELS, getResultLink, getResultSub } from '../pages/SearchPage.jsx';
 import ShinyText from './ReactBits/ShinyText.jsx';
+import toast from 'react-hot-toast';
 
 const coordinatorNav = [
   { section: 'Overview' },
   { to: '/',          icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/live-dashboard', icon: Radio,       label: 'Live Dashboard' },
   { section: 'Master Data' },
   { to: '/students',  icon: Users,      label: 'Students' },
   { to: '/subjects',  icon: BookOpen,   label: 'Subjects' },
@@ -240,6 +240,7 @@ export default function Layout() {
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [collapsedSecs, setCollapsedSecs] = useState({
     'Overview': false,
     'Master Data': false,
@@ -478,11 +479,7 @@ export default function Layout() {
                       }
                     }}
                   >
-                    {isTagStyle ? (
-                      <span className="saas-tag-hash" style={{ marginRight: 2 }}>#</span>
-                    ) : (
-                      <item.icon size={13} strokeWidth={1.5} style={{ opacity: 0.7 }} />
-                    )}
+                    <item.icon size={13} strokeWidth={1.5} style={{ opacity: 0.7 }} />
                     <span style={{ flex: 1 }}>{item.label}</span>
                   </NavLink>
                 );
@@ -492,32 +489,15 @@ export default function Layout() {
 
           {/* Footer list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderTop: '1px solid var(--border-faint)' }}>
-            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={() => toast.success('Coordinators invite modal placeholder')}>
-              <span style={{ fontSize: 14, marginRight: 8, color: 'var(--text-tertiary)' }}>+</span> Invite people
+            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={() => setInviteOpen(true)}>
+              <UserPlus size={13} strokeWidth={1.5} style={{ marginRight: 8, color: 'var(--text-tertiary)' }} /> Invite people
             </button>
             <a href="https://saas-ui.dev" target="_blank" rel="noreferrer" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: '6px 12px' }}>
-              <span style={{ fontSize: 13, marginRight: 8, color: 'var(--text-tertiary)' }}>?</span> Documentation
+              <HelpCircle size={13} strokeWidth={1.5} style={{ marginRight: 8, color: 'var(--text-tertiary)' }} /> Documentation
             </a>
-            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={toggleTheme}>
-              <span style={{ fontSize: 13, marginRight: 8, color: 'var(--text-tertiary)' }}>{theme === 'dark' ? '☼' : '☾'}</span>
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            </button>
             <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={handleLogout}>
-              <span style={{ fontSize: 13, marginRight: 8, color: 'var(--text-tertiary)' }}>→</span> Sign Out
+              <LogOut size={13} strokeWidth={1.5} style={{ marginRight: 8, color: 'var(--text-tertiary)' }} /> Sign Out
             </button>
-          </div>
-
-          {/* Trial progress banner */}
-          <div className="saas-trial-banner">
-            <div className="saas-trial-banner-header">
-              <ShinyText text="Trial ends in 14 days" style={{ fontSize: 11, fontWeight: 500 }} />
-              <button className="btn btn-success btn-sm" style={{ padding: '2px 8px', fontSize: 10, minHeight: 20, height: 20, borderRadius: 4 }} onClick={() => toast.success('Billing portal upgrade simulated')}>
-                Upgrade
-              </button>
-            </div>
-            <div className="saas-progress-bar">
-              <div className="saas-progress-fill" style={{ width: '45%' }} />
-            </div>
           </div>
         </nav>
 
@@ -537,9 +517,28 @@ export default function Layout() {
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
               MIT WPU · Examination Cell Management System
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.03em' }}>
-              {today}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.03em' }}>
+                {today}
+              </span>
+              <button 
+                onClick={toggleTheme} 
+                className="btn btn-ghost" 
+                style={{ 
+                  width: 32, 
+                  height: 32, 
+                  padding: 0, 
+                  borderRadius: 6, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  border: '1px solid var(--border-faint)'
+                }}
+                title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun size={13} strokeWidth={1.5} /> : <Moon size={13} strokeWidth={1.5} />}
+              </button>
+            </div>
           </div>
 
           <div className="main-inner" style={{ flex: 1, overflowY: 'auto' }}>
@@ -550,6 +549,10 @@ export default function Layout() {
       
       {searchOpen && (
         <GlobalSearchModal onClose={() => setSearchOpen(false)} />
+      )}
+
+      {inviteOpen && (
+        <InviteModal onClose={() => setInviteOpen(false)} />
       )}
 
       {/* Mobile-specific styling injections */}
@@ -576,6 +579,65 @@ export default function Layout() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+    </div>
+  );
+}
+
+function InviteModal({ onClose }) {
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('faculty');
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSending(true);
+    setTimeout(() => {
+      setSending(false);
+      toast.success(`Invitation successfully sent to ${email} as ${role}!`);
+      onClose();
+    }, 800);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 400 }}>
+        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
+          <UserPlus size={18} strokeWidth={1.5} /> Invite Collaborator
+        </h2>
+        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20 }}>
+          Send institutional invite links to register invigilator faculty or coordinator accounts.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label">Email Address *</label>
+            <input
+              type="email"
+              className="input"
+              placeholder="name@mitwpu.edu.in"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Workspace Role *</label>
+            <select className="select" value={role} onChange={e => setRole(e.target.value)}>
+              <option value="faculty">Invigilator Faculty</option>
+              <option value="coordinator">Exam Cell Coordinator</option>
+            </select>
+          </div>
+
+          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={sending}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={sending}>
+              {sending ? 'Sending...' : 'Send Invite'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

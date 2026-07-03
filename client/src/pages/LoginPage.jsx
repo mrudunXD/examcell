@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Eye, EyeOff, Shield, BookOpen, Users, FileDown } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Shield, BookOpen, Users, FileDown, Mail, Lock } from 'lucide-react';
 import { useAuthStore } from '../store/index.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -143,17 +143,26 @@ export default function LoginPage() {
             {/* Features */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {features.map(({ icon: Icon, text }) => (
-                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={text} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: '14px 18px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                  borderRadius: 12,
+                  transition: 'all 0.2s',
+                }} className="hover-card">
                   <div style={{
-                    width: 28, height: 28, borderRadius: 8,
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border)',
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
-                    <Icon size={13} strokeWidth={1.5} color="var(--text-secondary)" />
+                    <Icon size={15} strokeWidth={1.5} color="var(--accent-blue)" />
                   </div>
-                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{text}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{text}</span>
                 </div>
               ))}
             </div>
@@ -199,32 +208,37 @@ export default function LoginPage() {
           overflowY: 'auto',
         }}>
           <div style={{ marginBottom: 36 }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 6 }}>
               Sign in
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Use your institutional credentials
+              Use your credentials to access your dashboard.
             </div>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="form-group">
               <label className="form-label" htmlFor="email">Email Address</label>
-              <input
-                id="email"
-                type="email"
-                className="input"
-                placeholder="you@mitwpu.edu.in"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
+              <div style={{ position: 'relative' }}>
+                <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', zIndex: 2 }} />
+                <input
+                  id="email"
+                  type="email"
+                  className="input"
+                  placeholder="you@mitwpu.edu.in"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                  style={{ paddingLeft: 38 }}
+                />
+              </div>
             </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="password">Password</label>
               <div style={{ position: 'relative' }}>
+                <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', zIndex: 2 }} />
                 <input
                   id="password"
                   type={showPwd ? 'text' : 'password'}
@@ -233,7 +247,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  style={{ paddingRight: 40 }}
+                  style={{ paddingLeft: 38, paddingRight: 40 }}
                 />
                 <button
                   type="button"
@@ -244,6 +258,7 @@ export default function LoginPage() {
                     background: 'none', border: 'none',
                     color: 'var(--text-secondary)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', padding: 4,
+                    zIndex: 2
                   }}
                   aria-label={showPwd ? 'Hide password' : 'Show password'}
                 >
@@ -254,15 +269,15 @@ export default function LoginPage() {
 
             {/* Default creds hint */}
             <div style={{
-              padding: '10px 14px',
-              background: 'rgba(59,130,246,0.04)',
-              border: '1px solid rgba(59,130,246,0.1)',
+              padding: '12px 16px',
+              background: 'rgba(0, 0, 0, 0.2)',
+              border: '1px solid var(--border)',
               borderRadius: 12,
             }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, fontWeight: 700 }}>
                 Default Credentials
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 admin@mitwpu.edu.in<br />admin123
               </div>
             </div>
@@ -272,7 +287,17 @@ export default function LoginPage() {
               type="submit"
               className="btn btn-primary"
               disabled={isLoading}
-              style={{ width: '100%', justifyContent: 'center', minHeight: 44, fontSize: 13, marginTop: 4 }}
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                minHeight: 44,
+                fontSize: 13,
+                marginTop: 4,
+                background: 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)',
+                border: 'none',
+                boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)',
+                fontWeight: 600
+              }}
             >
               {isLoading
                 ? <><div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> Signing in…</>
@@ -281,24 +306,30 @@ export default function LoginPage() {
           </form>
 
           {/* Kiosk launcher */}
-          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+          <div style={{
+            marginTop: 32,
+            padding: '20px',
+            background: 'rgba(255, 255, 255, 0.01)',
+            border: '1px solid rgba(255, 255, 255, 0.04)',
+            borderRadius: 12,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
               Smartboard Kiosk Mode
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 16 }}>
               Launch kiosk display for smartboards or door screens.
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div className="form-group">
-                <label className="form-label" style={{ fontSize: 10 }}>Exam Cycle</label>
+                <label className="form-label" style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>Exam Cycle</label>
                 <select className="select" value={kioskCycle} onChange={e => setKioskCycle(e.target.value)} style={{ padding: '7px 10px', fontSize: 12 }}>
                   <option value="">Select Cycle...</option>
                   {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label" style={{ fontSize: 10 }}>Room (Optional)</label>
+                <label className="form-label" style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>Room (Optional)</label>
                 <select className="select" value={kioskRoom} onChange={e => setKioskRoom(e.target.value)} style={{ padding: '7px 10px', fontSize: 12 }}>
                   <option value="">All Rooms</option>
                   {classrooms.map(r => <option key={r.id} value={r.id}>{r.room_no} ({r.block})</option>)}
@@ -310,7 +341,7 @@ export default function LoginPage() {
               type="button"
               className="btn btn-ghost"
               onClick={handleLaunchKiosk}
-              style={{ width: '100%', justifyContent: 'center', fontSize: 12, border: '1px solid var(--border)' }}
+              style={{ width: '100%', justifyContent: 'center', fontSize: 12, border: '1px solid var(--border)', fontWeight: 500 }}
               disabled={!kioskCycle}
             >
               Launch Kiosk Display

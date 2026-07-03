@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import {
   Users, BookOpen, Building2, UserCheck, CalendarDays,
   AlertTriangle, Grid3x3, FileDown, RefreshCw, ArrowRight,
   Radio, ExternalLink, Bell, TrendingUp, ChevronRight,
-  Activity, Cpu, ShieldAlert, CheckCircle2, Clock
+  Activity, Cpu, ShieldAlert, CheckCircle2, Clock, CheckCircle
 } from 'lucide-react';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
@@ -121,6 +122,149 @@ function BroadcastComposerModal({ onClose }) {
   );
 }
 
+function getSlotPhase(slot) {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  if (!slot.date || slot.date !== today) return 'scheduled';
+  const [h, m] = slot.start_time.split(':').map(Number);
+  const start = new Date(); start.setHours(h, m, 0);
+  const end = new Date(start.getTime() + slot.duration_mins * 60000);
+  if (now < start) return 'upcoming';
+  if (now >= start && now <= end) return 'live';
+  return 'done';
+}
+
+function AttendancePct({ present, total }) {
+  const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+      <div style={{ flex: 1, height: 4, background: 'var(--border)', position: 'relative', borderRadius: 2 }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: pct > 75 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444', transition: 'width 0.5s', borderRadius: 2 }} />
+      </div>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, minWidth: 32, textAlign: 'right', color: 'var(--text-secondary)' }}>{pct}%</span>
+    </div>
+  );
+}
+
+function IncidentResolveModal({ incident, onClose, onSave }) {
+  const [actionTaken, setActionTaken] = useState(incident.action_taken || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleUpdate = async (newStatus) => {
+    setSubmitting(true);
+    try {
+      await api.patch(`/incidents/${incident.id}`, {
+        status: newStatus,
+        action_taken: actionTaken.trim() || null
+      });
+      toast.success(`Incident marked as ${newStatus}`);
+      onSave();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update incident');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 460 }}>
+        <h2 className="modal-title" style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
+          <AlertTriangle size={18} /> Resolve Exam Incident
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '12px 0 20px 0', fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
+          <div className="grid-2">
+            <div>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Type</strong>
+              <div style={{ fontWeight: 600, textTransform: 'capitalize', color: 'var(--text-primary)', marginTop: 2 }}>{incident.type}</div>
+            </div>
+            <div>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Room</strong>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>{incident.room_no}</div>
+            </div>
+          </div>
+          <div className="grid-2">
+            <div>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Severity</strong>
+              <div style={{ fontWeight: 600, textTransform: 'capitalize', color: incident.severity === 'high' ? '#ef4444' : incident.severity === 'medium' ? '#f59e0b' : '#10b981', marginTop: 2 }}>{incident.severity}</div>
+            </div>
+            <div>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Reported By</strong>
+              <div style={{ color: 'var(--text-primary)', marginTop: 2 }}>{incident.reported_by_name}</div>
+            </div>
+          </div>
+          {incident.student_prn && (
+            <div>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Student PRN</strong>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>{incident.student_prn}</div>
+            </div>
+          )}
+          <div>
+            <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Incident Description</strong>
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginTop: 6, fontStyle: 'italic', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {incident.description}
+            </div>
+          </div>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 20 }}>
+          <label className="form-label">Action Taken / Resolution Notes</label>
+          <textarea 
+            className="textarea" 
+            style={{ minHeight: 80, resize: 'vertical' }}
+            placeholder="Describe action taken by the Exam Cell..." 
+            value={actionTaken} 
+            onChange={e => setActionTaken(e.target.value)}
+          />
+        </div>
+
+        <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button type="button" className="btn btn-ghost" style={{ color: '#ef4444' }} onClick={() => handleUpdate('escalated')} disabled={submitting}>Escalate</button>
+          <button type="button" className="btn btn-primary" onClick={() => handleUpdate('resolved')} disabled={submitting}>Resolve Incident</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SlotCard({ slot, phase, isLast }) {
+  const colors = { live: '#10b981', upcoming: '#3b82f6', done: 'var(--text-tertiary)' };
+  const color = colors[phase];
+
+  return (
+    <div style={{ display: 'flex', gap: 12, padding: '14px 16px', borderBottom: !isLast ? '1px solid var(--border)' : 'none', alignItems: 'flex-start' }}>
+      <div style={{ width: 3, alignSelf: 'stretch', background: color, flexShrink: 0, borderRadius: 1.5 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>{slot.subject_code} — {slot.subject_name}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+              {slot.branch} · {slot.year} · Sem {slot.semester} · {formatTime(slot.start_time)} ({slot.duration_mins}min)
+            </div>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.10em', color, border: `1px solid ${color}`, padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>
+            {phase}
+          </span>
+        </div>
+        {phase !== 'done' && slot.seated_count > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-tertiary)', marginBottom: 4 }}>Attendance {slot.present_count}/{slot.seated_count}</div>
+              <AttendancePct present={slot.present_count} total={slot.seated_count} />
+            </div>
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-tertiary)', marginBottom: 4 }}>Supervisors Acknowledged</div>
+              <AttendancePct present={slot.ack_count} total={slot.supervisor_count} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { activeCycleId, setActiveCycle } = useAppStore();
   const [cycles, setCycles] = useState([]);
@@ -131,7 +275,42 @@ export default function DashboardPage() {
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('live');
 
-  const loadDashboardData = () => {
+  // New merged states from LiveDashboardPage
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [tick, setTick] = useState(0);
+  const [resolvingIncident, setResolvingIncident] = useState(null);
+  const [broadcasts, setBroadcasts] = useState([]);
+  const [acknowledgments, setAcknowledgments] = useState({});
+  const [onlineKiosks, setOnlineKiosks] = useState([]);
+  
+  // Composer Form state
+  const [targetRoomId, setTargetRoomId] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastPriority, setBroadcastPriority] = useState('normal');
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
+  const navigate = useNavigate();
+
+  const fetchBroadcastsData = useCallback(async () => {
+    try {
+      const [brRes, ackRes] = await Promise.all([
+        api.get('/broadcasts'),
+        api.get('/broadcasts/acknowledgments')
+      ]);
+      setBroadcasts(brRes.data);
+      
+      const ackMap = {};
+      for (const a of ackRes.data) {
+        ackMap[`${a.broadcast_id}_${a.classroom_id}`] = a.acknowledged_at;
+      }
+      setAcknowledgments(ackMap);
+    } catch (err) {
+      console.error('Failed to load broadcasts telemetry:', err);
+    }
+  }, []);
+
+  const loadDashboardData = useCallback(() => {
     if (!activeCycleId) return;
     setLoading(true);
     Promise.all([
@@ -142,10 +321,11 @@ export default function DashboardPage() {
       setStats(resDb.data);
       setLiveData(resLive.data);
       setHealth(resHealth.data);
+      setLastRefresh(new Date());
     }).catch(() => {
       toast.error('Failed to load dashboard metrics');
     }).finally(() => setLoading(false));
-  };
+  }, [activeCycleId]);
 
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
@@ -160,7 +340,115 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [activeCycleId]);
+    fetchBroadcastsData();
+  }, [activeCycleId, loadDashboardData, fetchBroadcastsData]);
+
+  // WebSocket live synchronization
+  useEffect(() => {
+    if (!activeCycleId) return;
+
+    const socketUrl = window.location.origin.includes('5173')
+      ? 'http://localhost:5000'
+      : window.location.origin;
+
+    console.log(`Connecting ControlCenter to WebSocket server at: ${socketUrl}`);
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('📡 ControlCenter WebSocket connected successfully');
+    });
+
+    socket.on('ATTENDANCE_MARKED', () => {
+      loadDashboardData();
+    });
+
+    socket.on('INCIDENT_REPORTED', (incident) => {
+      toast.error(`New Incident: ${incident.type} severity ${incident.severity} - ${incident.description}`);
+      loadDashboardData();
+    });
+
+    socket.on('INCIDENT_UPDATED', () => {
+      loadDashboardData();
+    });
+
+    socket.on('KIOSKS_UPDATED', (kioskList) => {
+      setOnlineKiosks(kioskList);
+    });
+
+    socket.on('BROADCAST_ACKNOWLEDGED', (ack) => {
+      setAcknowledgments(prev => ({
+        ...prev,
+        [`${ack.broadcastId}_${ack.classroomId}`]: ack.acknowledgedAt
+      }));
+      toast.success(`Kiosk acknowledged broadcast!`);
+    });
+
+    socket.on('EMERGENCY_BROADCAST', () => {
+      fetchBroadcastsData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [activeCycleId, loadDashboardData, fetchBroadcastsData]);
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const id = setInterval(() => { setTick(t => t + 1); }, 30000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => { if (activeCycleId) { loadDashboardData(); fetchBroadcastsData(); } }, [tick, activeCycleId, loadDashboardData, fetchBroadcastsData]);
+
+  const handleSendBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMsg.trim()) {
+      toast.error('Title and message are required.');
+      return;
+    }
+    setSendingBroadcast(true);
+    try {
+      await api.post('/broadcasts', {
+        title: broadcastTitle.trim(),
+        message: broadcastMsg.trim(),
+        priority: broadcastPriority,
+        classroom_id: targetRoomId || null
+      });
+      toast.success('Broadcast sent successfully');
+      setBroadcastTitle('');
+      setBroadcastMsg('');
+      setTargetRoomId('');
+      setBroadcastPriority('normal');
+      fetchBroadcastsData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send broadcast');
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
+
+  const activeClassrooms = useMemo(() => {
+    if (!liveData?.todaySlots) return [];
+    const roomsMap = {};
+    for (const slot of liveData.todaySlots) {
+      for (const r of slot.rooms || []) {
+        roomsMap[r.classroom_id] = {
+          classroomId: r.classroom_id,
+          roomNo: r.room_no,
+          block: r.block,
+          slotId: slot.id,
+          slotName: `${slot.subject_code} - ${slot.subject_name}`
+        };
+      }
+    }
+    return Object.values(roomsMap);
+  }, [liveData]);
+
+  const liveSlots = liveData?.todaySlots?.filter(s => getSlotPhase(s) === 'live') || [];
+  const upcomingToday = liveData?.todaySlots?.filter(s => getSlotPhase(s) === 'upcoming') || [];
+  const doneToday = liveData?.todaySlots?.filter(s => getSlotPhase(s) === 'done') || [];
 
   const s = stats?.stats;
   const today = new Date().toLocaleDateString('en-GB');
@@ -229,9 +517,6 @@ export default function DashboardPage() {
                 }}>{stats.cycle.status}</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <Link to="/live-dashboard" className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)' }}>
-                  <Radio size={11} strokeWidth={1.5} /> Live
-                </Link>
                 <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)' }} onClick={() => setBroadcastOpen(true)}>
                   <Bell size={11} strokeWidth={1.5} /> Broadcast
                 </button>
@@ -318,65 +603,226 @@ export default function DashboardPage() {
             {/* Tab Contents */}
             {activeTab === 'live' ? (
               <div className="grid-2" style={{ gap: 24 }}>
-                {/* Left: Today's Slots & Progress */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Today's Scheduled Slots</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{today}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {(!liveData?.todaySlots || liveData.todaySlots.length === 0) ? (
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No active exam sessions running today.</p>
-                    ) : (
-                      liveData.todaySlots.map(slot => (
-                        <div key={slot.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
-                          <div>
-                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{slot.subject_code}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{slot.subject_name}</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>{formatTime(slot.start_time)} · {slot.branch}</div>
+                {/* Left Column: Today's Scheduled Slots & Live Progress */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {/* Live Now Slots */}
+                  {liveSlots.length > 0 && (
+                    <div>
+                      <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid #10b981', color: '#10b981', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 6, marginBottom: 8 }}>
+                        <Radio size={12} strokeWidth={2} style={{ animation: 'pulse 1.5s infinite' }} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>
+                          Live Now — {liveSlots.length} Active Session{liveSlots.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-surface)' }}>
+                        {liveSlots.map((slot, i) => (
+                          <SlotCard key={slot.id} slot={slot} phase="live" isLast={i === liveSlots.length - 1} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upcoming Today */}
+                  {upcomingToday.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#3b82f6', borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 8, fontWeight: 700 }}>
+                        Upcoming Today ({upcomingToday.length})
+                      </div>
+                      <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-surface)' }}>
+                        {upcomingToday.map((slot, i) => (
+                          <SlotCard key={slot.id} slot={slot} phase="upcoming" isLast={i === upcomingToday.length - 1} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Done Today */}
+                  {doneToday.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 8, fontWeight: 700 }}>
+                        Completed Today ({doneToday.length})
+                      </div>
+                      <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-surface)', opacity: 0.7 }}>
+                        {doneToday.map((slot, i) => (
+                          <SlotCard key={slot.id} slot={slot} phase="done" isLast={i === doneToday.length - 1} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {(!liveData?.todaySlots || liveData.todaySlots.length === 0) && (
+                    <div style={{ textAlign: 'center', padding: '48px 24px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                      <Clock size={32} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12, color: 'var(--text-tertiary)' }} />
+                      <div style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--text-secondary)' }}>No exams scheduled for today</div>
+                    </div>
+                  )}
+
+                  {/* Active Incidents log block */}
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: liveData?.openIncidents?.length ? '#ef4444' : 'var(--text-tertiary)', borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12, fontWeight: 700 }}>
+                      Active Incidents Today ({liveData?.openIncidents?.length || 0})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {liveData?.openIncidents?.length ? liveData.openIncidents.map(inc => (
+                        <div 
+                          key={inc.id} 
+                          style={{ 
+                            padding: '12px 14px', 
+                            border: '1px solid rgba(239, 68, 68, 0.2)', 
+                            background: 'rgba(239, 68, 68, 0.02)',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                          onClick={() => setResolvingIncident(inc)}
+                          className="hover-card"
+                        >
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                            <AlertTriangle size={14} strokeWidth={1.5} color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', color: '#ef4444', fontWeight: 700 }}>
+                                  {inc.type} · Room {inc.room_no}
+                                </span>
+                                <span style={{ fontSize: 9, textTransform: 'uppercase', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>{inc.severity}</span>
+                              </div>
+                              <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{inc.description}</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 8 }}>
+                                Reported by {inc.reported_by_name} · Click to resolve
+                              </div>
+                            </div>
                           </div>
-                          <Link to={`/seating/${slot.id}`} className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }}>Seating Map</Link>
                         </div>
-                      ))
-                    )}
+                      )) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#10b981', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                          <CheckCircle size={14} strokeWidth={1.5} />
+                          <span style={{ fontStyle: 'italic', fontSize: 12 }}>All clear, no active incidents</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Right: Seating utilization progress */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  <div>
-                    <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Live Seating Progress</h3>
-                    <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Attendance marking progress for active slot classrooms.</p>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {(!liveData?.todaySlots || liveData.todaySlots.length === 0) ? (
-                      <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--bg-surface)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)' }}>
-                          <span>Interleaved Seating Allocation</span>
-                          <span>{s?.seatedStudents || 0} / {s?.totalStudents || 0}</span>
-                        </div>
-                        <div style={{ height: 6, background: 'var(--bg-base)', borderRadius: 3, overflow: 'hidden', marginTop: 10 }}>
-                          <div style={{ height: '100%', width: `${s?.totalStudents > 0 ? (s.seatedStudents / s.totalStudents) * 100 : 0}%`, background: 'var(--accent-green)', borderRadius: 3 }} />
-                        </div>
+                {/* Right Column: Classroom Broadcast & Tracker */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {/* Classroom Broadcast Console */}
+                  <div style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)', padding: 20, borderRadius: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Radio size={14} color="#ef4444" />
+                      <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Classroom Broadcast Console</h3>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>Dispatch real-time emergency text notices to room smartboard terminals.</p>
+                    
+                    <form onSubmit={handleSendBroadcast} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)' }}>Target Room</label>
+                        <select
+                          className="select"
+                          value={targetRoomId}
+                          onChange={e => setTargetRoomId(e.target.value)}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="">Broadcast to All Rooms</option>
+                          {activeClassrooms.map(c => {
+                            const isOnline = onlineKiosks.some(k => String(k.classroomId) === String(c.classroomId) && k.status === 'online');
+                            return (
+                              <option key={c.classroomId} value={c.classroomId}>
+                                Room {c.roomNo} {c.block ? `(${c.block})` : ''} {isOnline ? '🟢 Online' : '🔴 Offline'}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </div>
-                    ) : (
-                      liveData.todaySlots.map(slot => {
-                        const seated = slot.seated_count || 0;
-                        const present = slot.present_count || 0;
-                        const pct = seated > 0 ? Math.round((present / seated) * 100) : 0;
-                        return (
-                          <div key={slot.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{slot.subject_code} — {slot.subject_name}</span>
-                              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{present}/{seated} ({pct}%)</span>
+
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)' }}>Severity Priority</label>
+                        <select
+                          className="select"
+                          value={broadcastPriority}
+                          onChange={e => setBroadcastPriority(e.target.value)}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="urgent">Urgent</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)' }}>Title</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={broadcastTitle}
+                          onChange={e => setBroadcastTitle(e.target.value)}
+                          placeholder="e.g. Q4 Correction or Typo alert"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)' }}>Notice Message</label>
+                        <textarea
+                          className="textarea"
+                          value={broadcastMsg}
+                          onChange={e => setBroadcastMsg(e.target.value)}
+                          placeholder="Enter details to display on screen..."
+                          style={{ minHeight: 60 }}
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        style={{ width: '100%', marginTop: 8 }}
+                        disabled={sendingBroadcast}
+                      >
+                        {sendingBroadcast ? 'Publishing...' : 'Publish Announcement'}
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Targeted Acknowledgment Tracker */}
+                  <div style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)', padding: 20, borderRadius: 12 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)', marginBottom: 12, fontWeight: 700 }}>
+                      Kiosk Acknowledgment Tracker
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 180, overflowY: 'auto' }}>
+                      {broadcasts.filter(b => b.classroom_id).length === 0 ? (
+                        <div style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                          No targeted broadcasts sent.
+                        </div>
+                      ) : (
+                        broadcasts.filter(b => b.classroom_id).map(b => {
+                          const targetRoom = activeClassrooms.find(c => String(c.classroomId) === String(b.classroom_id));
+                          const isAcked = acknowledgments[`${b.id}_${b.classroom_id}`];
+                          
+                          return (
+                            <div key={b.id} style={{ fontSize: 12, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <strong style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                                  {b.title}
+                                </strong>
+                                {isAcked ? (
+                                  <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: 9 }}>
+                                    🟢 ACK
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 9 }}>
+                                    🔴 PENDING
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Room {targetRoom ? targetRoom.roomNo : b.classroom_id}</span>
+                                <span>{new Date(b.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
                             </div>
-                            <div style={{ height: 6, background: 'var(--bg-base)', borderRadius: 3, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent-blue)', borderRadius: 3 }} />
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -421,26 +867,47 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Right: Recent Audit logs */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Activity Logs</span>
-                    <Link to="/audit" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none' }}>All Logs →</Link>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {(!stats?.recentAudit || stats.recentAudit.length === 0) ? (
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No activities logged.</p>
-                    ) : (
-                      stats.recentAudit.slice(0, 4).map(log => (
-                        <div key={log.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-tertiary)', marginTop: 5, flexShrink: 0 }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{log.details || log.action}</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>{log.user_name || 'System'} · {new Date(log.created_at).toLocaleTimeString()}</div>
+                {/* Right: Recent Audit logs & Online Smartboards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Activity Logs</span>
+                      <Link to="/audit" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none' }}>All Logs →</Link>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {(!stats?.recentAudit || stats.recentAudit.length === 0) ? (
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No activities logged.</p>
+                      ) : (
+                        stats.recentAudit.slice(0, 4).map(log => (
+                          <div key={log.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-tertiary)', marginTop: 5, flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{log.details || log.action}</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>{log.user_name || 'System'} · {new Date(log.created_at).toLocaleTimeString()}</div>
+                            </div>
                           </div>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Connected Smartboards Status List */}
+                  <div style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)', padding: 16, borderRadius: 12 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)', marginBottom: 12, fontWeight: 700 }}>
+                      Connected Smartboard Kiosks
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {onlineKiosks.length === 0 ? (
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>No smartboard terminals currently online.</div>
+                      ) : (
+                        onlineKiosks.map(kiosk => (
+                          <div key={kiosk.classroomId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-base)' }}>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Room {kiosk.roomNo || kiosk.classroomId}</span>
+                            <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>● Online</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -450,6 +917,13 @@ export default function DashboardPage() {
       )}
       {broadcastOpen && (
         <BroadcastComposerModal onClose={() => setBroadcastOpen(false)} />
+      )}
+      {resolvingIncident && (
+        <IncidentResolveModal 
+          incident={resolvingIncident} 
+          onClose={() => setResolvingIncident(null)} 
+          onSave={loadDashboardData} 
+        />
       )}
     </div>
   );

@@ -86,7 +86,7 @@ export default function App() {
           <Route path="audit"   element={<ProtectedRoute role="coordinator"><AuditPage /></ProtectedRoute>} />
           <Route path="search"  element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="my-duties" element={<ProtectedRoute><FacultyDutyPage /></ProtectedRoute>} />
-          <Route path="live-dashboard" element={<ProtectedRoute role="coordinator"><LiveDashboardPage /></ProtectedRoute>} />
+          <Route path="live-dashboard" element={<Navigate to="/" replace />} />
           <Route path="heatmap" element={<ProtectedRoute role="coordinator"><HeatmapPage /></ProtectedRoute>} />
           <Route path="analytics" element={<ProtectedRoute role="coordinator"><HistoricalAnalyticsPage /></ProtectedRoute>} />
           <Route path="health" element={<ProtectedRoute role="coordinator"><SystemHealthPage /></ProtectedRoute>} />
