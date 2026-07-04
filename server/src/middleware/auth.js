@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { getDb } from '../db/database.js';
+import { UserRepository } from '../modules/auth/userRepository.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -36,8 +36,7 @@ export async function authenticate(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-    const db = getDb();
-    const user = await db.prepare('SELECT id, name, email, role, department, updated_at, must_change_password FROM users WHERE id = ? AND is_active = 1').get(payload.userId);
+    const user = await UserRepository.findActiveById(payload.userId);
     if (!user) return res.status(401).json({ error: 'User not found or deactivated' });
 
     // Verify token was generated after the last password/profile update

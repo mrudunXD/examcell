@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
+import { SubjectRepository } from '../modules/subjects/subjectRepository.js';
 
 function inferBranchFromCode(code, currentBranch) {
   if (!code) return currentBranch;
@@ -26,43 +26,62 @@ router.use(authenticate);
 
 // M16: Restrict subject listing to coordinators — subjects expose exam structure details
 router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
-  const db = getDb();
-  res.json(await db.prepare('SELECT * FROM subjects ORDER BY semester, code').all());
+  const { page, limit } = req.query;
+  
+  let paginationOptions = {};
+  if (limit) {
+    const parsedLimit = parseInt(limit, 10);
+    const parsedPage = parseInt(page || 1, 10);
+    paginationOptions = {
+      limit: parsedLimit,
+      offset: (parsedPage - 1) * parsedLimit
+    };
+  }
+
+  const subjects = await SubjectRepository.findPaginated(paginationOptions);
+  res.json(subjects);
 }));
 
 router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req, data) => data?.id, (req, data) => `Created subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
-  const db = getDb();
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
   if (!code || !name || !branch || !year || !semester)
     return res.status(400).json({ error: 'code, name, branch, year, semester required' });
   const finalBranch = inferBranchFromCode(code, branch);
   const id = crypto.randomUUID();
-  await db.prepare(`
-    INSERT INTO subjects (id, code, name, branch, year, semester, abbreviation, course_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, code.trim(), name.trim(), finalBranch.trim(), year, parseInt(semester), abbreviation || null, course_type || null);
-  res.status(201).json(await db.prepare('SELECT * FROM subjects WHERE id = ?').get(id));
+  await SubjectRepository.create({
+    id,
+    code: code.trim(),
+    name: name.trim(),
+    branch: finalBranch.trim(),
+    year,
+    semester: parseInt(semester, 10),
+    abbreviation,
+    course_type
+  });
+  res.status(201).json(await SubjectRepository.findById(id));
 }));
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (req) => req.params.id, (req, data) => `Updated subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
-  const db = getDb();
   const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
   const finalBranch = inferBranchFromCode(code, branch);
-  await db.prepare(`
-    UPDATE subjects SET code=?, name=?, branch=?, year=?, semester=?, abbreviation=?, course_type=?
-    WHERE id=?
-  `).run(code, name, finalBranch, year, parseInt(semester), abbreviation || null, course_type || null, req.params.id);
-  res.json(await db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id));
+  await SubjectRepository.update(req.params.id, {
+    code,
+    name,
+    branch: finalBranch,
+    year,
+    semester: parseInt(semester, 10),
+    abbreviation,
+    course_type
+  });
+  res.json(await SubjectRepository.findById(req.params.id));
 }));
 
 router.delete('/:id', requireCoordinator, auditLog('DELETE_SUBJECT', 'subjects', (req) => req.params.id, (req) => `Deleted subject ID: ${req.params.id}`), asyncHandler(async (req, res) => {
-  const db = getDb();
-  // M14: Block deletion if subject is referenced by exam slots — avoids a raw FK error
-  const inUse = await db.prepare('SELECT COUNT(*) as cnt FROM exam_slots WHERE subject_id = ?').get(req.params.id);
-  if (inUse && inUse.cnt > 0) {
-    return res.status(400).json({ error: `Cannot delete: subject is used by ${inUse.cnt} exam slot(s). Remove those slots first.` });
+  const inUse = await SubjectRepository.checkInUse(req.params.id);
+  if (inUse > 0) {
+    return res.status(400).json({ error: `Cannot delete: subject is used by ${inUse} exam slot(s). Remove those slots first.` });
   }
-  await db.prepare('DELETE FROM subjects WHERE id=?').run(req.params.id);
+  await SubjectRepository.delete(req.params.id);
   res.json({ success: true });
 }));
 

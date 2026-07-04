@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import { getDb } from '../db/database.js';
 import { authenticate, generateToken } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { UserRepository } from '../modules/auth/userRepository.js';
 
 const router = Router();
 
@@ -69,9 +69,8 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
-  const db = getDb();
-  const user = await db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email.toLowerCase().trim());
-  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  const user = await UserRepository.findByEmail(email.toLowerCase().trim());
+  if (!user || user.is_active !== 1) return res.status(401).json({ error: 'Invalid credentials' });
 
   // Check lockout status
   if (user.lockout_until && new Date(user.lockout_until) > new Date()) {
@@ -84,16 +83,16 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const attempts = (user.failed_login_attempts || 0) + 1;
     if (attempts >= 5) {
       const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
-      await db.prepare('UPDATE users SET failed_login_attempts = ?, lockout_until = ? WHERE id = ?').run(attempts, lockoutUntil, user.id);
+      await UserRepository.updateLockout(user.id, attempts, lockoutUntil);
       return res.status(401).json({ error: 'Invalid credentials. Account locked for 15 minutes.' });
     } else {
-      await db.prepare('UPDATE users SET failed_login_attempts = ? WHERE id = ?').run(attempts, user.id);
+      await UserRepository.updateLockout(user.id, attempts, null);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
   }
 
   // Clear failed login attempts and lockout on success
-  await db.prepare('UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?').run(user.id);
+  await UserRepository.resetLockout(user.id);
 
   const token = generateToken(user.id, user.updated_at);
   
@@ -130,17 +129,14 @@ router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, and a number.' });
   }
 
-  const db = getDb();
-  const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const user = await UserRepository.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   const valid = bcrypt.compareSync(currentPassword, user.password_hash);
   if (!valid) return res.status(400).json({ error: 'Invalid current password' });
 
   const hash = bcrypt.hashSync(newPassword, 10);
-  const now = new Date().toISOString();
-  await db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ?, failed_login_attempts = 0, lockout_until = NULL WHERE id = ?')
-    .run(hash, now, req.user.id);
+  await UserRepository.updatePassword(req.user.id, hash);
 
   res.clearCookie('token');
   res.json({ success: true, message: 'Password updated. Please log in again.' });

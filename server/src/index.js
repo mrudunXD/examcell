@@ -74,15 +74,6 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
-// Strict rate limiter for login endpoint (H3)
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 attempts per window
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts. Try again in 15 minutes.' }
-});
-
 // Initialize DB
 initDb();
 

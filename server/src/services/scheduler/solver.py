@@ -98,22 +98,26 @@ def solve():
     penalties = []
     w = OPTIMIZATION_WEIGHTS
 
+    # Pre-generate date_vars mapping to avoid redundant variables and constraints
+    date_vars = {}
+    for s in context["subjects"]:
+        if s["id"] in subject_parts_map:
+            v_id = subject_parts_map[s["id"]][0]["id"]
+            d_var = model1.NewIntVar(0, len(dates) - 1, f"date_var_{s['id']}")
+            model1.Add(d_var == sum(t["date_idx"] * x[v_id, t["id"]] for t in slots))
+            date_vars[s["id"]] = d_var
+
     # A. Maximize gaps (days apart) between student exams
     for g, g_subjs in group_subjects.items():
         if 1 < len(g_subjs) <= DEFAULT_SETTINGS["max_subjects_for_gap_penalties"]:
             for i in range(len(g_subjs)):
                 for j in range(i + 1, len(g_subjs)):
                     s1, s2 = g_subjs[i], g_subjs[j]
-                    if s1 not in subject_parts_map or s2 not in subject_parts_map:
+                    if s1 not in date_vars or s2 not in date_vars:
                         continue
-                    v1_id = subject_parts_map[s1][0]["id"]
-                    v2_id = subject_parts_map[s2][0]["id"]
+                    d1 = date_vars[s1]
+                    d2 = date_vars[s2]
                     
-                    d1 = model1.NewIntVar(0, len(dates), f"d1_{s1}_{s2}")
-                    d2 = model1.NewIntVar(0, len(dates), f"d2_{s1}_{s2}")
-                    model1.Add(d1 == sum(t["date_idx"] * x[v1_id, t["id"]] for t in slots))
-                    model1.Add(d2 == sum(t["date_idx"] * x[v2_id, t["id"]] for t in slots))
-
                     diff = model1.NewIntVar(0, len(dates), f"diff_{s1}_{s2}")
                     model1.AddAbsEquality(diff, d1 - d2)
 
@@ -178,9 +182,7 @@ def solve():
             end_day_g = model1.NewIntVar(0, len(dates) - 1, f"end_day_{g}")
             
             for sid in active_subjs:
-                v_id = subject_parts_map[sid][0]["id"]
-                date_var = model1.NewIntVar(0, len(dates) - 1, f"date_var_{sid}")
-                model1.Add(date_var == sum(t["date_idx"] * x[v_id, t["id"]] for t in slots))
+                date_var = date_vars[sid]
                 
                 model1.Add(start_day_g <= date_var)
                 model1.Add(end_day_g >= date_var)

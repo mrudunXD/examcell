@@ -5,6 +5,7 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
+import { StudentRepository } from '../modules/students/studentRepository.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -44,19 +45,26 @@ router.use(authenticate);
  *         description: Array of student objects
  */
 router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
-  const db = getDb();
-  const { branch, year, search, section } = req.query;
-  let query = 'SELECT * FROM students WHERE is_active = 1';
-  const params = [];
-  if (branch)   { query += ' AND branch = ?';   params.push(branch); }
-  if (year)     { query += ' AND year = ?';     params.push(year); }
-  if (section)  { query += ' AND section = ?';  params.push(section); }
-  if (search)   {
-    query += ' AND (name LIKE ? OR prn LIKE ? OR roll_no LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  const { branch, year, search, section, page, limit } = req.query;
+  
+  let paginationOptions = {};
+  if (limit) {
+    const parsedLimit = parseInt(limit, 10);
+    const parsedPage = parseInt(page || 1, 10);
+    paginationOptions = {
+      limit: parsedLimit,
+      offset: (parsedPage - 1) * parsedLimit
+    };
   }
-  query += ' ORDER BY year, branch, section, roll_no';
-  res.json(await db.prepare(query).all(...params));
+
+  const students = await StudentRepository.findPaginatedActive({
+    branch,
+    year,
+    section,
+    search,
+    ...paginationOptions
+  });
+  res.json(students);
 }));
 
 /**
@@ -102,7 +110,6 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
  *         description: Student created successfully
  */
 router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req, data) => data?.id, (req, data) => `Created student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
-  const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
   if (!name || !prn || !roll_no || !branch || !year || !semester)
     return res.status(400).json({ error: 'name, prn, roll_no, branch, year, semester are required' });
@@ -113,11 +120,17 @@ router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req
   }
 
   const id = crypto.randomUUID();
-  await db.prepare(`
-    INSERT INTO students (id, name, prn, roll_no, branch, section, year, semester)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name.trim(), prn.trim(), roll_no.trim(), branch.trim(), (section || '').trim() || null, year, parseInt(semester));
-  res.status(201).json(await db.prepare('SELECT * FROM students WHERE id = ?').get(id));
+  await StudentRepository.create({
+    id,
+    name: name.trim(),
+    prn: prn.trim(),
+    roll_no: roll_no.trim(),
+    branch: branch.trim(),
+    section: (section || '').trim() || null,
+    year,
+    semester: parseInt(semester, 10)
+  });
+  res.status(201).json(await StudentRepository.findById(id));
 }));
 
 /**
@@ -153,19 +166,22 @@ router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req
  *         description: Student updated successfully
  */
 router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (req) => req.params.id, (req, data) => `Updated student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
-  const db = getDb();
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
   const fieldsToCheck = [name, prn, roll_no, branch, section, year];
   if (fieldsToCheck.some(val => val && /^[=+\-@\t\r]/.test(String(val)))) {
     return res.status(400).json({ error: 'Input fields cannot start with =, +, -, @ to prevent formula injection.' });
   }
 
-  await db.prepare(`
-    UPDATE students
-    SET name=?, prn=?, roll_no=?, branch=?, section=?, year=?, semester=?, updated_at=datetime('now')
-    WHERE id=? AND is_active=1
-  `).run(name, prn, roll_no, branch, (section || '').trim() || null, year, parseInt(semester), req.params.id);
-  res.json(await db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
+  await StudentRepository.updateFull(req.params.id, {
+    name,
+    prn,
+    roll_no,
+    branch,
+    section: (section || '').trim() || null,
+    year,
+    semester: parseInt(semester, 10)
+  });
+  res.json(await StudentRepository.findById(req.params.id));
 }));
 
 /**
@@ -188,8 +204,7 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_STUDENT', 'students', (r
  *         description: Student deleted successfully
  */
 router.delete('/:id', requireCoordinator, auditLog('DELETE_STUDENT', 'students', (req) => req.params.id, (req) => `Soft-deleted student ID: ${req.params.id}`), asyncHandler(async (req, res) => {
-  const db = getDb();
-  await db.prepare("UPDATE students SET is_active=0 WHERE id=?").run(req.params.id);
+  await StudentRepository.softDelete(req.params.id);
   res.json({ success: true });
 }));
 

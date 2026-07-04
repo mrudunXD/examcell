@@ -3,6 +3,7 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
+import { SchedulingRepository } from '../modules/scheduling/schedulingRepository.js';
 import { generateSeating } from '../services/seatingEngine.js';
 import { assignSupervisors } from '../services/supervisorEngine.js';
 import { explainSlotDecision } from '../services/scheduleExplainer.js';
@@ -70,29 +71,32 @@ function nextValidDate(dateStr, endDate) {
 
 // C9/M9: All authenticated users — restrict to coordinator only
 router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
-  const db = getDb();
-  res.json(await db.prepare('SELECT * FROM exam_cycles ORDER BY created_at DESC').all());
+  res.json(await SchedulingRepository.findAllCycles());
 }));
 
 router.post('/', requireCoordinator, auditLog('CREATE_CYCLE', 'exam_cycles', (req, data) => data?.id, (req, data) => `Created cycle ${data?.name}`), asyncHandler(async (req, res) => {
-  const db = getDb();
   const { name, start_date, end_date, semester_type } = req.body;
   if (!name || !start_date || !end_date) return res.status(400).json({ error: 'name, start_date, end_date required' });
   if (!['odd', 'even'].includes(semester_type)) return res.status(400).json({ error: 'semester_type must be odd or even' });
   const id = crypto.randomUUID();
-  await db.prepare('INSERT INTO exam_cycles (id, name, start_date, end_date, semester_type, created_by) VALUES (?,?,?,?,?,?)')
-    .run(id, name.trim(), start_date, end_date, semester_type, req.user.id);
-  res.status(201).json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(id));
+  await SchedulingRepository.createCycle({
+    id,
+    name: name.trim(),
+    start_date,
+    end_date,
+    semester_type,
+    created_by: req.user.id
+  });
+  res.status(201).json(await SchedulingRepository.findCycleById(id));
 }));
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => req.auditDetails || `Updated cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
-  const db = getDb();
   const { name, start_date, end_date, status, semester_type, version } = req.body;
   if (version === undefined) {
     return res.status(400).json({ error: 'version is required for concurrency protection' });
   }
 
-  const oldCycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  const oldCycle = await SchedulingRepository.findCycleById(req.params.id);
   if (!oldCycle) return res.status(404).json({ error: 'Cycle not found' });
 
   const diffs = [];
@@ -103,8 +107,13 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (
   if (oldCycle.semester_type !== semester_type) diffs.push(`Semester Type: ${oldCycle.semester_type} -> ${semester_type}`);
   req.auditDetails = `Updated cycle ${name}. Diffs: ${diffs.join(', ') || 'No changes'}`;
 
-  const result = await db.prepare("UPDATE exam_cycles SET name=?,start_date=?,end_date=?,status=?,semester_type=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND version=?")
-    .run(name, start_date, end_date, status, semester_type || 'odd', req.params.id, version);
+  const result = await SchedulingRepository.updateCycle(req.params.id, {
+    name,
+    start_date,
+    end_date,
+    status,
+    semester_type
+  }, version);
 
   if (result.changes === 0) {
     return res.status(409).json({
@@ -113,37 +122,33 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (
     });
   }
 
-  res.json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
+  res.json(await SchedulingRepository.findCycleById(req.params.id));
 }));
 
 router.delete('/:id', requireCoordinator, auditLog('DELETE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => `Deleted cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
-  const db = getDb();
-  // C8: Only allow deletion of draft cycles — never destroy active/finalised exam data
-  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  const cycle = await SchedulingRepository.findCycleById(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
   if (cycle.status !== 'draft') {
     return res.status(400).json({ error: `Cannot delete a ${cycle.status} cycle. Archive it instead.` });
   }
-  await db.prepare('DELETE FROM exam_cycles WHERE id=?').run(req.params.id);
+  await SchedulingRepository.deleteCycle(req.params.id);
   res.json({ success: true });
 }));
 
 // POST /:id/activate — make this cycle "active", demote others to "draft"
 router.post('/:id/activate', requireCoordinator, auditLog('ACTIVATE_CYCLE', 'exam_cycles', (req) => req.params.id, (req, data) => `Activated cycle ${data?.name}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id);
+  const cycle = await SchedulingRepository.findCycleById(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
 
   await db.transaction(async () => {
     // Demote all other active cycles to draft
-    await db.prepare("UPDATE exam_cycles SET status='draft', updated_at=datetime('now') WHERE status='active' AND id != ?")
-      .run(req.params.id);
+    await SchedulingRepository.demoteActiveCycles(req.params.id);
     // Promote this one to active
-    await db.prepare("UPDATE exam_cycles SET status='active', updated_at=datetime('now') WHERE id=?")
-      .run(req.params.id);
+    await SchedulingRepository.promoteCycleToActive(req.params.id);
   })();
 
-  res.json(await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.id));
+  res.json(await SchedulingRepository.findCycleById(req.params.id));
 }));
 
 // POST /:id/duplicate — clone a cycle with all its draft slots, dates shifted +6 months
