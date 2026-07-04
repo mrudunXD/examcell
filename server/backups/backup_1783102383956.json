@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-14T14:10:09.587Z",
+  "timestamp": "2026-07-03T18:13:03.783Z",
   "tables": {
     "users": [
       {
@@ -37688,6 +37688,18 @@
         "created_at": "2026-06-08T19:50:30.566Z",
         "updated_at": "2026-06-09T08:55:27.158Z",
         "version": 3
+      },
+      {
+        "id": "5247a135-13a4-44c5-bf3a-3884f3f68313",
+        "name": "meow",
+        "start_date": "2026-07-03",
+        "end_date": "2026-07-21",
+        "semester_type": "odd",
+        "status": "draft",
+        "created_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "created_at": "2026-07-03T15:28:00.276Z",
+        "updated_at": "2026-07-03T15:28:00.276Z",
+        "version": 1
       }
     ],
     "exam_slots": [
@@ -93366,6 +93378,50 @@
         "created_at": "2026-06-09T09:05:18.727Z",
         "hash": "e8256442e36462d2b9e9789bc0933949923902fbb61f0c9dd39b16c194b7278f",
         "prev_hash": "2064b669319fa5a7c434ba13685b4bf90d86ea447d4b9b466c239f1cfd970f5e"
+      },
+      {
+        "id": "360b10bc-7d17-4d57-ae2d-7b9ed994d9d4",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "c9d8dfa0-71db-4529-ac5f-89b4c4127f21",
+        "details": "Sent broadcast: Urgent Exam Correction for Room 103 (priority: critical)",
+        "created_at": "2026-06-14T14:15:12.159Z",
+        "hash": "96fae2dda524467878e0a754602d7fd959a88ef72bef6d595ef68540449332b4",
+        "prev_hash": "e8256442e36462d2b9e9789bc0933949923902fbb61f0c9dd39b16c194b7278f"
+      },
+      {
+        "id": "f5957a9f-ebe3-4d92-9eed-2883e4c27a02",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "d68312a4-c251-4a4d-9423-c71bedc4303d",
+        "details": "Sent broadcast: Meowww (priority: critical)",
+        "created_at": "2026-06-14T14:25:21.205Z",
+        "hash": "e10454438ac003d27bca2d09d6d8851c405d25bab6c2d6155c1b9251a54b2bbf",
+        "prev_hash": "96fae2dda524467878e0a754602d7fd959a88ef72bef6d595ef68540449332b4"
+      },
+      {
+        "id": "5032bbb7-8592-4822-8964-d3e157e527b1",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "SEND_BROADCAST",
+        "entity": "broadcasts",
+        "entity_id": "ba9342c1-a88a-4385-8709-d66a13d0b160",
+        "details": "Sent broadcast: sons (priority: critical)",
+        "created_at": "2026-07-03T06:50:57.648Z",
+        "hash": "d61153a0ffca6e004a3ca4d66ae6f21cb4dfcdb5d60669ac6fa23e7b57e89396",
+        "prev_hash": "e10454438ac003d27bca2d09d6d8851c405d25bab6c2d6155c1b9251a54b2bbf"
+      },
+      {
+        "id": "b9268632-343c-4e24-adc7-3e103a652bf7",
+        "user_id": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "action": "CREATE_CYCLE",
+        "entity": "exam_cycles",
+        "entity_id": "5247a135-13a4-44c5-bf3a-3884f3f68313",
+        "details": "Created cycle meow",
+        "created_at": "2026-07-03T09:58:00.282Z",
+        "hash": "56e023304ac44e2d64119dd271e5c41f4152dc666219d6c1ee10a1548d44c539",
+        "prev_hash": "d61153a0ffca6e004a3ca4d66ae6f21cb4dfcdb5d60669ac6fa23e7b57e89396"
       }
     ],
     "attendance": [
@@ -93407,6 +93463,33 @@
         "priority": "critical",
         "created_at": "2026-06-09T14:35:18.707Z",
         "classroom_id": null
+      },
+      {
+        "id": "c9d8dfa0-71db-4529-ac5f-89b4c4127f21",
+        "title": "Urgent Exam Correction for Room 103",
+        "message": "Correction on Q3: Please change value x to y.",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "critical",
+        "created_at": "2026-06-14T19:45:12.150Z",
+        "classroom_id": "4e588143-41eb-4b77-b671-c62134d81377"
+      },
+      {
+        "id": "d68312a4-c251-4a4d-9423-c71bedc4303d",
+        "title": "Meowww",
+        "message": "Ghop Ghop",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "critical",
+        "created_at": "2026-06-14T19:55:21.180Z",
+        "classroom_id": null
+      },
+      {
+        "id": "ba9342c1-a88a-4385-8709-d66a13d0b160",
+        "title": "sons",
+        "message": "gud morning",
+        "sent_by": "ba2bf313-edcf-4a71-a0f3-634e7fbbcf20",
+        "priority": "critical",
+        "created_at": "2026-07-03T12:20:57.611Z",
+        "classroom_id": null
       }
     ],
     "broadcast_reads": [],
@@ -93431,6 +93514,14 @@
     "solver_runs": [],
     "system_alerts": [
       {
+        "id": "249ae277-e40a-4e95-bb9f-9af9c40786ea",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 684 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:05:07.571Z"
+      },
+      {
         "id": "a2d2325a-f538-4b3c-8c96-c2798941b1da",
         "type": "db_latency",
         "severity": "warning",
@@ -93445,6 +93536,462 @@
         "message": "High average database query latency: 95ms.",
         "resolved": 0,
         "created_at": "2026-06-09T14:33:29.750Z"
+      },
+      {
+        "id": "5fbaf2fa-ddd4-4974-92af-02ca2a46abec",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 61ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:54:29.957Z"
+      },
+      {
+        "id": "528e4056-f61b-4149-a038-8d20a1bd6a8e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 57ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:54:59.963Z"
+      },
+      {
+        "id": "cd4b5e90-5380-4e2e-b5fd-5522cfd5c656",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 53ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:55:59.982Z"
+      },
+      {
+        "id": "05e7bde5-b098-4898-933e-bbbede4a6128",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 52ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T19:56:59.996Z"
+      },
+      {
+        "id": "c39210ee-9b0c-406a-b580-a357e5f7353f",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 51ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:00:00.054Z"
+      },
+      {
+        "id": "50dd60dd-4bf9-4e7f-af6c-edd62194844e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 72ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:13:30.284Z"
+      },
+      {
+        "id": "a106b7c2-9083-4ede-a04f-704bf56d3dbe",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 71ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:14:00.292Z"
+      },
+      {
+        "id": "dc2ce199-cb8c-4eb6-8546-3ff340c75968",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 70ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:15:30.323Z"
+      },
+      {
+        "id": "dd04d40d-0aee-49fa-a906-d0ea8698a162",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 68ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:16:00.335Z"
+      },
+      {
+        "id": "e4af1a19-b841-4a84-b492-5575c3213ef2",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 67ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:18:00.357Z"
+      },
+      {
+        "id": "47b0a0d0-705f-4c43-b089-44b138d1d726",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 66ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:22:30.411Z"
+      },
+      {
+        "id": "a86d4dc1-82dd-4754-aa7c-859d89b7fa10",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 65ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:23:00.424Z"
+      },
+      {
+        "id": "dc77f6ae-45af-4eec-babd-8b8c470c7daf",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 64ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:25:30.470Z"
+      },
+      {
+        "id": "6da2e098-64b3-444a-831d-2eb0cfe9765f",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 56ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:33:00.629Z"
+      },
+      {
+        "id": "b60f14ed-2187-4baa-8e8c-269124e22b1e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 55ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:41:30.768Z"
+      },
+      {
+        "id": "e94a4924-6ee9-44ef-9f81-de89a34c30a2",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 54ms.",
+        "resolved": 0,
+        "created_at": "2026-06-14T20:42:30.786Z"
+      },
+      {
+        "id": "fba99f2e-c049-4069-ba26-e9102fc8ab6f",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 69ms.",
+        "resolved": 0,
+        "created_at": "2026-06-16T22:49:07.756Z"
+      },
+      {
+        "id": "3199e1e0-c94b-450a-b48b-969037830cca",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 63ms.",
+        "resolved": 0,
+        "created_at": "2026-06-16T22:58:07.916Z"
+      },
+      {
+        "id": "78e5872e-7cfe-4b32-ad17-10018e651c5e",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 62ms.",
+        "resolved": 0,
+        "created_at": "2026-06-16T22:58:37.920Z"
+      },
+      {
+        "id": "0cb95647-977f-4e6f-9164-214f1a41d82c",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 60ms.",
+        "resolved": 0,
+        "created_at": "2026-06-16T22:59:07.936Z"
+      },
+      {
+        "id": "b862bb36-988a-4e2b-afdf-b8d2edda9cec",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 77ms.",
+        "resolved": 0,
+        "created_at": "2026-07-02T21:27:38.709Z"
+      },
+      {
+        "id": "8f4da2e8-7cd8-4bc5-a6e3-225a1e7c2aac",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 76ms.",
+        "resolved": 0,
+        "created_at": "2026-07-02T21:28:08.714Z"
+      },
+      {
+        "id": "d2e82d8d-7e54-4d10-b43f-e50e420d63f3",
+        "type": "db_latency",
+        "severity": "warning",
+        "message": "High average database query latency: 58ms.",
+        "resolved": 0,
+        "created_at": "2026-07-02T21:57:39.442Z"
+      },
+      {
+        "id": "647934e8-b880-4a62-8cf8-560fb8812f11",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 143 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:56:07.489Z"
+      },
+      {
+        "id": "c470ba47-57ea-439c-9bba-441641af36c7",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 173 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:56:37.484Z"
+      },
+      {
+        "id": "601446cf-dcbd-4825-ad41-6351b03f705f",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 203 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:57:07.494Z"
+      },
+      {
+        "id": "7139ed59-ba92-4ad3-a375-8a9eca332890",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 233 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:57:37.499Z"
+      },
+      {
+        "id": "1ea0f022-f5aa-414a-8e09-630b86da0e79",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 263 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:58:07.501Z"
+      },
+      {
+        "id": "d7ac8bab-7535-4185-b691-3e60b77ea228",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 293 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:58:37.500Z"
+      },
+      {
+        "id": "4faadf4f-b492-445b-965a-a2d0625b6e22",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 323 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:59:07.503Z"
+      },
+      {
+        "id": "e8b829c8-d5a2-4b58-bf3a-3b7733a93e0f",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 353 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T16:59:37.505Z"
+      },
+      {
+        "id": "af22b3ea-5e10-4b35-bf06-729bf8e26225",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 383 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:00:07.509Z"
+      },
+      {
+        "id": "a00103ee-0bd0-4aa4-9c2a-e2016e78b643",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 413 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:00:37.517Z"
+      },
+      {
+        "id": "88fd717b-ee44-4f6d-bb1b-073ce18b3f0e",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 443 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:01:07.525Z"
+      },
+      {
+        "id": "9ccc39d5-bbe6-4d76-88de-df8821d4a4bf",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 474 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:01:37.535Z"
+      },
+      {
+        "id": "56a67ce6-3c0a-4f22-b9b4-d34c137d02b9",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 504 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:02:07.624Z"
+      },
+      {
+        "id": "3de0e1d7-5c09-42c9-8565-e3f22a910a50",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 534 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:02:37.545Z"
+      },
+      {
+        "id": "cab9b3c2-dd77-42e1-a038-2d813bb4e05d",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 564 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:03:07.547Z"
+      },
+      {
+        "id": "2a5963a3-1551-44fb-aac6-23768742597e",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 594 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:03:37.558Z"
+      },
+      {
+        "id": "e0e97029-115b-4d15-8ad6-3dec1db870d3",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 624 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:04:07.561Z"
+      },
+      {
+        "id": "28348040-01c7-44a4-a6fd-0fa2fcc052ab",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 654 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:04:37.570Z"
+      },
+      {
+        "id": "ad576ac0-c2f5-498e-a05b-b4ba4d7355a3",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 714 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:05:37.582Z"
+      },
+      {
+        "id": "f9213fec-25f9-4f5b-8920-fec31e8036be",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 744 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:06:07.583Z"
+      },
+      {
+        "id": "53a6375a-735e-40ed-9e2f-cd270d443f6e",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 774 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:06:37.585Z"
+      },
+      {
+        "id": "35e16e9e-3d94-47b6-96e1-fcbf39bcd747",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 804 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:07:07.597Z"
+      },
+      {
+        "id": "f7b42a6e-9694-415d-9557-b41452f4ff90",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 834 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:07:37.605Z"
+      },
+      {
+        "id": "4c67aac6-12b0-4e5c-832e-0ac384d41aba",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 864 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:08:07.611Z"
+      },
+      {
+        "id": "10968108-ff8c-4912-8d36-8cd8b75810e2",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 894 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:08:37.618Z"
+      },
+      {
+        "id": "3156311b-db2b-4fe4-b099-7669c1fabb13",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 924 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:09:07.622Z"
+      },
+      {
+        "id": "8980d7de-9c80-46e7-924e-60494d76c63f",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 954 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:09:37.633Z"
+      },
+      {
+        "id": "0e08d899-61f9-45ab-b44c-7947c104be72",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 984 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:10:07.635Z"
+      },
+      {
+        "id": "b25da8f3-bb0d-4341-99f2-403df6958a60",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 1014 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:10:37.639Z"
+      },
+      {
+        "id": "d1677df4-5244-4eab-a4fc-2ef8e3c790a5",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 1044 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:11:07.650Z"
+      },
+      {
+        "id": "8a5177f3-4788-44e0-b44b-66beda318e3e",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 1074 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:11:37.664Z"
+      },
+      {
+        "id": "0498380e-3e90-4158-bab0-3f2208efb235",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 1104 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:12:07.670Z"
+      },
+      {
+        "id": "7d4d34c8-8865-46aa-8dd9-abd30131738e",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 1134 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:12:37.684Z"
+      },
+      {
+        "id": "93ef2fc7-e703-4d8b-aa07-0d9b227857ad",
+        "type": "kiosk_offline",
+        "severity": "critical",
+        "message": "Classroom Room Room 7cc19adc-a21f-441c-bc26-9aff073891ba kiosk has been offline for 1164 seconds.",
+        "resolved": 0,
+        "created_at": "2026-07-03T17:13:07.700Z"
       }
     ]
   }
