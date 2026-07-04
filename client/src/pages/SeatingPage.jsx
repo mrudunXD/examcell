@@ -115,21 +115,62 @@ export default function SeatingPage() {
     setDragOverCell(null);
   };
 
+  const performLocalSwap = (id1, id2) => {
+    setData(prev => {
+      if (!prev) return prev;
+      const nextRooms = prev.rooms.map(room => {
+        const assignments = room.assignments.map(a => {
+          if (a.id === id1) {
+            const other = room.assignments.find(x => x.id === id2);
+            return other ? { ...a, student_id: other.student_id, student_name: other.student_name, student_prn: other.student_prn, student_roll_no: other.student_roll_no, student_branch: other.student_branch } : a;
+          }
+          if (a.id === id2) {
+            const other = room.assignments.find(x => x.id === id1);
+            return other ? { ...a, student_id: other.student_id, student_name: other.student_name, student_prn: other.student_prn, student_roll_no: other.student_roll_no, student_branch: other.student_branch } : a;
+          }
+          return a;
+        });
+        return { ...room, assignments };
+      });
+      return { ...prev, rooms: nextRooms };
+    });
+  };
+
+  const performLocalMove = (id, newRow, newCol) => {
+    setData(prev => {
+      if (!prev) return prev;
+      const nextRooms = prev.rooms.map(room => {
+        const assignments = room.assignments.map(a => {
+          if (a.id === id) {
+            return { ...a, bench_row: newRow, bench_col: newCol };
+          }
+          return a;
+        });
+        return { ...room, assignments };
+      });
+      return { ...prev, rooms: nextRooms };
+    });
+  };
+
   const handleDrop = async (draggedId, targetRow, targetCol, targetSeat) => {
     setDragOverCell(null);
     setDraggedSeat(null);
     if (!draggedId) return;
 
+    const oldData = { ...data };
     if (targetSeat) {
       if (draggedId === targetSeat.id) return;
+      performLocalSwap(draggedId, targetSeat.id);
       try {
         await api.put('/seating/swap', { assignment_id_1: draggedId, assignment_id_2: targetSeat.id });
         toast.success('Seats swapped successfully');
         fetchSeating();
       } catch (err) {
+        setData(oldData);
         toast.error(err.response?.data?.error || 'Failed to swap seats');
       }
     } else {
+      performLocalMove(draggedId, targetRow, targetCol);
       try {
         await api.put('/seating/override', { 
           assignment_id: draggedId, 
@@ -139,6 +180,7 @@ export default function SeatingPage() {
         toast.success('Student moved successfully');
         fetchSeating();
       } catch (err) {
+        setData(oldData);
         toast.error(err.response?.data?.error || 'Failed to move student');
       }
     }
@@ -188,11 +230,22 @@ export default function SeatingPage() {
   const handleSwapSelect = async (seat) => {
     if (!swapSource) { setSwapSource(seat); return; }
     if (swapSource.id === seat.id) { setSwapSource(null); return; }
+    
+    const oldData = { ...data };
+    performLocalSwap(swapSource.id, seat.id);
+    const sourceName = swapSource.student_name;
+    const targetName = seat.student_name;
+    
     try {
+      setSwapSource(null); 
+      setIsSwapMode(false);
       await api.put('/seating/swap', { assignment_id_1: swapSource.id, assignment_id_2: seat.id });
-      toast.success(`Swapped: ${swapSource.student_name} — ${seat.student_name}`);
-      setSwapSource(null); setIsSwapMode(false); fetchSeating();
-    } catch { toast.error('Swap failed'); }
+      toast.success(`Swapped: ${sourceName} — ${targetName}`);
+      fetchSeating();
+    } catch {
+      setData(oldData);
+      toast.error('Swap failed');
+    }
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>;

@@ -168,6 +168,12 @@ export default function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  useEffect(() => {
+    const handler = setTimeout(() => setSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
   const [filterBranch, setFilterBranch] = useState('');
   const [filterSection, setFilterSection] = useState('');
   const [filterYear, setFilterYear] = useState('');
@@ -177,31 +183,58 @@ export default function StudentsPage() {
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   
+  const [branches, setBranches] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
   const isCoord = user?.role === 'coordinator';
+
+  const fetchMeta = async () => {
+    try {
+      const { data } = await api.get('/students/meta');
+      setBranches(data.branches || []);
+      setSections(data.sections || []);
+    } catch (e) {
+      console.error('Failed to load student meta', e);
+    }
+  };
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const params = {};
+      const params = {
+        limit: itemsPerPage,
+        page: currentPage
+      };
       if (search) params.search = search;
       if (filterBranch) params.branch = filterBranch;
       if (filterYear) params.year = filterYear;
       if (filterSection) params.section = filterSection;
-      const { data } = await api.get('/students', { params });
-      setStudents(data);
+      
+      const response = await api.get('/students', { params });
+      setStudents(response.data);
+      const totalHeader = response.headers['x-total-count'];
+      setTotalCount(parseInt(totalHeader || response.data.length, 10));
     } catch { toast.error('Failed to load students'); }
     finally { setLoading(false); }
   };
 
   useEffect(() => {
+    fetchMeta();
+  }, []);
+
+  useEffect(() => {
     fetchStudents();
-    setCurrentPage(1);
     setSelectedIds(new Set());
+  }, [currentPage, search, filterBranch, filterYear, filterSection]);
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [search, filterBranch, filterYear, filterSection]);
 
   const deleteStudent = async (id, name) => {
@@ -210,18 +243,17 @@ export default function StudentsPage() {
       await api.delete(`/students/${id}`);
       toast.success('Student deleted');
       fetchStudents();
+      fetchMeta();
     } catch { toast.error('Delete failed'); }
   };
 
-  const branches = [...new Set(students.map(s => s.branch))].sort();
-  const sections = [...new Set(students.map(s => s.section || ''))].filter(Boolean).sort();
-  const totalStudents = students.length;
-  const activeStudents = students.filter(s => s.is_active !== 0).length;
+  const totalStudents = totalCount;
+  const activeStudents = totalCount;
   const uniqueBranches = branches.length;
 
   // Pagination derived data
-  const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
-  const paginatedStudents = students.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+  const paginatedStudents = students;
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -329,10 +361,10 @@ export default function StudentsPage() {
               <input 
                 placeholder="Search by name or email..." 
                 className="saas-search-input" 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
-              {search && <X size={12} color="var(--text-tertiary)" style={{ cursor: 'pointer' }} onClick={() => setSearch('')} />}
+              {searchQuery && <X size={12} color="var(--text-tertiary)" style={{ cursor: 'pointer' }} onClick={() => setSearchQuery('')} />}
             </div>
 
             {/* Add student button */}

@@ -21,7 +21,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [activeTab, setActiveTab] = useState('general');
   const [saving, setSaving] = useState(false);
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
   const isCoord = user?.role === 'coordinator';
 
   useEffect(() => {

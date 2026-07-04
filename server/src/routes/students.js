@@ -44,6 +44,12 @@ router.use(authenticate);
  *       200:
  *         description: Array of student objects
  */
+// GET /students/meta — retrieve unique branches and sections for filtering
+router.get('/meta', requireCoordinator, asyncHandler(async (req, res) => {
+  const meta = await StudentRepository.getUniqueBranchesAndSections();
+  res.json(meta);
+}));
+
 router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const { branch, year, search, section, page, limit } = req.query;
   
@@ -64,6 +70,10 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
     search,
     ...paginationOptions
   });
+  
+  const total = await StudentRepository.countActive({ branch, year, section, search });
+  res.setHeader('X-Total-Count', total);
+  res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
   res.json(students);
 }));
 

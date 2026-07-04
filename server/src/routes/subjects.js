@@ -24,9 +24,15 @@ function inferBranchFromCode(code, currentBranch) {
 const router = Router();
 router.use(authenticate);
 
+// GET /subjects/meta — retrieve unique metadata for filters
+router.get('/meta', requireCoordinator, asyncHandler(async (req, res) => {
+  const meta = await SubjectRepository.getUniqueMeta();
+  res.json(meta);
+}));
+
 // M16: Restrict subject listing to coordinators — subjects expose exam structure details
 router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
-  const { page, limit } = req.query;
+  const { page, limit, branch, year, course_type, search } = req.query;
   
   let paginationOptions = {};
   if (limit) {
@@ -38,7 +44,17 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
     };
   }
 
-  const subjects = await SubjectRepository.findPaginated(paginationOptions);
+  const subjects = await SubjectRepository.findPaginated({
+    branch,
+    year,
+    course_type,
+    search,
+    ...paginationOptions
+  });
+  
+  const total = await SubjectRepository.countActive({ branch, year, course_type, search });
+  res.setHeader('X-Total-Count', total);
+  res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
   res.json(subjects);
 }));
 

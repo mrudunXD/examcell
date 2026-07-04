@@ -87,4 +87,26 @@ export class StudentRepository {
     const db = getDb();
     return await db.prepare('UPDATE students SET is_active = 0 WHERE id = ?').run(id);
   }
+
+  static async countActive({ branch, year, section, search }) {
+    const db = getDb();
+    let query = 'SELECT COUNT(*) as cnt FROM students WHERE is_active = 1';
+    const params = [];
+    if (branch)   { query += ' AND branch = ?';   params.push(branch); }
+    if (year)     { query += ' AND year = ?';     params.push(year); }
+    if (section)  { query += ' AND section = ?';  params.push(section); }
+    if (search)   {
+      query += ' AND (name LIKE ? OR prn LIKE ? OR roll_no LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    const row = await db.prepare(query).get(...params);
+    return row?.cnt || 0;
+  }
+
+  static async getUniqueBranchesAndSections() {
+    const db = getDb();
+    const branches = (await db.prepare('SELECT DISTINCT branch FROM students WHERE is_active = 1 ORDER BY branch').all()).map(r => r.branch);
+    const sections = (await db.prepare("SELECT DISTINCT section FROM students WHERE is_active = 1 AND section IS NOT NULL AND section != '' ORDER BY section").all()).map(r => r.section);
+    return { branches, sections };
+  }
 }

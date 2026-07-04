@@ -485,8 +485,8 @@ function DutyCalendar({ duties, onSelectDuty }) {
 
 // ── Main Page Component ───────────────────────────────────────────────────
 export default function FacultyDutyPage() {
-  const { activeCycleId } = useAppStore();
-  const { user } = useAuthStore();
+  const activeCycleId = useAppStore(state => state.activeCycleId);
+  const user = useAuthStore(state => state.user);
   
   // Dashboard lists
   const [duties, setDuties] = useState([]);

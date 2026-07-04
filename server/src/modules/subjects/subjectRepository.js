@@ -6,10 +6,18 @@ export class SubjectRepository {
     return await db.prepare('SELECT * FROM subjects ORDER BY semester, code').all();
   }
 
-  static async findPaginated({ limit, offset }) {
+  static async findPaginated({ branch, year, course_type, search, limit, offset }) {
     const db = getDb();
-    let query = 'SELECT * FROM subjects ORDER BY semester, code';
+    let query = 'SELECT * FROM subjects WHERE 1=1';
     const params = [];
+    if (branch)      { query += ' AND branch = ?';      params.push(branch); }
+    if (year)        { query += ' AND year = ?';        params.push(year); }
+    if (course_type) { query += ' AND course_type = ?'; params.push(course_type); }
+    if (search)      {
+      query += ' AND (name LIKE ? OR code LIKE ? OR abbreviation LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    query += ' ORDER BY semester, code';
     if (limit !== undefined && offset !== undefined) {
       query += ' LIMIT ? OFFSET ?';
       params.push(parseInt(limit), parseInt(offset));
@@ -72,5 +80,27 @@ export class SubjectRepository {
   static async delete(id) {
     const db = getDb();
     return await db.prepare('DELETE FROM subjects WHERE id = ?').run(id);
+  }
+
+  static async countActive({ branch, year, course_type, search } = {}) {
+    const db = getDb();
+    let query = 'SELECT COUNT(*) as cnt FROM subjects WHERE 1=1';
+    const params = [];
+    if (branch)      { query += ' AND branch = ?';      params.push(branch); }
+    if (year)        { query += ' AND year = ?';        params.push(year); }
+    if (course_type) { query += ' AND course_type = ?'; params.push(course_type); }
+    if (search)      {
+      query += ' AND (name LIKE ? OR code LIKE ? OR abbreviation LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    const row = await db.prepare(query).get(...params);
+    return row?.cnt || 0;
+  }
+
+  static async getUniqueMeta() {
+    const db = getDb();
+    const branches = (await db.prepare('SELECT DISTINCT branch FROM subjects ORDER BY branch').all()).map(r => r.branch);
+    const courseTypes = (await db.prepare("SELECT DISTINCT course_type FROM subjects WHERE course_type IS NOT NULL AND course_type != '' ORDER BY course_type").all()).map(r => r.course_type);
+    return { branches, courseTypes };
   }
 }

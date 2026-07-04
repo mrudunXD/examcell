@@ -327,7 +327,7 @@ export default function FacultyPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
   const isCoord = user?.role === 'coordinator';
 
   const fetchFaculty = async () => {

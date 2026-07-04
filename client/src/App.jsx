@@ -27,6 +27,8 @@ import HistoricalAnalyticsPage from './pages/HistoricalAnalyticsPage.jsx';
 import PlannerPage from './pages/PlannerPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+
 function ProtectedRoute({ children, role }) {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" replace />;
@@ -43,8 +45,9 @@ export default function App() {
   }, [theme]);
 
   return (
-    <BrowserRouter>
-      <Toaster
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Toaster
         position="top-right"
         toastOptions={{
           style: {
@@ -95,5 +98,6 @@ export default function App() {
         <Route path="kiosk/:cycleId" element={<div className="kiosk-theme" style={{ height: '100vh', width: '100vw' }}><KioskPage /></div>} />
       </Routes>
     </BrowserRouter>
+  </ErrorBoundary>
   );
 }

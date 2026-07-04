@@ -94,7 +94,7 @@ export default function ClassroomsPage() {
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
 
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
   const isCoord = user?.role === 'coordinator';
 
   const fetchRooms = async () => {

@@ -18,7 +18,8 @@ const features = [
 ];
 
 export default function LoginPage() {
-  const { login, isLoading } = useAuthStore();
+  const login = useAuthStore(state => state.login);
+  const isLoading = useAuthStore(state => state.isLoading);
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

@@ -255,6 +255,12 @@ export default function SubjectsPage() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => setSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
   const [filterYear, setFilterYear] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
   const [filterCourseType, setFilterCourseType] = useState('');
@@ -264,18 +270,43 @@ export default function SubjectsPage() {
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   
+  const [branches, setBranches] = useState([]);
+  const [courseTypes, setCourseTypes] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
   const isCoord = user?.role === 'coordinator';
+
+  const fetchMeta = async () => {
+    try {
+      const { data } = await api.get('/subjects/meta');
+      setBranches(data.branches || []);
+      setCourseTypes(data.courseTypes || []);
+    } catch (e) {
+      console.error('Failed to load subjects meta', e);
+    }
+  };
 
   const loadSubjects = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/subjects');
-      setSubjects(data);
+      const params = {
+        limit: itemsPerPage,
+        page: currentPage
+      };
+      if (search) params.search = search;
+      if (filterYear) params.year = filterYear;
+      if (filterBranch) params.branch = filterBranch;
+      if (filterCourseType) params.course_type = filterCourseType;
+
+      const response = await api.get('/subjects', { params });
+      setSubjects(response.data);
+      const totalHeader = response.headers['x-total-count'];
+      setTotalCount(parseInt(totalHeader || response.data.length, 10));
     } catch {
       toast.error('Failed to load subjects');
     } finally {
@@ -284,8 +315,17 @@ export default function SubjectsPage() {
   };
 
   useEffect(() => {
-    loadSubjects();
+    fetchMeta();
   }, []);
+
+  useEffect(() => {
+    loadSubjects();
+    setSelectedIds(new Set());
+  }, [currentPage, search, filterYear, filterBranch, filterCourseType]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterYear, filterBranch, filterCourseType]);
 
   const del = async (id) => {
     if (!confirm('Delete this subject?')) return;
@@ -293,42 +333,21 @@ export default function SubjectsPage() {
       await api.delete(`/subjects/${id}`);
       toast.success('Deleted');
       loadSubjects();
+      fetchMeta();
     } catch {
       toast.error('Delete failed');
     }
   };
 
-  const branches = [...new Set(subjects.map(s => s.branch))].sort();
-  const courseTypes = [...new Set(subjects.map(s => s.course_type).filter(Boolean))].sort();
-  
   // Statistics
-  const totalSubjects = subjects.length;
+  const totalSubjects = totalCount;
   const uniqueBranches = branches.length;
   const dscCount = subjects.filter(s => s.course_type === 'DSC').length;
   const electiveCount = subjects.filter(s => s.course_type === 'DSE' || s.course_type === 'GE').length;
 
-  // Local filtering (extremely responsive)
-  const filteredSubjects = subjects.filter(s => {
-    const matchesSearch = !search || 
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.code.toLowerCase().includes(search.toLowerCase()) ||
-      (s.abbreviation && s.abbreviation.toLowerCase().includes(search.toLowerCase()));
-    
-    const matchesYear = !filterYear || s.year === filterYear;
-    const matchesBranch = !filterBranch || s.branch === filterBranch;
-    const matchesCourseType = !filterCourseType || s.course_type === filterCourseType;
-
-    return matchesSearch && matchesYear && matchesBranch && matchesCourseType;
-  });
-
-  useEffect(() => {
-    setCurrentPage(1);
-    setSelectedIds(new Set());
-  }, [search, filterYear, filterBranch, filterCourseType]);
-
   // Pagination derived data
-  const totalPages = Math.ceil(filteredSubjects.length / itemsPerPage) || 1;
-  const paginatedSubjects = filteredSubjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+  const paginatedSubjects = subjects;
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -429,10 +448,10 @@ export default function SubjectsPage() {
               <input 
                 placeholder="Search code, title..." 
                 className="saas-search-input" 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
-              {search && <X size={12} color="var(--text-tertiary)" style={{ cursor: 'pointer' }} onClick={() => setSearch('')} />}
+              {searchQuery && <X size={12} color="var(--text-tertiary)" style={{ cursor: 'pointer' }} onClick={() => setSearchQuery('')} />}
             </div>
 
             {/* Add Subject button */}

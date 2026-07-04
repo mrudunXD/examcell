@@ -426,8 +426,8 @@ export default function ExamCyclesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const { setActiveCycle } = useAppStore();
-  const { user } = useAuthStore();
+  const setActiveCycle = useAppStore(state => state.setActiveCycle);
+  const user = useAuthStore(state => state.user);
   const isCoord = user?.role === 'coordinator';
   const [scheduling, setScheduling] = useState({});
   const [explainSlotId, setExplainSlotId] = useState(null);
