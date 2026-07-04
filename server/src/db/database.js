@@ -360,6 +360,14 @@ class PgDatabase {
         UNIQUE(subject_id, type, date, shift_id)
       );
 
+      CREATE TABLE IF NOT EXISTS schedule_versions (
+        id TEXT PRIMARY KEY,
+        cycle_id TEXT REFERENCES exam_cycles(id) ON DELETE CASCADE,
+        version_number INTEGER NOT NULL,
+        snapshot_payload TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
       CREATE INDEX IF NOT EXISTS idx_students_year ON students(year);
       CREATE INDEX IF NOT EXISTS idx_exam_slots_cycle ON exam_slots(cycle_id);

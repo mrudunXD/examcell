@@ -196,7 +196,7 @@ const runSolver = (inputData) => {
     if (getChaosState().solverChaosMode) {
       return reject(new Error('Solver process execution timed out (Simulated Chaos)'));
     }
-    const pyPath = path.join(__dirname, '../services/scheduler.py');
+    const pyPath = path.join(__dirname, '../services/scheduler/solver.py');
     const solverProcess = spawn('python', [pyPath]);
     
     let stdout = '';
@@ -846,6 +846,134 @@ router.post('/:id/replay/:runId', requireCoordinator, asyncHandler(async (req, r
     message: 'Replay re-runs are not supported after the PII-safe payload migration. Re-run auto-schedule to generate a fresh schedule.',
     metadata
   });
+}));
+
+// GET /:id/versions — List all saved versions of a cycle
+router.get('/:id/versions', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const versions = await db.prepare(
+    'SELECT id, version_number, created_at FROM schedule_versions WHERE cycle_id = ? ORDER BY version_number DESC'
+  ).all(req.params.id);
+  res.json(versions);
+}));
+
+// POST /:id/versions — Capture current cycle schedule draft as a version snapshot
+router.post('/:id/versions', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const cycleId = req.params.id;
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id = ?').get(cycleId);
+  if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+
+  // Get current slots
+  const slots = await db.prepare('SELECT * FROM exam_slots WHERE cycle_id = ?').all(cycleId);
+  const slotIds = slots.map(s => s.id);
+
+  let slotStudents = [];
+  let roomAllocations = [];
+  let seatAssignments = [];
+  let supervisorDuties = [];
+
+  if (slotIds.length > 0) {
+    const placeholders = slotIds.map(() => '?').join(',');
+    slotStudents = await db.prepare(`SELECT * FROM slot_students WHERE slot_id IN (${placeholders})`).all(...slotIds);
+    roomAllocations = await db.prepare(`SELECT * FROM room_allocations WHERE slot_id IN (${placeholders})`).all(...slotIds);
+    
+    if (roomAllocations.length > 0) {
+      const raPlaceholders = roomAllocations.map(() => '?').join(',');
+      const raIds = roomAllocations.map(ra => ra.id);
+      seatAssignments = await db.prepare(`SELECT * FROM seat_assignments WHERE room_allocation_id IN (${raPlaceholders})`).all(...raIds);
+      supervisorDuties = await db.prepare(`SELECT * FROM supervisor_duties WHERE room_allocation_id IN (${raPlaceholders})`).all(...raIds);
+    }
+  }
+
+  const payload = {
+    slots,
+    slot_students: slotStudents,
+    room_allocations: roomAllocations,
+    seat_assignments: seatAssignments,
+    supervisor_duties: supervisorDuties
+  };
+
+  const latest = await db.prepare('SELECT MAX(version_number) as max_v FROM schedule_versions WHERE cycle_id = ?').get(cycleId);
+  const nextVersion = (latest?.max_v || 0) + 1;
+
+  const versionId = crypto.randomUUID();
+  await db.prepare(
+    'INSERT INTO schedule_versions (id, cycle_id, version_number, snapshot_payload) VALUES (?, ?, ?, ?)'
+  ).run(versionId, cycleId, nextVersion, JSON.stringify(payload));
+
+  res.status(201).json({ id: versionId, version_number: nextVersion, message: 'Schedule snapshot captured successfully.' });
+}));
+
+// POST /:id/versions/:versionId/restore — Roll back/Restore to a specific schedule version
+router.post('/:id/versions/:versionId/restore', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const cycleId = req.params.id;
+  const versionId = req.params.versionId;
+
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id = ?').get(cycleId);
+  if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+
+  const versionRecord = await db.prepare('SELECT * FROM schedule_versions WHERE id = ? AND cycle_id = ?').get(versionId, cycleId);
+  if (!versionRecord) return res.status(404).json({ error: 'Version record not found' });
+
+  const snapshot = JSON.parse(versionRecord.snapshot_payload);
+
+  await db.transaction(async () => {
+    // 1. Wipe current slots, allocations, seating, supervisors, and conflicts
+    await db.prepare('DELETE FROM exam_slots WHERE cycle_id = ?').run(cycleId);
+    await db.prepare('DELETE FROM conflicts WHERE cycle_id = ?').run(cycleId);
+
+    // 2. Restore exam slots
+    if (snapshot.slots && snapshot.slots.length > 0) {
+      const slotStmt = await db.prepare(
+        'INSERT INTO exam_slots (id, cycle_id, subject_id, date, start_time, duration_mins, exam_type, exam_mode, status, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      for (const s of snapshot.slots) {
+        await slotStmt.run(s.id, s.cycle_id, s.subject_id, s.date, s.start_time, s.duration_mins, s.exam_type, s.exam_mode, s.status, s.version || 1);
+      }
+    }
+
+    // 3. Restore slot students
+    if (snapshot.slot_students && snapshot.slot_students.length > 0) {
+      const ssStmt = await db.prepare('INSERT INTO slot_students (slot_id, student_id) VALUES (?, ?)');
+      for (const ss of snapshot.slot_students) {
+        await ssStmt.run(ss.slot_id, ss.student_id);
+      }
+    }
+
+    // 4. Restore room allocations
+    if (snapshot.room_allocations && snapshot.room_allocations.length > 0) {
+      const raStmt = await db.prepare('INSERT INTO room_allocations (id, slot_id, classroom_id) VALUES (?, ?, ?)');
+      for (const ra of snapshot.room_allocations) {
+        await raStmt.run(ra.id, ra.slot_id, ra.classroom_id);
+      }
+    }
+
+    // 5. Restore seat assignments
+    if (snapshot.seat_assignments && snapshot.seat_assignments.length > 0) {
+      const seatStmt = await db.prepare(
+        'INSERT INTO seat_assignments (id, student_id, room_allocation_id, bench_row, bench_col, is_approved, version) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      );
+      for (const sa of snapshot.seat_assignments) {
+        await seatStmt.run(sa.id, sa.student_id, sa.room_allocation_id, sa.bench_row, sa.bench_col, sa.is_approved || 0, sa.version || 1);
+      }
+    }
+
+    // 6. Restore supervisor duties
+    if (snapshot.supervisor_duties && snapshot.supervisor_duties.length > 0) {
+      const invStmt = await db.prepare(
+        'INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role, acknowledged, acknowledged_at) VALUES (?, ?, ?, ?, ?, ?)'
+      );
+      for (const sd of snapshot.supervisor_duties) {
+        await invStmt.run(sd.id, sd.faculty_id, sd.room_allocation_id, sd.role, sd.acknowledged || 0, sd.acknowledged_at || null);
+      }
+    }
+  })();
+
+  broadcastUpdate('SCHEDULE_REGENERATED', { cycleId });
+
+  res.json({ message: `Successfully rolled back to version ${versionRecord.version_number}.` });
 }));
 
 export default router;
