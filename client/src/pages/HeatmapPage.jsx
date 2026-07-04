@@ -62,18 +62,18 @@ export default function HeatmapPage() {
 
   // Compute Statistics
   const totalFaculty = faculty.length;
-  const totalDuties = Object.values(totals).reduce((s, v) => s + v, 0);
+  const totalDuties = Object.values(totals).reduce((s, v) => s + Number(v || 0), 0);
   const avgDuties = totalFaculty ? totalDuties / totalFaculty : 0;
   
-  const overloadedFaculty = faculty.filter(f => (totals[f.id] || 0) > avgDuties * 1.5);
-  const underloadedFaculty = faculty.filter(f => (totals[f.id] || 0) < avgDuties * 0.5 && (totals[f.id] || 0) > 0);
+  const overloadedFaculty = faculty.filter(f => Number(totals[f.id] || 0) > avgDuties * 1.5);
+  const underloadedFaculty = faculty.filter(f => Number(totals[f.id] || 0) < avgDuties * 0.5 && Number(totals[f.id] || 0) > 0);
   const overloadedCount = overloadedFaculty.length;
   const underloadedCount = underloadedFaculty.length;
 
   // Fairness Score Calculation (100 - CV * 100)
   let fairnessScore = 100;
   if (totalFaculty > 1 && avgDuties > 0) {
-    const variance = faculty.reduce((s, f) => s + Math.pow((totals[f.id] || 0) - avgDuties, 2), 0) / totalFaculty;
+    const variance = faculty.reduce((s, f) => s + Math.pow(Number(totals[f.id] || 0) - avgDuties, 2), 0) / totalFaculty;
     const stdDev = Math.sqrt(variance);
     const cv = stdDev / avgDuties;
     fairnessScore = Math.max(0, Math.min(100, Math.round(100 * (1 - cv))));
@@ -82,7 +82,7 @@ export default function HeatmapPage() {
   // Duty Distribution Bands
   const bands = { '0': 0, '1-2': 0, '3-4': 0, '5+': 0 };
   faculty.forEach(f => {
-    const t = totals[f.id] || 0;
+    const t = Number(totals[f.id] || 0);
     if (t === 0) bands['0']++;
     else if (t <= 2) bands['1-2']++;
     else if (t <= 4) bands['3-4']++;
@@ -92,7 +92,7 @@ export default function HeatmapPage() {
   // Utilization Trend by Cycle (Chronological order)
   const sortedCycles = [...allCycles].reverse();
   const trendData = sortedCycles.map(c => {
-    const cycleFacultyDuties = faculty.map(f => matrix[f.id]?.[c.id] || 0);
+    const cycleFacultyDuties = faculty.map(f => Number(matrix[f.id]?.[c.id] || 0));
     const sum = cycleFacultyDuties.reduce((s, v) => s + v, 0);
     const avg = faculty.length ? sum / faculty.length : 0;
     return { name: c.name, avg: Math.round(avg * 10) / 10 };
