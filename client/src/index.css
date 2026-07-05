@@ -8,35 +8,35 @@
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  /* Core backgrounds - Premium Dark Vibe with Sea Green Tint */
-  --bg-base:     #050c0c;   /* Deep sea green black */
-  --bg-sidebar:  #081212;   /* Dark sea green sidebar */
-  --bg-surface:  #0c1919;   /* Sea green panels, dropdowns */
-  --bg-elevated: #142a2a;   /* Hover states, cards */
-  --bg-input:    #060f0f;   /* Input backgrounds */
+  /* Core backgrounds - Premium Dark Cosmic Purple Theme */
+  --bg-base:     #080710;   /* Deep space-black-purple */
+  --bg-sidebar:  #0d0c18;   /* Dark cosmic purple sidebar */
+  --bg-surface:  #131224;   /* Translucent purple panels */
+  --bg-elevated: #1e1d35;   /* Elevated panels, cards, hover states */
+  --bg-input:    #090914;   /* Dark translucent input fields */
 
   /* Borders */
-  --border:      rgba(20,160,160,0.12); /* Subtle sea-green borders */
-  --border-faint:rgba(20,160,160,0.06); /* Faint divider */
-  --border-focus:#0d9488; /* Teal/Sea green focus ring */
+  --border:      rgba(168,85,247,0.12); /* Subtle violet borders */
+  --border-faint:rgba(168,85,247,0.06); /* Very faint divider line */
+  --border-focus:#a855f7; /* Vibrant violet focus ring */
 
   /* Text */
-  --text-primary:   #f0faf9;  /* Primary tealish white */
-  --text-secondary: #8fa8a6;  /* Secondary tealish gray */
-  --text-tertiary:  #566e6c;  /* Muted tealish hints */
+  --text-primary:   #f9f8ff;  /* Milk-white-purple */
+  --text-secondary: #a9a6c2;  /* Slate lavender gray */
+  --text-tertiary:  #636081;  /* Muted space-dust gray */
 
   /* Accent colors */
-  --accent-blue:   #06b6d4;   /* Cyan */
+  --accent-blue:   #3b82f6;   /* Electric Indigo */
   --accent-green:  #10b981;   /* Emerald */
   --accent-amber:  #f59e0b;   /* Amber */
   --accent-red:    #ef4444;   /* Red */
-  --accent-purple: #0d9488;   /* Teal accent */
-  --accent-cyan:   #14b8a6;   /* Bright sea green */
+  --accent-purple: #a855f7;   /* Vibrant Purple */
+  --accent-cyan:   #06b6d4;   /* Bright Cyan */
 
-  /* Status badge colors (themed to sea green) */
-  --badge-blue-bg:   rgba(13,148,136,0.06);
-  --badge-blue-text: #2dd4bf;
-  --badge-blue-border: rgba(13,148,136,0.2);
+  /* Status badge colors (themed to purple) */
+  --badge-blue-bg:   rgba(168,85,247,0.06);
+  --badge-blue-text: #c084fc;
+  --badge-blue-border: rgba(168,85,247,0.2);
 
   --badge-green-bg:   rgba(16,185,129,0.06);
   --badge-green-text: #34d399;
@@ -50,31 +50,31 @@
   --badge-red-text: #f87171;
   --badge-red-border: rgba(239,68,68,0.2);
 
-  --badge-neutral-bg:   rgba(86,110,108,0.06);
+  --badge-neutral-bg:   rgba(99,96,129,0.06);
   --badge-neutral-text: #94a3b8;
-  --badge-neutral-border: rgba(86,110,108,0.2);
+  --badge-neutral-border: rgba(99,96,129,0.2);
 
   /* Legacy vars (used by CSS classes and kiosk) */
-  --np-bg:    #050c0c;
-  --np-ink:   #f0faf9;
-  --np-muted: rgba(20,160,160,0.12);
+  --np-bg:    #080710;
+  --np-ink:   #f9f8ff;
+  --np-muted: rgba(168,85,247,0.12);
   --np-red:   #ef4444;
-  --np-n100:  #081212;
-  --np-n200:  #0c1919;
-  --np-n400:  #566e6c;
-  --np-n500:  #8fa8a6;
-  --np-n600:  #8fa8a6;
-  --np-n700:  #f0faf9;
+  --np-n100:  #0d0c18;
+  --np-n200:  #131224;
+  --np-n400:  #636081;
+  --np-n500:  #a9a6c2;
+  --np-n600:  #a9a6c2;
+  --np-n700:  #f9f8ff;
 
   /* Typography */
   --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-serif: 'Inter', -apple-system, sans-serif;
+  --font-serif: 'Outfit', -apple-system, sans-serif;
   --font-body:  'Inter', -apple-system, sans-serif;
   --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
   /* Custom Sidebar/Topbar Variables */
-  --bg-sidebar-active: #0d9488;  /* Active link is beautiful solid teal! */
-  --bg-topbar: #050c0c;
+  --bg-sidebar-active: #a855f7;  /* Active link is beautiful solid purple! */
+  --bg-topbar: #080710;
 }
 
 [data-theme="light"] {
