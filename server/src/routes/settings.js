@@ -124,4 +124,68 @@ router.post('/playground', requireSuperAdmin, asyncHandler(async (req, res) => {
   }
 }));
 
+// GET /api/settings/telemetry - fetch database structure details and system statistics (Coordinator only)
+router.get('/telemetry', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  
+  // Fetch public schema tables and estimate their row counts dynamically in PostgreSQL
+  const tablesQuery = `
+    SELECT table_name as name, 
+      (xpath('/row/cnt/text()', xmlfilestmt))[1]::text::int as row_count
+    FROM (
+      SELECT table_name, 
+        query_to_xml(format('select count(*) as cnt from %I', table_name), false, true, '') as xmlfilestmt
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+    ) tbls
+    ORDER BY name;
+  `;
+  
+  try {
+    const result = await db.pool.query(tablesQuery);
+    const tables = result.rows || [];
+    
+    const stats = {
+      platform: process.platform,
+      arch: process.arch,
+      nodeVersion: process.version,
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    };
+    
+    res.json({ tables, stats });
+  } catch (err) {
+    // Graceful fallback for environments with XML query restrictions or SQLite mock configurations
+    try {
+      const defaultTables = ['users', 'students', 'subjects', 'classrooms', 'exam_cycles', 'exam_slots', 'room_allocations', 'seat_assignments', 'supervisor_duties', 'attendance', 'broadcasts'];
+      const tables = [];
+      for (const t of defaultTables) {
+        try {
+          const r = await db.pool.query(`SELECT count(*) as cnt FROM ${t}`);
+          tables.push({ name: t, row_count: parseInt(r.rows[0]?.cnt || 0, 10) });
+        } catch {
+          tables.push({ name: t, row_count: 0 });
+        }
+      }
+      res.json({
+        tables,
+        stats: {
+          platform: process.platform,
+          nodeVersion: process.version,
+          uptime: process.uptime()
+        }
+      });
+    } catch {
+      res.json({
+        tables: [],
+        stats: {
+          platform: process.platform,
+          nodeVersion: process.version,
+          uptime: process.uptime()
+        }
+      });
+    }
+  }
+}));
+
 export default router;

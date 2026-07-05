@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { 
   UserCog, Shield, Database, Cpu, Bell, Key, RefreshCw, Sliders, ToggleLeft, 
   Terminal, Info, Check, Save, RotateCcw, AlertTriangle, Play, HelpCircle, 
-  Folder, ChevronRight, ChevronDown, CheckSquare, Square, Search, Eye, EyeOff, BookOpen, Layers
+  Folder, ChevronRight, ChevronDown, CheckSquare, Square, Search, Eye, EyeOff, BookOpen, Layers,
+  User, Trash2, Plus, Download, Upload, Server
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore, useSettingsStore } from '../store/index.js';
@@ -31,7 +32,7 @@ const CATEGORY_GROUPS = [
   {
     name: 'Access & Security',
     items: [
-      { id: 'users', label: 'Users & Roles', desc: 'Access matrix and permissions' },
+      { id: 'users', label: 'Users & Roles', desc: 'User management accounts list and access matrix' },
       { id: 'security', label: 'Security Policies', desc: 'JWT expiration and rate limits' }
     ]
   },
@@ -41,7 +42,7 @@ const CATEGORY_GROUPS = [
       { id: 'database', label: 'Database Status', desc: 'VACUUM tools and connection pools' },
       { id: 'monitoring', label: 'Monitoring Alerts', desc: 'Telemetry warning thresholds' },
       { id: 'logging', label: 'Logging Policies', desc: 'Retention days and log level filters' },
-      { id: 'backup', label: 'Backup & Recovery', category: 'Infrastructure', desc: 'Auto cron schedules and backup logs' },
+      { id: 'backup', label: 'Backup & Recovery', desc: 'Auto cron schedules and backup snapshots manager' },
       { id: 'performance', label: 'Performance', desc: 'Caching and compression settings' }
     ]
   },
@@ -140,6 +141,13 @@ export default function SettingsPage() {
   const [localState, setLocalState] = useState({});
   const [showApiKey, setShowApiKey] = useState(false);
 
+  // Users List states
+  const [usersList, setUsersList] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userForm, setUserForm] = useState({ name: '', email: '', department: '', role: 'faculty', password: '' });
+
   // SQL Playground States
   const [sqlQuery, setSqlQuery] = useState('SELECT name, email, role, department FROM users LIMIT 5;');
   const [sqlResults, setSqlResults] = useState(null);
@@ -150,6 +158,14 @@ export default function SettingsPage() {
   // Settings history state
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
+
+  // Database stats states
+  const [dbTelemetry, setDbTelemetry] = useState(null);
+  const [telemetryLoading, setTelemetryLoading] = useState(false);
+
+  // Backups list states
+  const [backupsList, setBackupsList] = useState([]);
+  const [backupsLoading, setBackupsLoading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -165,6 +181,7 @@ export default function SettingsPage() {
     }
   }, [settings]);
 
+  // Load audit logs
   const loadAuditLogs = async () => {
     if (!isSuper) return;
     setAuditLoading(true);
@@ -178,9 +195,57 @@ export default function SettingsPage() {
     }
   };
 
+  // Load backups list
+  const loadBackups = async () => {
+    setBackupsLoading(true);
+    try {
+      const { data } = await api.get('/backups');
+      setBackupsList(data);
+    } catch {
+      toast.error('Failed to load database backups list');
+    } finally {
+      setBackupsLoading(false);
+    }
+  };
+
+  // Load database telemetry
+  const loadDatabaseTelemetry = async () => {
+    setTelemetryLoading(true);
+    try {
+      const { data } = await api.get('/settings/telemetry');
+      setDbTelemetry(data);
+    } catch {
+      toast.error('Failed to load database telemetry');
+    } finally {
+      setTelemetryLoading(false);
+    }
+  };
+
+  // Load users list
+  const loadUsersList = async () => {
+    setUsersLoading(true);
+    try {
+      const { data } = await api.get('/faculty');
+      setUsersList(data);
+    } catch {
+      toast.error('Failed to load users accounts list');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeSection === 'logging' && isSuper) {
       loadAuditLogs();
+    }
+    if (activeSection === 'backup') {
+      loadBackups();
+    }
+    if (activeSection === 'database') {
+      loadDatabaseTelemetry();
+    }
+    if (activeSection === 'users') {
+      loadUsersList();
     }
   }, [activeSection]);
 
@@ -214,6 +279,68 @@ export default function SettingsPage() {
     }
   };
 
+  // User Actions
+  const handleUserClick = (usr) => {
+    setSelectedUser(usr);
+    setUserForm({
+      name: usr.name,
+      email: usr.email,
+      department: usr.department || '',
+      role: usr.role,
+      password: ''
+    });
+  };
+
+  const handleUserFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    const loadId = toast.loading('Updating user account...');
+    try {
+      await api.put(`/faculty/${selectedUser.id}`, userForm);
+      toast.success('User details updated successfully', { id: loadId });
+      setSelectedUser(null);
+      loadUsersList();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update user', { id: loadId });
+    }
+  };
+
+  // Backup Actions
+  const triggerCreateBackup = async () => {
+    const loadId = toast.loading('Creating system backup JSON...');
+    try {
+      await api.post('/backups');
+      toast.success('Manual backup created successfully', { id: loadId });
+      loadBackups();
+    } catch {
+      toast.error('Failed to generate manual backup', { id: loadId });
+    }
+  };
+
+  const triggerRestoreBackup = async (filename) => {
+    if (!confirm(`Are you absolutely sure you want to restore database schema to ${filename}? Current records will be replaced.`)) return;
+    const loadId = toast.loading(`Restoring system snapshot: ${filename}...`);
+    try {
+      await api.post('/backups/restore', { filename });
+      toast.success('Database restored successfully! Refreshing details...', { id: loadId });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Restore failed', { id: loadId });
+    }
+  };
+
+  const triggerDeleteBackup = async (filename) => {
+    if (!confirm(`Are you sure you want to delete backup file: ${filename}?`)) return;
+    const loadId = toast.loading(`Deleting backup snapshot file...`);
+    try {
+      await api.delete(`/backups/${filename}`);
+      toast.success('Backup deleted successfully', { id: loadId });
+      loadBackups();
+    } catch {
+      toast.error('Failed to delete backup file', { id: loadId });
+    }
+  };
+
   const executeSql = async () => {
     setSqlLoading(true);
     setSqlError(null);
@@ -236,6 +363,7 @@ export default function SettingsPage() {
     try {
       const { data } = await api.post('/settings/optimize');
       toast.success(data.message || 'Optimized successfully', { id: loadId });
+      loadDatabaseTelemetry();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to optimize', { id: loadId });
     }
@@ -270,6 +398,13 @@ export default function SettingsPage() {
       break;
     }
   }
+
+  // Filter users list based on search input
+  const filteredUsers = usersList.filter(u => 
+    u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+    (u.department && u.department.toLowerCase().includes(userSearch.toLowerCase()))
+  );
 
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', background: 'var(--bg-base)', fontFamily: 'var(--font-sans)' }}>
@@ -323,7 +458,10 @@ export default function SettingsPage() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => {
+                        setActiveSection(item.id);
+                        setSelectedUser(null);
+                      }}
                       style={{
                         padding: '10px 14px',
                         borderRadius: 8,
@@ -895,9 +1033,140 @@ export default function SettingsPage() {
 
           {/* ──────────────────────────────── USERS & ROLES ──────────────────────────────── */}
           {activeSection === 'users' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }} className="saas-fade-in">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }} className="saas-fade-in">
+              
+              {/* User management list */}
               <div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>RBAC Permission Matrix</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary)' }}>Active Staff & Coordinator Accounts</h3>
+                  <div className="saas-search-input-wrapper" style={{ width: 220, background: 'rgba(9, 9, 20, 0.6)' }}>
+                    <Search size={12} color="var(--text-tertiary)" />
+                    <input 
+                      placeholder="Search accounts..." 
+                      className="saas-search-input" 
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {usersLoading ? (
+                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading users list...</div>
+                ) : (
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                    <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>Name</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>Email Address</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>Role</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>Department</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600 }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.map((usr) => (
+                          <tr key={usr.id} style={{ borderBottom: '1px solid var(--border-faint)' }}>
+                            <td style={{ padding: '10px 14px', color: 'var(--text-primary)', fontWeight: 600 }}>{usr.name}</td>
+                            <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{usr.email}</td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ 
+                                fontSize: 11, 
+                                fontWeight: 700, 
+                                textTransform: 'uppercase', 
+                                padding: '2px 8px', 
+                                borderRadius: 4, 
+                                background: usr.role === 'coordinator' ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)', 
+                                color: usr.role === 'coordinator' ? 'var(--accent-purple)' : 'var(--accent-blue)' 
+                              }}>
+                                {usr.role}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{usr.department || '—'}</td>
+                            <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                              <button 
+                                className="btn btn-ghost btn-sm" 
+                                onClick={() => handleUserClick(usr)}
+                                style={{ fontSize: 11, height: 24, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 4 }}
+                              >
+                                Edit Account
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Edit Account Modal form overlay */}
+              {selectedUser && (
+                <div style={{ 
+                  padding: 24, 
+                  background: 'rgba(30, 29, 53, 0.35)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: 10,
+                  marginTop: 16
+                }} className="fade-in-up">
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>Edit Account: {selectedUser.name}</h3>
+                  <form onSubmit={handleUserFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label className="form-label">Full Name</label>
+                        <input 
+                          className="input" 
+                          value={userForm.name} 
+                          onChange={e => setUserForm({ ...userForm, name: e.target.value })}
+                          required
+                          style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Email Address</label>
+                        <input 
+                          className="input" 
+                          type="email"
+                          value={userForm.email} 
+                          onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                          required
+                          style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label className="form-label">Department</label>
+                        <input 
+                          className="input" 
+                          value={userForm.department} 
+                          onChange={e => setUserForm({ ...userForm, department: e.target.value })}
+                          style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Update password (Leave blank to keep current)</label>
+                        <input 
+                          className="input" 
+                          type="password"
+                          placeholder="••••••••"
+                          value={userForm.password} 
+                          onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                          style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+                      <button type="button" className="btn btn-ghost" onClick={() => setSelectedUser(null)} style={{ height: 32, borderRadius: 6 }}>Cancel</button>
+                      <button type="submit" className="btn btn-primary" style={{ height: 32, borderRadius: 6 }}>Update details</button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Permission Matrix */}
+              <div>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>RBAC Permission Matrix Overview</h3>
                 <div className="table-responsive" style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                   <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
@@ -1064,6 +1333,26 @@ export default function SettingsPage() {
                 </button>
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>Restructures index storage trees and reclaims deleted cell spaces. Runs asynchronously in the background.</span>
               </div>
+
+              {/* Database Telemetry Grid */}
+              {telemetryLoading ? (
+                <div style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Loading table structure telemetry...</div>
+              ) : dbTelemetry ? (
+                <div>
+                  <h3 style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>Table Struct Row Telemetry</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                    {dbTelemetry.tables && dbTelemetry.tables.map(table => (
+                      <div key={table.name} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-tertiary)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
+                          <Server size={10} />
+                          {table.name}
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 750, color: 'var(--text-primary)', marginTop: 6 }}>{table.row_count} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-secondary)' }}>rows</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -1191,44 +1480,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ──────────────────────────────── PERFORMANCE ──────────────────────────────── */}
-          {activeSection === 'performance' && (
-            <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 28 }} className="saas-fade-in">
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label" style={{ fontFamily: 'var(--font-serif)' }}>Static Route Cache TTL (Seconds)</label>
-                  <input 
-                    className="input"
-                    type="number"
-                    value={localState['performance.cacheDurationSecs'] || ''}
-                    onChange={e => handleLocalChange('performance.cacheDurationSecs', e.target.value)}
-                    style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" style={{ fontFamily: 'var(--font-serif)' }}>WebSocket Heartbeat Ping Interval (Seconds)</label>
-                  <input 
-                    className="input"
-                    type="number"
-                    value={localState['performance.socketHeartbeatSecs'] || ''}
-                    onChange={e => handleLocalChange('performance.socketHeartbeatSecs', e.target.value)}
-                    style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
-                  />
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', background: 'rgba(30, 29, 53, 0.25)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                <div>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>Enable Response Compression</span>
-                  <span style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Compresses response buffers over HTTP Gzip payloads to save bandwidth.</span>
-                </div>
-                <ToggleSwitch 
-                  checked={localState['performance.compressionEnabled'] === 'true'}
-                  onChange={val => handleLocalChange('performance.compressionEnabled', val ? 'true' : 'false')}
-                />
-              </div>
-            </div>
-          )}
-
           {/* ──────────────────────────────── BACKUP & RECOVERY ──────────────────────────────── */}
           {activeSection === 'backup' && (
             <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 28 }} className="saas-fade-in">
@@ -1273,6 +1524,105 @@ export default function SettingsPage() {
                     onChange={val => handleLocalChange('backup.verificationEnabled', val ? 'true' : 'false')}
                   />
                 </div>
+              </div>
+
+              {/* Backup Snapshot Manager */}
+              <div style={{ borderTop: '1px solid var(--border-faint)', paddingTop: 24, marginTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Database Backup Snapshot Files</h3>
+                  <button 
+                    onClick={triggerCreateBackup}
+                    className="btn btn-primary btn-sm"
+                    style={{ height: 28, fontSize: 11, borderRadius: 6 }}
+                  >
+                    <Plus size={12} style={{ marginRight: 4 }} /> Trigger Manual Backup
+                  </button>
+                </div>
+
+                {backupsLoading ? (
+                  <div style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Loading backups lists...</div>
+                ) : (
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>File Name</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>File Size</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600 }}>Created Date</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600 }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {backupsList.map(bk => (
+                          <tr key={bk.filename} style={{ borderBottom: '1px solid var(--border-faint)' }}>
+                            <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)' }}>{bk.filename}</td>
+                            <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{Math.round(bk.size / 1024 * 10) / 10} KB</td>
+                            <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{new Date(bk.createdAt).toLocaleString()}</td>
+                            <td style={{ padding: '10px 14px', display: 'flex', gap: 8, justifyContent: 'center' }}>
+                              <button 
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => triggerRestoreBackup(bk.filename)}
+                                style={{ height: 24, fontSize: 11, color: 'var(--accent-purple)', borderColor: 'rgba(168,85,247,0.2)' }}
+                              >
+                                Restore
+                              </button>
+                              <button 
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => triggerDeleteBackup(bk.filename)}
+                                style={{ height: 24, fontSize: 11, color: 'var(--accent-red)', borderColor: 'rgba(239,68,68,0.2)' }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {backupsList.length === 0 && (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-tertiary)' }}>No backups saved yet.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────────────────────── PERFORMANCE ──────────────────────────────── */}
+          {activeSection === 'performance' && (
+            <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 28 }} className="saas-fade-in">
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label" style={{ fontFamily: 'var(--font-serif)' }}>Static Route Cache TTL (Seconds)</label>
+                  <input 
+                    className="input"
+                    type="number"
+                    value={localState['performance.cacheDurationSecs'] || ''}
+                    onChange={e => handleLocalChange('performance.cacheDurationSecs', e.target.value)}
+                    style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontFamily: 'var(--font-serif)' }}>WebSocket Heartbeat Ping Interval (Seconds)</label>
+                  <input 
+                    className="input"
+                    type="number"
+                    value={localState['performance.socketHeartbeatSecs'] || ''}
+                    onChange={e => handleLocalChange('performance.socketHeartbeatSecs', e.target.value)}
+                    style={{ background: 'rgba(9, 9, 20, 0.4)', borderRadius: 8 }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', background: 'rgba(30, 29, 53, 0.25)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>Enable Response Compression</span>
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Compresses response buffers over HTTP Gzip payloads to save bandwidth.</span>
+                </div>
+                <ToggleSwitch 
+                  checked={localState['performance.compressionEnabled'] === 'true'}
+                  onChange={val => handleLocalChange('performance.compressionEnabled', val ? 'true' : 'false')}
+                />
               </div>
             </div>
           )}
