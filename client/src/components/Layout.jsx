@@ -520,10 +520,10 @@ export default function Layout() {
               <UserPlus size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
               {!sidebarCollapsed && <span>Invite people</span>}
             </button>
-            <a href="https://saas-ui.dev" target="_blank" rel="noreferrer" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: sidebarCollapsed ? '10px 0' : '6px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', gap: sidebarCollapsed ? 0 : 8 }} title={sidebarCollapsed ? "Documentation" : ""}>
+            <NavLink to="/docs" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: sidebarCollapsed ? '10px 0' : '6px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', gap: sidebarCollapsed ? 0 : 8, display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'var(--text-secondary)' }} title={sidebarCollapsed ? "Documentation" : ""}>
               <HelpCircle size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
               {!sidebarCollapsed && <span>Documentation</span>}
-            </a>
+            </NavLink>
             <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', border: 'none', background: 'transparent', padding: sidebarCollapsed ? '10px 0' : '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)', gap: sidebarCollapsed ? 0 : 8 }} onClick={handleLogout} title={sidebarCollapsed ? "Sign Out" : ""}>
               <LogOut size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
               {!sidebarCollapsed && <span>Sign Out</span>}
