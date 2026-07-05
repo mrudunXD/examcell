@@ -275,8 +275,22 @@ export default function LoginPage() {
               border: '1px solid var(--border)',
               borderRadius: 12,
             }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, fontWeight: 700 }}>
-                Default Credentials
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                  Default Credentials
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setEmail('admin@mitwpu.edu.in'); setPassword('admin123'); }}
+                  style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+                    background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)',
+                    color: '#c084fc', cursor: 'pointer', padding: '2px 8px',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  AUTO-FILL
+                </button>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 admin@mitwpu.edu.in<br />admin123
