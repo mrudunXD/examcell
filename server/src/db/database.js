@@ -436,6 +436,26 @@ class PgDatabase {
         acknowledged_by TEXT REFERENCES users(id),
         PRIMARY KEY (broadcast_id, classroom_id)
       );
+
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        default_value TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT,
+        validation_rules TEXT,
+        updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS system_settings_history (
+        id TEXT PRIMARY KEY,
+        setting_key TEXT NOT NULL,
+        old_value TEXT,
+        new_value TEXT NOT NULL,
+        updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
   }
 }
@@ -560,6 +580,8 @@ class PgStatement {
 
 async function seedInitialData() {
   const db = getDb();
+  await seedDefaultSettings();
+
   const existing = await db.prepare('SELECT COUNT(*) as cnt FROM users').get();
   if (existing.cnt > 0) return;
 
@@ -572,4 +594,212 @@ async function seedInitialData() {
   `).run(coordId, 'Admin Coordinator', 'admin@mitwpu.edu.in', coordHash, 'coordinator', 'Examination Cell');
 
   console.log('✅ Seeded default coordinator: admin@mitwpu.edu.in / admin123');
+}
+
+async function seedDefaultSettings() {
+  const db = getDb();
+  const existing = await db.prepare('SELECT COUNT(*) as cnt FROM system_settings').get();
+  if (existing?.cnt > 0) return;
+
+  const defaults = [
+    // General
+    { key: 'general.institutionName', value: 'MIT WPU', default_value: 'MIT WPU', category: 'general', description: 'Name of the university or institution' },
+    { key: 'general.shortName', value: 'MIT WPU', default_value: 'MIT WPU', category: 'general', description: 'Short abbreviation' },
+    { key: 'general.logo', value: '/logo.png', default_value: '/logo.png', category: 'general', description: 'Institutional logo image path' },
+    { key: 'general.address', value: 'Kothrud, Pune, Maharashtra', default_value: 'Kothrud, Pune, Maharashtra', category: 'general', description: 'Postal address' },
+    { key: 'general.timezone', value: 'Asia/Kolkata', default_value: 'Asia/Kolkata', category: 'general', description: 'System timezone' },
+    { key: 'general.language', value: 'en', default_value: 'en', category: 'general', description: 'Interface language' },
+    { key: 'general.dateFormat', value: 'DD/MM/YYYY', default_value: 'DD/MM/YYYY', category: 'general', description: 'Display date format' },
+    { key: 'general.timeFormat', value: '12h', default_value: '12h', category: 'general', description: 'Display time format' },
+    { key: 'general.theme', value: 'dark', default_value: 'dark', category: 'general', description: 'Default system theme' },
+    { key: 'general.accentColor', value: '#a855f7', default_value: '#a855f7', category: 'general', description: 'Theme accent color' },
+    { key: 'general.defaultLandingPage', value: '/dashboard', default_value: '/dashboard', category: 'general', description: 'Landing page route' },
+
+    // Security
+    { key: 'security.jwtExpiry', value: '1h', default_value: '1h', category: 'security', description: 'JWT Authentication Token expiry period' },
+    { key: 'security.refreshTokenExpiry', value: '7d', default_value: '7d', category: 'security', description: 'Refresh token validity duration' },
+    { key: 'security.passwordPolicyMinLength', value: '8', default_value: '8', category: 'security', description: 'Minimum characters for user passwords' },
+    { key: 'security.passwordPolicyRequireSymbols', value: 'true', default_value: 'true', category: 'security', description: 'Require symbols in password strength check' },
+    { key: 'security.loginAttemptLimit', value: '5', default_value: '5', category: 'security', description: 'Failed login attempts before account lock' },
+    { key: 'security.accountLockoutDurationMins', value: '15', default_value: '15', category: 'security', description: 'Duration of account lockout in minutes' },
+    { key: 'security.rateLimitWindowMins', value: '15', default_value: '15', category: 'security', description: 'Rate limit time window in minutes' },
+    { key: 'security.rateLimitMaxRequests', value: '100', default_value: '100', category: 'security', description: 'Maximum requests allowed per window per client' },
+    { key: 'security.allowedOrigins', value: '*', default_value: '*', category: 'security', description: 'CORS allowed origins list' },
+    { key: 'security.trustedNetworks', value: '0.0.0.0/0', default_value: '0.0.0.0/0', category: 'security', description: 'Allowed CIDR subnets' },
+    { key: 'security.auditLoggingEnabled', value: 'true', default_value: 'true', category: 'security', description: 'Enable system modification logging' },
+    { key: 'security.sessionTimeoutMins', value: '30', default_value: '30', category: 'security', description: 'Inactivity session timeout duration' },
+
+    // Database
+    { key: 'database.connectionPoolMax', value: '20', default_value: '20', category: 'database', description: 'Max client connections in pool' },
+    { key: 'database.idleTimeoutMillis', value: '30000', default_value: '30000', category: 'database', description: 'Connection idle retention period' },
+
+    // Scheduling (Solver)
+    { key: 'scheduling.solverMaxSolveTimeSecs', value: '60', default_value: '60', category: 'scheduling', description: 'Maximum search runtime before returning current best solution' },
+    { key: 'scheduling.solverWorkerThreads', value: '8', default_value: '8', category: 'scheduling', description: 'CP-SAT search thread worker parallelism count' },
+    { key: 'scheduling.solverRandomSeed', value: '42', default_value: '42', category: 'scheduling', description: 'Deterministic seed value for scheduler randomness' },
+    { key: 'scheduling.solverLogSearch', value: 'true', default_value: 'true', category: 'scheduling', description: 'Output search log indicators during runtime' },
+    { key: 'scheduling.solverParallelSearch', value: 'true', default_value: 'true', category: 'scheduling', description: 'Execute thread searching concurrently' },
+    { key: 'scheduling.solverRestartStrategy', value: 'automatic', default_value: 'automatic', category: 'scheduling', description: 'Search restart frequency parameter' },
+    { key: 'scheduling.solverMemoryLimitMb', value: '4096', default_value: '4096', category: 'scheduling', description: 'RAM usage ceiling during model compilation' },
+
+    // Objective weights
+    { key: 'weights.studentGap', value: '10', default_value: '10', category: 'scheduling', description: 'Weight penalty for consecutive student exams' },
+    { key: 'weights.roomUtilization', value: '8', default_value: '8', category: 'scheduling', description: 'Weight reward for compact room assignments' },
+    { key: 'weights.facultyBalance', value: '5', default_value: '5', category: 'scheduling', description: 'Weight penalty for skewed supervisor assignments' },
+    { key: 'weights.morningPreference', value: '3', default_value: '3', category: 'scheduling', description: 'Weight preference for morning slot allocations' },
+    { key: 'weights.preferredRoom', value: '4', default_value: '4', category: 'scheduling', description: 'Weight preference to assign designated home rooms' },
+    { key: 'weights.examSpread', value: '7', default_value: '7', category: 'scheduling', description: 'Weight reward to maximize gap spacing between branch subjects' },
+    { key: 'weights.roomSwitching', value: '2', default_value: '2', category: 'scheduling', description: 'Weight penalty for scheduling students in multiple rooms' },
+    { key: 'weights.departmentPreference', value: '6', default_value: '6', category: 'scheduling', description: 'Weight reward to allocate matching department staff' },
+
+    // Constraints toggles & details
+    { key: 'scheduling.constraints.studentConflict.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Prevent students from having overlapping exams in the same slot' },
+    { key: 'scheduling.constraints.studentConflict.priority', value: 'critical', default_value: 'critical', category: 'scheduling', description: 'Student Conflict constraint priority' },
+    { key: 'scheduling.constraints.studentConflict.weight', value: '1000', default_value: '1000', category: 'scheduling', description: 'Student Conflict constraint penalty weight' },
+
+    { key: 'scheduling.constraints.facultyConflict.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Prevent faculty from being assigned to multiple rooms simultaneously' },
+    { key: 'scheduling.constraints.facultyConflict.priority', value: 'critical', default_value: 'critical', category: 'scheduling', description: 'Faculty Conflict constraint priority' },
+    { key: 'scheduling.constraints.facultyConflict.weight', value: '1000', default_value: '1000', category: 'scheduling', description: 'Faculty Conflict constraint penalty weight' },
+
+    { key: 'scheduling.constraints.roomConflict.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Prevent classrooms from double bookings in any single slot' },
+    { key: 'scheduling.constraints.roomConflict.priority', value: 'critical', default_value: 'critical', category: 'scheduling', description: 'Room Conflict constraint priority' },
+    { key: 'scheduling.constraints.roomConflict.weight', value: '1000', default_value: '1000', category: 'scheduling', description: 'Room Conflict constraint penalty weight' },
+
+    { key: 'scheduling.constraints.capacity.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Prevent room assignments from exceeding student bench capacity limits' },
+    { key: 'scheduling.constraints.capacity.priority', value: 'critical', default_value: 'critical', category: 'scheduling', description: 'Room capacity constraint priority' },
+    { key: 'scheduling.constraints.capacity.weight', value: '1000', default_value: '1000', category: 'scheduling', description: 'Room capacity constraint penalty weight' },
+
+    { key: 'scheduling.constraints.fixedSlot.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Pin subject exams to pre-allocated slots when requested' },
+    { key: 'scheduling.constraints.fixedSlot.priority', value: 'high', default_value: 'high', category: 'scheduling', description: 'Fixed Slot constraint priority' },
+    { key: 'scheduling.constraints.fixedSlot.weight', value: '500', default_value: '500', category: 'scheduling', description: 'Fixed Slot constraint penalty weight' },
+
+    { key: 'scheduling.constraints.holiday.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Prevent scheduling exams on designated calendar holidays' },
+    { key: 'scheduling.constraints.holiday.priority', value: 'critical', default_value: 'critical', category: 'scheduling', description: 'Holiday constraint priority' },
+    { key: 'scheduling.constraints.holiday.weight', value: '1000', default_value: '1000', category: 'scheduling', description: 'Holiday constraint penalty weight' },
+
+    { key: 'scheduling.constraints.facultyLeave.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Prevent duty assignments on days when faculty is on approved leave' },
+    { key: 'scheduling.constraints.facultyLeave.priority', value: 'high', default_value: 'high', category: 'scheduling', description: 'Faculty Leave constraint priority' },
+    { key: 'scheduling.constraints.facultyLeave.weight', value: '800', default_value: '800', category: 'scheduling', description: 'Faculty Leave constraint penalty weight' },
+
+    { key: 'scheduling.constraints.maxExamsPerDay.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Enforce maximum exams a student can write in a single calendar day' },
+    { key: 'scheduling.constraints.maxExamsPerDay.priority', value: 'high', default_value: 'high', category: 'scheduling', description: 'Max Exams Per Day constraint priority' },
+    { key: 'scheduling.constraints.maxExamsPerDay.weight', value: '700', default_value: '700', category: 'scheduling', description: 'Max Exams Per Day constraint penalty weight' },
+
+    { key: 'scheduling.constraints.morningPreference.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Distribute exams preferring morning shifts where possible' },
+    { key: 'scheduling.constraints.morningPreference.priority', value: 'low', default_value: 'low', category: 'scheduling', description: 'Morning Shift Preference priority' },
+    { key: 'scheduling.constraints.morningPreference.weight', value: '100', default_value: '100', category: 'scheduling', description: 'Morning Shift Preference penalty weight' },
+
+    { key: 'scheduling.constraints.gapPreference.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Encourage minimum gap days between consecutive subject exams' },
+    { key: 'scheduling.constraints.gapPreference.priority', value: 'medium', default_value: 'medium', category: 'scheduling', description: 'Gap spacing constraint priority' },
+    { key: 'scheduling.constraints.gapPreference.weight', value: '300', default_value: '300', category: 'scheduling', description: 'Gap spacing constraint penalty weight' },
+
+    { key: 'scheduling.constraints.departmentIsolation.enabled', value: 'true', default_value: 'true', category: 'scheduling', description: 'Isolate branches to distinct room clusters where possible' },
+    { key: 'scheduling.constraints.departmentIsolation.priority', value: 'low', default_value: 'low', category: 'scheduling', description: 'Department Isolation constraint priority' },
+    { key: 'scheduling.constraints.departmentIsolation.weight', value: '50', default_value: '50', category: 'scheduling', description: 'Department Isolation constraint penalty weight' },
+
+    // Seating
+    { key: 'seating.benchCapacity', value: '2', default_value: '2', category: 'seating', description: 'Default seating density count per bench' },
+    { key: 'seating.alternateSeating', value: 'true', default_value: 'true', category: 'seating', description: 'Enforce branch-alternating arrangements' },
+    { key: 'seating.mixedBranchSeating', value: 'true', default_value: 'true', category: 'seating', description: 'Allow seating multi-branch candidates in a classroom' },
+    { key: 'seating.accessibleSeating', value: 'true', default_value: 'true', category: 'seating', description: 'Reserve ground-floor allocations for disabled candidates' },
+    { key: 'seating.vipSeating', value: 'false', default_value: 'false', category: 'seating', description: 'Designated isolated room blocks' },
+    { key: 'seating.reservedSeatsCount', value: '2', default_value: '2', category: 'seating', description: 'Buffer seating nodes to allocate late entries' },
+
+    // Faculty
+    { key: 'faculty.maxDuties', value: '6', default_value: '6', category: 'faculty', description: 'Ceiling duty cap allowed for faculty per cycle' },
+    { key: 'faculty.minDuties', value: '2', default_value: '2', category: 'faculty', description: 'Minimum baseline duty target per faculty member' },
+    { key: 'faculty.availabilityRules', value: 'weekday_only', default_value: 'weekday_only', category: 'faculty', description: 'Scope parameters for duty schedules' },
+    { key: 'faculty.holidayRules', value: 'no_duties_on_holidays', default_value: 'no_duties_on_holidays', category: 'faculty', description: 'Restrict duties on holidays' },
+    { key: 'faculty.departmentPreference', value: 'true', default_value: 'true', category: 'faculty', description: 'Assign faculty matching the branch department of exam' },
+    { key: 'faculty.automaticBalancing', value: 'true', default_value: 'true', category: 'faculty', description: 'Balance duties count distribution automatically' },
+
+    // Classrooms
+    { key: 'classrooms.roomPriority', value: 'capacity_desc', default_value: 'capacity_desc', category: 'classrooms', description: 'Classroom selection sorting priority rules' },
+    { key: 'classrooms.capacityBuffer', value: '10', default_value: '10', category: 'classrooms', description: 'Seat allocation safety buffer percentage' },
+    { key: 'classrooms.smartClassroomPreference', value: 'true', default_value: 'true', category: 'classrooms', description: 'Prioritize rooms equipped with digital projection systems' },
+    { key: 'classrooms.labRestrictions', value: 'true', default_value: 'true', category: 'classrooms', description: 'Prevent regular exams from being mapped to technical laboratories' },
+    { key: 'classrooms.accessibility', value: 'true', default_value: 'true', category: 'classrooms', description: 'Ensure accessibility settings are applied' },
+
+    // Notifications
+    { key: 'notifications.emailEnabled', value: 'true', default_value: 'true', category: 'notifications', description: 'Send automated email briefs to faculty and students' },
+    { key: 'notifications.smsEnabled', value: 'false', default_value: 'false', category: 'notifications', description: 'Relay notifications over SMS integrations' },
+    { key: 'notifications.pushEnabled', value: 'true', default_value: 'true', category: 'notifications', description: 'Trigger web browser push indicator events' },
+    { key: 'notifications.socketNotificationsEnabled', value: 'true', default_value: 'true', category: 'notifications', description: 'Push real-time warnings over WebSockets' },
+    { key: 'notifications.emergencyBroadcastEnabled', value: 'true', default_value: 'true', category: 'notifications', description: 'Allow broadcast priority notifications' },
+
+    // AI settings
+    { key: 'ai.provider', value: 'gemini', default_value: 'gemini', category: 'ai', description: 'Primary Large Language Model engine supplier' },
+    { key: 'ai.apiKey', value: 'REPLACE_WITH_API_KEY', default_value: 'REPLACE_WITH_API_KEY', category: 'ai', description: 'Credential token parameter' },
+    { key: 'ai.model', value: 'gemini-1.5-pro', default_value: 'gemini-1.5-pro', category: 'ai', description: 'Model identifier value' },
+    { key: 'ai.temperature', value: '0.2', default_value: '0.2', category: 'ai', description: 'Generative temperature setting (creativity limit)' },
+    { key: 'ai.maxTokens', value: '2048', default_value: '2048', category: 'ai', description: 'Maximum token output length limit' },
+    { key: 'ai.timeoutMs', value: '10000', default_value: '10000', category: 'ai', description: 'API timeout period' },
+    { key: 'ai.dailyUsageLimit', value: '100', default_value: '100', category: 'ai', description: 'API rate limits daily call limit' },
+    { key: 'ai.enableScheduleExplanation', value: 'true', default_value: 'true', category: 'ai', description: 'Allow explanation summarizations' },
+    { key: 'ai.enableConflictExplanation', value: 'true', default_value: 'true', category: 'ai', description: 'Allow detail breakdown of clash vectors' },
+    { key: 'ai.enableRiskAnalysis', value: 'true', default_value: 'true', category: 'ai', description: 'Expose telemetry risk checks' },
+    { key: 'ai.enableNaturalLanguageScheduling', value: 'true', default_value: 'true', category: 'ai', description: 'Enable conversation schedules' },
+    { key: 'ai.enableReportGeneration', value: 'true', default_value: 'true', category: 'ai', description: 'Enable natural language reports' },
+    { key: 'ai.enableConstraintSuggestions', value: 'true', default_value: 'true', category: 'ai', description: 'Enable smart suggestions' },
+
+    // Monitoring
+    { key: 'monitoring.cpuThreshold', value: '80', default_value: '80', category: 'monitoring', description: 'Maximum allowed CPU utilization percent warning limit' },
+    { key: 'monitoring.ramThreshold', value: '85', default_value: '85', category: 'monitoring', description: 'Maximum allowed RAM utilization percent warning limit' },
+    { key: 'monitoring.diskThreshold', value: '90', default_value: '90', category: 'monitoring', description: 'Maximum disk write limit ceiling before warnings' },
+    { key: 'monitoring.solverRuntimeThresholdSecs', value: '120', default_value: '120', category: 'monitoring', description: 'Timeout alerts threshold limit for solver computations' },
+    { key: 'monitoring.prometheusEnabled', value: 'false', default_value: 'false', category: 'monitoring', description: 'Expose scraper metric payloads' },
+
+    // Logging
+    { key: 'logging.level', value: 'info', default_value: 'info', category: 'logging', description: 'Console diagnostics depth filter' },
+    { key: 'logging.accessLogsEnabled', value: 'true', default_value: 'true', category: 'logging', description: 'Log incoming REST payload metadata' },
+    { key: 'logging.errorLogsEnabled', value: 'true', default_value: 'true', category: 'logging', description: 'Trace error exception dumps' },
+    { key: 'logging.accessLogsEnabled', value: 'true', default_value: 'true', category: 'logging', description: 'Enforce secure operation tracking' },
+    { key: 'logging.solverLogsEnabled', value: 'true', default_value: 'true', category: 'logging', description: 'Record OR-Tools engine stdout' },
+    { key: 'logging.socketLogsEnabled', value: 'true', default_value: 'true', category: 'logging', description: 'Record WebSocket event payloads' },
+    { key: 'logging.retentionPeriodDays', value: '30', default_value: '30', category: 'logging', description: 'Log database row retention period limit' },
+
+    // Performance
+    { key: 'performance.cacheDurationSecs', value: '300', default_value: '300', category: 'performance', description: 'Response caching duration' },
+    { key: 'performance.compressionEnabled', value: 'true', default_value: 'true', category: 'performance', description: 'Gzip compress response buffers' },
+    { key: 'performance.workerThreads', value: '4', default_value: '4', category: 'performance', description: 'HTTP node event threads parallelism' },
+    { key: 'performance.socketHeartbeatSecs', value: '25', default_value: '25', category: 'performance', description: 'Ping interval to maintain persistent connections' },
+    { key: 'performance.apiTimeoutMs', value: '30000', default_value: '30000', category: 'performance', description: 'Global API call response timeout threshold' },
+
+    // Backup
+    { key: 'backup.manualBackupEnabled', value: 'true', default_value: 'true', category: 'backup', description: 'Allow manually executing data backup requests' },
+    { key: 'backup.autoBackupEnabled', value: 'true', default_value: 'true', category: 'backup', description: 'Trigger automatic backups' },
+    { key: 'backup.schedule', value: '0 0 * * *', default_value: '0 0 * * *', category: 'backup', description: 'Cron schedule expression for auto backups' },
+    { key: 'backup.cloudBackupEnabled', value: 'false', default_value: 'false', category: 'backup', description: 'Relay backup archives to cloud object stores' },
+    { key: 'backup.retentionCount', value: '10', default_value: '10', category: 'backup', description: 'Maximum backup copies to keep before cleaning up' },
+    { key: 'backup.verificationEnabled', value: 'true', default_value: 'true', category: 'backup', description: 'Run integrity checks on created database snapshots' },
+
+    // Feature flags
+    { key: 'flags.enableExperimentalSolver', value: 'false', default_value: 'false', category: 'flags', description: 'Activate new ML-based constraint search optimizations' },
+    { key: 'flags.enableConflictHotReload', value: 'false', default_value: 'false', category: 'flags', description: 'Re-detect conflicts instantly when data shifts in seating' },
+    { key: 'flags.enableAdvancedAnalytics', value: 'true', default_value: 'true', category: 'flags', description: 'Show forecasting charts in dashboards' },
+    { key: 'flags.enableParallelScheduling', value: 'false', default_value: 'false', category: 'flags', description: 'Solve multiple exam slots simultaneously using separate workers' },
+
+    // Academic Policies
+    { key: 'academic.workingDays', value: 'Mon,Tue,Wed,Thu,Fri,Sat', default_value: 'Mon,Tue,Wed,Thu,Fri,Sat', category: 'academic', description: 'Scheduled institute working days list' },
+    { key: 'academic.examTypes', value: 'regular,backlog', default_value: 'regular,backlog', category: 'academic', description: 'Allowed exam type tags' },
+    { key: 'academic.semesterStructure', value: '1-8', default_value: '1-8', category: 'academic', description: 'Semester scope parameters' },
+    { key: 'academic.shiftTimings', value: '09:00-12:00,14:00-17:00', default_value: '09:00-12:00,14:00-17:00', category: 'academic', description: 'Daily slot shift hours (comma-separated)' },
+    { key: 'academic.branchAliases', value: 'CSE,ECE,MECH,CIVIL', default_value: 'CSE,ECE,MECH,CIVIL', category: 'academic', description: 'Branch short name references' },
+    { key: 'academic.departmentCodes', value: '101,102,103', default_value: '101,102,103', category: 'academic', description: 'Department code identifiers' },
+    { key: 'academic.maxExamsPerDay', value: '1', default_value: '1', category: 'academic', description: 'Enforced daily exam limit per student candidate' },
+    { key: 'academic.minGapDays', value: '1', default_value: '1', category: 'academic', description: 'Desired spacing between consecutive subject exams' },
+    { key: 'academic.maxGapDays', value: '4', default_value: '4', category: 'academic', description: 'Ceiling gap spacing limit' }
+  ];
+
+  const stmt = db.prepare(`
+    INSERT INTO system_settings (key, value, default_value, category, description)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(key) DO NOTHING
+  `);
+
+  for (const d of defaults) {
+    stmt.run(d.key, d.value, d.default_value, d.category, d.description);
+  }
+
+  console.log('✅ Seeded default system configuration settings.');
 }

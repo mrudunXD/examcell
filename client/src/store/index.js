@@ -47,3 +47,46 @@ export const useAppStore = create((set, get) => ({
     get().setTheme(nextTheme);
   },
 }));
+
+export const useSettingsStore = create((set, get) => ({
+  settings: [],
+  isLoading: false,
+  isSaving: false,
+  error: null,
+
+  fetchSettings: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await api.get('/settings');
+      set({ settings: data, isLoading: false });
+    } catch (err) {
+      set({ isLoading: false, error: err.response?.data?.error || 'Failed to load settings' });
+    }
+  },
+
+  updateSettings: async (settingsMap) => {
+    set({ isSaving: true });
+    try {
+      await api.post('/settings', settingsMap);
+      set({ isSaving: false });
+      await get().fetchSettings();
+      return { success: true };
+    } catch (err) {
+      set({ isSaving: false });
+      return { success: false, error: err.response?.data?.error || 'Failed to save settings' };
+    }
+  },
+
+  resetToDefaults: async () => {
+    set({ isSaving: true });
+    try {
+      await api.post('/settings/reset');
+      set({ isSaving: false });
+      await get().fetchSettings();
+      return { success: true };
+    } catch (err) {
+      set({ isSaving: false });
+      return { success: false, error: err.response?.data?.error || 'Failed to reset settings' };
+    }
+  }
+}));

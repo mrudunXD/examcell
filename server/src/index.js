@@ -32,6 +32,7 @@ import replacementRouter from './routes/replacements.js';
 import attendanceLogsRouter from './routes/attendanceLogs.js';
 import facultyLeavesRouter from './routes/facultyLeaves.js';
 import subjectConstraintsRouter from './routes/subjectConstraints.js';
+import settingsRouter from './routes/settings.js';
 import { initAutoBackupScheduler } from './services/autoBackup.js';
 import { initAlertingMonitor } from './services/alerting.js';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -147,6 +148,7 @@ v1Router.use('/replacements', replacementRouter);
 v1Router.use('/attendance-logs', attendanceLogsRouter);
 v1Router.use('/faculty-leaves', facultyLeavesRouter);
 v1Router.use('/subject-constraints', subjectConstraintsRouter);
+v1Router.use('/settings', settingsRouter);
 
 app.use('/api/v1', v1Router);
 app.use('/api', v1Router); // Client compatibility alias
