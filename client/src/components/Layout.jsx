@@ -241,6 +241,8 @@ export default function Layout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [collapsedSecs, setCollapsedSecs] = useState({
     'Overview': false,
     'Master Data': false,
@@ -417,43 +419,64 @@ export default function Layout() {
       {/* Main shell grid */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-        <nav className="sidebar" style={{ background: 'var(--bg-sidebar)', padding: '12px 0 0' }}>
+        <nav className="sidebar" style={{ 
+          background: 'var(--bg-sidebar)', 
+          padding: '12px 0 0',
+          width: sidebarCollapsed ? '64px' : '240px',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          flexShrink: 0,
+          borderRight: '1px solid var(--border-faint)'
+        }}>
           {/* Workspace select header (SaaS UI style) */}
-          <div style={{ padding: '4px 12px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-faint)' }}>
-            <div className="saas-workspace-select" style={{ flex: 1 }} onClick={() => setSearchOpen(true)}>
+          <div style={{ padding: '4px 12px 12px', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between', borderBottom: '1px solid var(--border-faint)' }}>
+            <div className="saas-workspace-select" style={{ flex: sidebarCollapsed ? 'none' : 1 }} onClick={() => setSearchOpen(true)}>
               <div className="saas-avatar-circle">EC</div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 8 }}>ExamCell</span>
-              <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 4 }} />
+              {!sidebarCollapsed && (
+                <>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 8 }}>ExamCell</span>
+                  <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 4 }} />
+                </>
+              )}
             </div>
             
-            {/* User profile picture avatar on the right */}
-            <div style={{
-              width: 24, height: 24, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
-              display: 'flex', alignItems: 'center', justifySelf: 'flex-end', justifyContent: 'center',
-              fontWeight: 700, fontSize: 10, color: '#FFFFFF', cursor: 'pointer', flexShrink: 0
-            }} title={`${user?.name} (${user?.role})`}>
-              {user?.name ? user.name[0].toUpperCase() : 'U'}
-            </div>
+            {!sidebarCollapsed && (
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
+                display: 'flex', alignItems: 'center', justifySelf: 'flex-end', justifyContent: 'center',
+                fontWeight: 700, fontSize: 10, color: '#FFFFFF', cursor: 'pointer', flexShrink: 0
+              }} title={`${user?.name} (${user?.role})`}>
+                {user?.name ? user.name[0].toUpperCase() : 'U'}
+              </div>
+            )}
           </div>
 
           {/* Search bar wrapper */}
           <div style={{ padding: '12px 12px 8px' }}>
-            <div className="saas-search-input-wrapper" onClick={() => setSearchOpen(true)} style={{ cursor: 'pointer' }}>
+            <div className="saas-search-input-wrapper" onClick={() => setSearchOpen(true)} style={{ cursor: 'pointer', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '6px' : '6px 12px' }}>
               <SearchIcon size={12} color="var(--text-tertiary)" strokeWidth={1.5} />
-              <input readOnly placeholder="Search" className="saas-search-input" style={{ cursor: 'pointer' }} />
-              <span className="saas-shortcut-tag">/</span>
+              {!sidebarCollapsed && (
+                <>
+                  <input readOnly placeholder="Search" className="saas-search-input" style={{ cursor: 'pointer' }} />
+                  <span className="saas-shortcut-tag">/</span>
+                </>
+              )}
             </div>
           </div>
 
           {/* Navigation Links */}
-          <div className="sidebar-nav" style={{ overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="sidebar-nav" style={{ overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
             {(() => {
               let currentSec = '';
               return navItems.map((item, i) => {
                 if (item.section) {
                   currentSec = item.section;
-                  return (
+                  return sidebarCollapsed ? (
+                    <div key={i} style={{ borderTop: '1px solid var(--border-faint)', margin: '14px 8px 8px', height: 0 }} />
+                  ) : (
                     <div 
                       key={i} 
                       className="saas-sidebar-nav-section-title"
@@ -464,23 +487,27 @@ export default function Layout() {
                   );
                 }
                 
-                const isTagStyle = currentSec !== 'Overview' && currentSec !== '';
-                
                 return (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.end}
                     className={({ isActive }) => `saas-sidebar-nav-link${isActive ? ' active' : ''}`}
+                    style={{
+                      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                      padding: sidebarCollapsed ? '10px 0' : '10px 12px',
+                      gap: sidebarCollapsed ? 0 : 12,
+                    }}
                     onClick={(e) => {
                       if (item.to === '/search') {
                         e.preventDefault();
                         setSearchOpen(true);
                       }
                     }}
+                    title={sidebarCollapsed ? item.label : ''}
                   >
                     <item.icon size={13} strokeWidth={1.5} style={{ opacity: 0.7 }} />
-                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {!sidebarCollapsed && <span style={{ flex: 1 }}>{item.label}</span>}
                   </NavLink>
                 );
               });
@@ -489,14 +516,17 @@ export default function Layout() {
 
           {/* Footer list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderTop: '1px solid var(--border-faint)' }}>
-            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={() => setInviteOpen(true)}>
-              <UserPlus size={13} strokeWidth={1.5} style={{ marginRight: 8, color: 'var(--text-tertiary)' }} /> Invite people
+            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', border: 'none', background: 'transparent', padding: sidebarCollapsed ? '10px 0' : '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)', gap: sidebarCollapsed ? 0 : 8 }} onClick={() => setInviteOpen(true)} title={sidebarCollapsed ? "Invite people" : ""}>
+              <UserPlus size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+              {!sidebarCollapsed && <span>Invite people</span>}
             </button>
-            <a href="https://saas-ui.dev" target="_blank" rel="noreferrer" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: '6px 12px' }}>
-              <HelpCircle size={13} strokeWidth={1.5} style={{ marginRight: 8, color: 'var(--text-tertiary)' }} /> Documentation
+            <a href="https://saas-ui.dev" target="_blank" rel="noreferrer" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: sidebarCollapsed ? '10px 0' : '6px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', gap: sidebarCollapsed ? 0 : 8 }} title={sidebarCollapsed ? "Documentation" : ""}>
+              <HelpCircle size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+              {!sidebarCollapsed && <span>Documentation</span>}
             </a>
-            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: 'flex-start', border: 'none', background: 'transparent', padding: '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)' }} onClick={handleLogout}>
-              <LogOut size={13} strokeWidth={1.5} style={{ marginRight: 8, color: 'var(--text-tertiary)' }} /> Sign Out
+            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', border: 'none', background: 'transparent', padding: sidebarCollapsed ? '10px 0' : '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)', gap: sidebarCollapsed ? 0 : 8 }} onClick={handleLogout} title={sidebarCollapsed ? "Sign Out" : ""}>
+              <LogOut size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+              {!sidebarCollapsed && <span>Sign Out</span>}
             </button>
           </div>
         </nav>
@@ -514,9 +544,30 @@ export default function Layout() {
             justifyContent: 'space-between',
             flexShrink: 0,
           }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-              MIT WPU · Examination Cell Management System
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button 
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="btn btn-ghost"
+                style={{
+                  width: 32, 
+                  height: 32, 
+                  padding: 0, 
+                  borderRadius: 6, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  border: '1px solid var(--border-faint)',
+                  cursor: 'pointer'
+                }}
+                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                <Menu size={14} strokeWidth={1.5} />
+              </button>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                MIT WPU · Examination Cell Management System
+              </span>
+            </div>
+            
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.03em' }}>
                 {today}
@@ -538,6 +589,50 @@ export default function Layout() {
               >
                 {theme === 'dark' ? <Sun size={13} strokeWidth={1.5} /> : <Moon size={13} strokeWidth={1.5} />}
               </button>
+
+              {/* Account Dropdown Options */}
+              <div style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                  className="saas-avatar-circle"
+                  style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 700, fontSize: 11, color: '#FFFFFF', cursor: 'pointer', border: '1px solid var(--border-faint)'
+                  }}
+                >
+                  {user?.name ? user.name[0].toUpperCase() : 'U'}
+                </button>
+                {accountMenuOpen && (
+                  <>
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} onClick={() => setAccountMenuOpen(false)} />
+                    <div style={{
+                      position: 'absolute', right: 0, top: 40, zIndex: 999,
+                      background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                      borderRadius: 8, padding: '8px 0', minWidth: 200,
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'left',
+                      animation: 'fadeInUp 0.15s ease-out'
+                    }}>
+                      <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-faint)' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{user?.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>{user?.role}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{user?.email}</div>
+                      </div>
+                      <div style={{ padding: '4px 0' }}>
+                        {user?.role === 'coordinator' && (
+                          <button onClick={() => { setAccountMenuOpen(false); navigate('/settings'); }} style={{ display: 'block', width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>Settings</button>
+                        )}
+                        {user?.role === 'faculty' && (
+                          <button onClick={() => { setAccountMenuOpen(false); navigate('/my-duties'); }} style={{ display: 'block', width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>My Duties</button>
+                        )}
+                        <button onClick={() => { setAccountMenuOpen(false); navigate('/search'); }} style={{ display: 'block', width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>Global Search</button>
+                        <button onClick={() => { setAccountMenuOpen(false); handleLogout(); }} style={{ display: 'block', width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--accent-red)', cursor: 'pointer', fontSize: 12, borderTop: '1px solid var(--border-faint)', paddingTop: 10 }}>Sign Out</button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
