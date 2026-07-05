@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Play, CheckCircle, Unlock, ArrowLeftRight, RefreshCw, Wifi } from 'lucide-react';
+import { ArrowLeft, Play, CheckCircle, Unlock, ArrowLeftRight, RefreshCw, Wifi, Lightbulb } from 'lucide-react';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
