@@ -161,4 +161,25 @@ router.get('/me', authenticate, (req, res) => {
   res.json({ user: req.user });
 });
 
+// PUT /auth/profile — update own profile info
+router.put('/profile', authenticate, asyncHandler(async (req, res) => {
+  const { name, email, department } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email required' });
+  }
+  await UserRepository.updateProfile(req.user.id, { name: name.trim(), email: email.toLowerCase().trim(), department });
+  const user = await UserRepository.findActiveById(req.user.id);
+  const token = generateToken(user.id, user.updated_at);
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 8 * 60 * 60 * 1000
+  });
+  res.json({
+    token,
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department }
+  });
+}));
+
 export default router;

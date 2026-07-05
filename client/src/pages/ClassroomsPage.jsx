@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
 import CountUp from '../components/ReactBits/CountUp.jsx';
 import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
-import DecryptedText from '../components/ReactBits/DecryptedText.jsx';
 
 const EMPTY = { room_no: '', block: '', capacity: '', bench_rows: '', bench_cols: '', is_online: 0 };
 
@@ -140,7 +139,7 @@ export default function ClassroomsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            <DecryptedText text="Classroom Directory" />
+            Classroom Directory
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Configure examination halls, supervise bench rows, and monitor computer labs.</p>
         </div>

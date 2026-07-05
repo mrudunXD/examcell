@@ -46,4 +46,11 @@ export class UserRepository {
        WHERE id = ?`
     ).run(passwordHash, id);
   }
+
+  static async updateProfile(id, { name, email, department }) {
+    const db = getDb();
+    return await db.prepare(
+      `UPDATE users SET name = ?, email = ?, department = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+    ).run(name, email, department, id);
+  }
 }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { broadcastUpdate } from '../services/socket.js';
+import eventBus, { Events } from '../services/eventBus.js';
 import crypto from 'crypto';
 
 const router = Router();
@@ -89,7 +89,7 @@ router.post('/:slotId', verifyAttendanceAccess, asyncHandler(async (req, res) =>
   `).get(id);
 
   // Notify other connections (e.g. coordinators) in real-time
-  broadcastUpdate('INVIGILATOR_LOG_ADDED', newLog);
+  eventBus.emit(Events.INVIGILATOR_LOG_ADDED, newLog);
 
   res.status(201).json(newLog);
 }));

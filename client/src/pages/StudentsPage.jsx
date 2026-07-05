@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
 import CountUp from '../components/ReactBits/CountUp.jsx';
 import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
-import DecryptedText from '../components/ReactBits/DecryptedText.jsx';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -278,7 +277,7 @@ export default function StudentsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            <DecryptedText text="Student Registry" />
+            Student Registry
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Manage student enrollments, sections, and program details.</p>
         </div>

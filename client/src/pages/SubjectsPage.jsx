@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
 import CountUp from '../components/ReactBits/CountUp.jsx';
 import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
-import DecryptedText from '../components/ReactBits/DecryptedText.jsx';
 
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const EMPTY = { code: '', name: '', branch: '', year: 'FY', semester: 1, abbreviation: '', course_type: '' };
@@ -16,15 +15,31 @@ function SubjectModal({ subject, onClose, onSave }) {
     : EMPTY
   );
   const [saving, setSaving] = useState(false);
+  const [isCommon, setIsCommon] = useState(subject?.is_common === 1);
+  const [selectedBranches, setSelectedBranches] = useState(
+    subject?.is_common && subject?.branches ? JSON.parse(subject.branches) : []
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setSaving(true);
     try {
-      subject?.id ? await api.put(`/subjects/${subject.id}`, form) : await api.post('/subjects', form);
+      const payload = { ...form };
+      if (isCommon) {
+        payload.is_common = 1;
+        payload.branches = selectedBranches;
+        if (selectedBranches.length) payload.branch = selectedBranches[0];
+      }
+      subject?.id ? await api.put(`/subjects/${subject.id}`, payload) : await api.post('/subjects', payload);
       toast.success(subject?.id ? 'Subject updated' : 'Subject added');
       onSave(); onClose();
     } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
     finally { setSaving(false); }
+  };
+
+  const toggleBranch = (b) => {
+    setSelectedBranches(prev =>
+      prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]
+    );
   };
 
   return (
@@ -45,7 +60,11 @@ function SubjectModal({ subject, onClose, onSave }) {
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Branch *</label>
-              <input className="input" value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })} required placeholder="CSE" />
+              {isCommon ? (
+                <input className="input" value={selectedBranches[0] || ''} disabled placeholder="Auto-set from common branches" />
+              ) : (
+                <input className="input" value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })} required placeholder="CSE" />
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Year *</label>
@@ -66,6 +85,36 @@ function SubjectModal({ subject, onClose, onSave }) {
               <input className="input" value={form.abbreviation} onChange={e => setForm({ ...form, abbreviation: e.target.value })} placeholder="BMS, ENG…" />
             </div>
           </div>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <label className="toggle" style={{ margin: 0 }}>
+              <input type="checkbox" checked={isCommon} onChange={e => setIsCommon(e.target.checked)} />
+              <span className="toggle-slider" />
+            </label>
+            <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>Common Subject (multi-branch)</span>
+            {isCommon && <span style={{ fontSize: 11, color: 'var(--accent-primary)' }}>Branches selected: {selectedBranches.length}</span>}
+          </div>
+          {isCommon && (
+            <div className="form-group">
+              <label className="form-label">Applicable Branches</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {branches.map(b => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => toggleBranch(b)}
+                    style={{
+                      padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      border: `1px solid ${selectedBranches.includes(b) ? 'var(--accent-primary)' : 'var(--border)'}`,
+                      background: selectedBranches.includes(b) ? 'var(--accent-primary-alpha)' : 'var(--bg-surface)',
+                      color: selectedBranches.includes(b) ? 'var(--accent-primary)' : 'var(--text-secondary)'
+                    }}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Course Type</label>
             <select className="select" value={form.course_type} onChange={e => setForm({ ...form, course_type: e.target.value })}>
@@ -372,7 +421,7 @@ export default function SubjectsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            <DecryptedText text="Curriculum Registry" />
+            Curriculum Registry
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Academic program courses, credit counts, and schedule blackouts.</p>
         </div>
@@ -628,7 +677,7 @@ export default function SubjectsPage() {
         </div>
       </div>
 
-      {isCoord && modal === 'form' && <SubjectModal subject={editing} onClose={() => setModal(null)} onSave={loadSubjects} />}
+      {isCoord && modal === 'form' && <SubjectModal subject={editing} onClose={() => setModal(null)} onSave={loadSubjects} branches={branches} />}
       {isCoord && modal === 'constraints' && editing && (
         <SubjectConstraintsModal subject={editing} onClose={() => setModal(null)} />
       )}

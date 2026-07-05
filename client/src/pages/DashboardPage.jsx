@@ -298,7 +298,7 @@ export default function DashboardPage() {
             <TrendingUp size={18} strokeWidth={1.8} style={{ color: 'var(--accent-cyan)' }} />
           </div>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Operations Control Center</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Operations Center</h1>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>Institutional overview and schedule status telemetry</p>
           </div>
         </div>

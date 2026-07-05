@@ -460,16 +460,21 @@ def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms
     backlog_subjects = [v for v in virtual_subjects if v.get("exam_type") == "backlog"]
     regular_subjects = [v for v in virtual_subjects if v.get("exam_type") == "regular"]
     if backlog_subjects and regular_subjects:
+        backlog_date_vars = {}
+        regular_date_vars = {}
         for bs in backlog_subjects:
-            bs_date = model.NewIntVar(0, len(dates), f"date_bs_{bs['id']}")
-            model.Add(bs_date == sum(t["date_idx"] * x[bs["id"], t["id"]] for t in slots))
+            d = model.NewIntVar(0, len(dates), f"date_bs_{bs['id']}")
+            model.Add(d == sum(t["date_idx"] * x[bs["id"], t["id"]] for t in slots))
+            backlog_date_vars[bs["id"]] = d
+        for rs in regular_subjects:
+            d = model.NewIntVar(0, len(dates), f"date_rs_{rs['id']}")
+            model.Add(d == sum(t["date_idx"] * x[rs["id"], t["id"]] for t in slots))
+            regular_date_vars[rs["id"]] = d
+        for bs in backlog_subjects:
             for rs in regular_subjects:
-                rs_date = model.NewIntVar(0, len(dates), f"date_rs_{rs['id']}")
-                model.Add(rs_date == sum(t["date_idx"] * x[rs["id"], t["id"]] for t in slots))
-                
                 is_violation = model.NewBoolVar(f"slack_backlog_{bs['id']}_{rs['id']}")
-                model.Add(bs_date < rs_date).OnlyEnforceIf(is_violation.Not())
-                model.Add(bs_date >= rs_date).OnlyEnforceIf(is_violation)
+                model.Add(backlog_date_vars[bs["id"]] < regular_date_vars[rs["id"]]).OnlyEnforceIf(is_violation.Not())
+                model.Add(backlog_date_vars[bs["id"]] >= regular_date_vars[rs["id"]]).OnlyEnforceIf(is_violation)
                 slack_backlog.append((is_violation, bs["code"], rs["code"]))
 
     # 6. Online Room Compatibility (Hard)

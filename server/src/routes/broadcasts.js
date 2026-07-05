@@ -3,12 +3,13 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
-import { broadcastUpdate, broadcastTargetedUpdate } from '../services/socket.js';
+import { broadcastTargetedUpdate } from '../services/socket.js';
+import eventBus, { Events } from '../services/eventBus.js';
 
 const router = Router();
 router.use(authenticate);
 
-// GET all broadcasts (with read status for current user)
+// GET all broadcasts (with read status for current user, excluding expired)
 router.get('/', asyncHandler(async (req, res) => {
   const db = getDb();
   const broadcasts = await db.prepare(`
@@ -19,6 +20,7 @@ router.get('/', asyncHandler(async (req, res) => {
     FROM broadcasts b
     LEFT JOIN users u ON u.id = b.sent_by
     LEFT JOIN broadcast_reads br ON br.broadcast_id = b.id
+    WHERE b.expires_at IS NULL OR b.expires_at > datetime('now')
     GROUP BY b.id
     ORDER BY b.created_at DESC
     LIMIT 50
@@ -39,7 +41,7 @@ function escapeHtml(str) {
 // POST send a broadcast
 router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (req, data) => data?.id, (req, data) => `Sent broadcast: ${data?.title} (priority: ${data?.priority})`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { title, message, priority = 'normal', classroom_id = null } = req.body;
+  const { title, message, priority = 'normal', classroom_id = null, expires_at = null } = req.body;
   if (!title || !message) return res.status(400).json({ error: 'title and message required' });
   // M5: Enforce length limits to prevent memory exhaustion
   if (title.length > 200) return res.status(400).json({ error: 'title must be 200 characters or fewer' });
@@ -49,8 +51,8 @@ router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (r
   const cleanMessage = escapeHtml(message.trim());
 
   const id = crypto.randomUUID();
-  await db.prepare('INSERT INTO broadcasts (id, title, message, sent_by, priority, classroom_id) VALUES (?,?,?,?,?,?)')
-    .run(id, cleanTitle, cleanMessage, req.user.id, priority, classroom_id);
+  await db.prepare('INSERT INTO broadcasts (id, title, message, sent_by, priority, classroom_id, expires_at) VALUES (?,?,?,?,?,?,?)')
+    .run(id, cleanTitle, cleanMessage, req.user.id, priority, classroom_id, expires_at || null);
 
   const broadcast = await db.prepare(`
     SELECT b.*, u.name as sent_by_name FROM broadcasts b
@@ -60,7 +62,7 @@ router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (r
   if (classroom_id) {
     broadcastTargetedUpdate(classroom_id, 'EMERGENCY_BROADCAST', broadcast);
   } else {
-    broadcastUpdate('EMERGENCY_BROADCAST', broadcast);
+    eventBus.emit(Events.EMERGENCY_BROADCAST, broadcast);
   }
 
   res.status(201).json(broadcast);
@@ -116,7 +118,8 @@ router.get('/unread-count', asyncHandler(async (req, res) => {
   const db = getDb();
   const count = (await db.prepare(`
     SELECT COUNT(*) as cnt FROM broadcasts b
-    WHERE NOT EXISTS (SELECT 1 FROM broadcast_reads WHERE broadcast_id=b.id AND user_id=?)
+    WHERE (b.expires_at IS NULL OR b.expires_at > datetime('now'))
+    AND NOT EXISTS (SELECT 1 FROM broadcast_reads WHERE broadcast_id=b.id AND user_id=?)
   `).get(req.user.id))?.cnt || 0;
   res.json({ count });
 }));

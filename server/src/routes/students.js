@@ -6,6 +6,7 @@ import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
 import { StudentRepository } from '../modules/students/studentRepository.js';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -119,11 +120,15 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
  *       201:
  *         description: Student created successfully
  */
-router.post('/', requireCoordinator, auditLog('CREATE_STUDENT', 'students', (req, data) => data?.id, (req, data) => `Created student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
+router.post('/', requireCoordinator, validate({
+  name: [{ required: true, type: 'string', minLength: 1 }],
+  prn: [{ required: true, type: 'string', minLength: 1 }],
+  roll_no: [{ required: true, type: 'string', minLength: 1 }],
+  branch: [{ required: true, type: 'string', minLength: 1 }],
+  year: [{ required: true, oneOf: ['FY', 'SY', 'TY', 'LY'] }],
+  semester: [{ required: true, type: 'number', min: 1 }],
+}), auditLog('CREATE_STUDENT', 'students', (req, data) => data?.id, (req, data) => `Created student ${data?.name} (${data?.prn})`), asyncHandler(async (req, res) => {
   const { name, prn, roll_no, branch, section, year, semester } = req.body;
-  if (!name || !prn || !roll_no || !branch || !year || !semester)
-    return res.status(400).json({ error: 'name, prn, roll_no, branch, year, semester are required' });
-
   const fieldsToCheck = [name, prn, roll_no, branch, section, year];
   if (fieldsToCheck.some(val => val && /^[=+\-@\t\r]/.test(String(val)))) {
     return res.status(400).json({ error: 'Input fields cannot start with =, +, -, @ to prevent formula injection.' });

@@ -12,9 +12,11 @@ def infer_branch_from_code(code, current_branch):
         return "AI"
     if code_upper.startswith("DS"):
         return "DS"
+    if code_upper.startswith("CSE0"):
+        return "Cyber Security"
     if code_upper.startswith("CSE"):
         return "CSE"
-    if code_upper.startswith("CYB") or code_upper.startswith("CS"):
+    if code_upper.startswith("CYB") or (code_upper.startswith("CS") and not code_upper.startswith("CSE")):
         return "Cyber Security"
     if code_upper.startswith("IOT"):
         return "IoT"
@@ -27,6 +29,14 @@ def infer_branch_from_code(code, current_branch):
     if code_upper.startswith("ECE"):
         return "ECE"
     return current_branch
+
+def get_applicable_branches(subject):
+    if subject.get("is_common") and subject.get("branches"):
+        try:
+            return json.loads(subject["branches"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return [subject.get("branch", "CSE")]
 
 def run_preprocessor(input_data):
     # Extract data
@@ -77,25 +87,30 @@ def run_preprocessor(input_data):
             student_groups[key] = []
         student_groups[key].append(st["id"])
 
-    # Map subject ID to group key
+    # Map subject ID to list of applicable group keys (handles common subjects)
     subject_group_map = {}
     for s in subjects:
-        key = (s["branch"], s["year"], s["semester"])
-        subject_group_map[s["id"]] = key
+        branch_keys = []
+        for b in get_applicable_branches(s):
+            key = (b, s["year"], s["semester"])
+            branch_keys.append(key)
+        subject_group_map[s["id"]] = branch_keys
 
     # Group subjects by their student groups
     group_subjects = {}
     for s in subjects:
-        key = subject_group_map[s["id"]]
-        if key not in group_subjects:
-            group_subjects[key] = []
-        group_subjects[key].append(s["id"])
+        for key in subject_group_map[s["id"]]:
+            if key not in group_subjects:
+                group_subjects[key] = []
+            group_subjects[key].append(s["id"])
 
-    # Get student count for each subject
+    # Get student count for each subject (sum across all applicable branches)
     subject_student_count = {}
     for s in subjects:
-        key = subject_group_map[s["id"]]
-        subject_student_count[s["id"]] = len(student_groups.get(key, []))
+        total = 0
+        for key in subject_group_map[s["id"]]:
+            total += len(student_groups.get(key, []))
+        subject_student_count[s["id"]] = total
 
     # Slots details: T = Dates x Shifts
     slots = []

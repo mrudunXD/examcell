@@ -7,7 +7,7 @@ import { SchedulingRepository } from '../modules/scheduling/schedulingRepository
 import { generateSeating } from '../services/seatingEngine.js';
 import { assignSupervisors } from '../services/supervisorEngine.js';
 import { explainSlotDecision } from '../services/scheduleExplainer.js';
-import { broadcastUpdate } from '../services/socket.js';
+import eventBus, { Events } from '../services/eventBus.js';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -318,7 +318,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
     faculty_leaves: leaves,
     subject_constraints: subjectConstraints,
     settings: {
-      time_limit_seconds: 30,
+      time_limit_seconds: 60,
       shifts: solverShifts,
       dates: validDates,
       order_by_year: order_by_year !== false
@@ -437,7 +437,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
         }
       })();
 
-      broadcastUpdate('SCHEDULE_REGENERATED', { cycleId: cycle.id });
+      eventBus.emit(Events.SCHEDULE_REGENERATED, { cycleId: cycle.id });
 
       res.json({
         created: createdCount,
@@ -976,7 +976,7 @@ router.post('/:id/versions/:versionId/restore', requireCoordinator, asyncHandler
     }
   })();
 
-  broadcastUpdate('SCHEDULE_REGENERATED', { cycleId });
+  eventBus.emit(Events.SCHEDULE_REGENERATED, { cycleId });
 
   res.json({ message: `Successfully rolled back to version ${versionRecord.version_number}.` });
 }));

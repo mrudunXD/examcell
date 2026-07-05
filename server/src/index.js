@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import morgan from 'morgan';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
@@ -44,6 +43,7 @@ import { authenticate, requireCoordinator } from './middleware/auth.js';
 
 import { initDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { requestLogger } from './middleware/requestLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,7 +80,7 @@ initDb();
 
 // Middleware
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
-app.use(morgan('dev'));
+app.use(requestLogger);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 

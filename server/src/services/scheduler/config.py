@@ -2,7 +2,7 @@
 # Moves institutional policies outside the solver logic.
 
 DEFAULT_SETTINGS = {
-    "time_limit_seconds": 30,
+    "time_limit_seconds": 60,
     "max_exams_per_day_cca": 2,
     "max_exams_per_day_final": 1,
     "min_gap_minutes_cca": 60,

@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import eventBus, { Events } from './eventBus.js';
 
 let ioInstance = null;
 const activeKiosks = new Map();
@@ -132,6 +133,32 @@ export function initSocket(server) {
         ioInstance.emit('KIOSKS_UPDATED', getActiveKiosksList());
       }
     });
+  });
+
+  // Subscribe to internal event bus — decouples HTTP controllers from WebSocket
+  eventBus.on(Events.ATTENDANCE_MARKED, (payload) => {
+    broadcastUpdate('ATTENDANCE_MARKED', payload);
+  });
+  eventBus.on(Events.INCIDENT_REPORTED, (payload) => {
+    broadcastUpdate('INCIDENT_REPORTED', payload);
+  });
+  eventBus.on(Events.INCIDENT_UPDATED, (payload) => {
+    broadcastUpdate('INCIDENT_UPDATED', payload);
+  });
+  eventBus.on(Events.SCHEDULE_REGENERATED, (payload) => {
+    broadcastUpdate('SCHEDULE_REGENERATED', payload);
+  });
+  eventBus.on(Events.INVIGILATOR_LOG_ADDED, (payload) => {
+    broadcastUpdate('INVIGILATOR_LOG_ADDED', payload);
+  });
+  eventBus.on(Events.EMERGENCY_BROADCAST, (payload) => {
+    broadcastUpdate('EMERGENCY_BROADCAST', payload);
+  });
+  eventBus.on(Events.REPLACEMENT_REQUESTED, (payload) => {
+    broadcastUpdate('REPLACEMENT_REQUESTED', payload);
+  });
+  eventBus.on(Events.REPLACEMENT_RESOLVED, (payload) => {
+    broadcastUpdate('REPLACEMENT_RESOLVED', payload);
   });
 
   return ioInstance;

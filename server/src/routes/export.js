@@ -3,29 +3,7 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateSeatingPDF, generateDutySheetPDF, generateTimetablePDF, generateAttendancePDF } from '../services/pdfGenerator.js';
-
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
-  return dateStr;
-}
-
-function formatTime(timeStr) {
-  if (!timeStr) return '';
-  const parts = timeStr.split(':');
-  if (parts.length >= 2) {
-    let hours = parseInt(parts[0], 10);
-    const minutes = parts[1].substring(0, 2);
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${hours}:${minutes} ${ampm}`;
-  }
-  return timeStr;
-}
+import { formatDate, formatTime } from '../utils/format.js';
 
 const router = Router();
 router.use(authenticate);

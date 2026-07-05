@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   CalendarDays, 
@@ -37,6 +37,13 @@ function QrScannerModal({ roomStudents, onScanSuccess, onClose }) {
   const [selectedPrn, setSelectedPrn] = useState('');
   const [manualInput, setManualInput] = useState('');
   const [scanning, setScanning] = useState(false);
+  const scanTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+    };
+  }, []);
 
   const handleSimulateScan = () => {
     let prnToScan = selectedPrn;
@@ -50,8 +57,7 @@ function QrScannerModal({ roomStudents, onScanSuccess, onClose }) {
     }
 
     setScanning(true);
-    // Simulate camera decode latency
-    setTimeout(() => {
+    scanTimerRef.current = setTimeout(() => {
       setScanning(false);
       const student = roomStudents.find(s => s.prn === prnToScan || s.roll_no === prnToScan);
       if (student) {
@@ -536,28 +542,36 @@ export default function FacultyDutyPage() {
     try {
       const { data } = await api.get('/broadcasts');
       setBroadcasts(data);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to fetch broadcasts:', err);
+    }
   }, []);
 
   const fetchIncidents = useCallback(async () => {
     try {
       const { data } = await api.get('/incidents');
       setIncidents(data);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to fetch incidents:', err);
+    }
   }, []);
 
   const fetchReplacements = useCallback(async () => {
     try {
       const { data } = await api.get('/replacements/my-requests');
       setReplacements(data);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to fetch replacements:', err);
+    }
   }, []);
 
   const fetchLiveRooms = useCallback(async () => {
     try {
       const { data } = await api.get('/supervisors/live-rooms');
       setLiveRooms(data);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to fetch live rooms:', err);
+    }
   }, []);
 
   // Initialize
@@ -678,6 +692,8 @@ export default function FacultyDutyPage() {
 
   // Mark single attendance in Real-time
   const handleMarkAttendance = async (studentId, status, notes = '') => {
+    const prevRecords = localRecords;
+    const prevData = assistantData;
     setLocalRecords(prev => prev.map(r => r.student_id === studentId ? { ...r, attendance_status: status, attendance_notes: notes } : r));
     setAssistantData(prev => ({
       ...prev,
@@ -694,6 +710,8 @@ export default function FacultyDutyPage() {
         }]
       });
     } catch (err) {
+      setLocalRecords(prevRecords);
+      setAssistantData(prevData);
       toast.error('Failed to sync attendance in real-time');
     }
   };
@@ -1113,8 +1131,8 @@ export default function FacultyDutyPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-              {liveRooms.map((room, i) => (
-                <div key={i} style={{
+              {liveRooms.map((room) => (
+                <div key={room.room_allocation_id || room.room_no} style={{
                   border: '1.5px solid var(--np-ink)',
                   padding: 16,
                   background: 'var(--bg-base)',
@@ -1330,7 +1348,7 @@ export default function FacultyDutyPage() {
                   Invigilation Team
                 </div>
                 {assistantData.team.map((t, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: idx < assistantData.team.length - 1 ? '1px solid var(--np-muted)' : 'none' }}>
+                  <div key={t.faculty_id || t.faculty_name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: idx < assistantData.team.length - 1 ? '1px solid var(--np-muted)' : 'none' }}>
                     <div style={{ width: 30, height: 30, background: '#F5F5F7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
                       {t.faculty_name.slice(0, 2).toUpperCase()}
                     </div>

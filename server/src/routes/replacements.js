@@ -3,7 +3,7 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
-import { broadcastUpdate } from '../services/socket.js';
+import eventBus, { Events } from '../services/eventBus.js';
 
 const router = Router();
 router.use(authenticate);
@@ -68,7 +68,7 @@ router.post('/', auditLog('REQUEST_REPLACEMENT', 'replacement_requests', (req, d
   const request = await db.prepare('SELECT * FROM replacement_requests WHERE id = ?').get(id);
   
   // Realtime notification to coordinators
-  broadcastUpdate('REPLACEMENT_REQUESTED', {
+  eventBus.emit(Events.REPLACEMENT_REQUESTED, {
     ...request,
     faculty_name: req.user.name,
     department: req.user.department
@@ -97,7 +97,7 @@ router.post('/:id/resolve', requireCoordinator, auditLog('RESOLVE_REPLACEMENT', 
 
   const updated = await db.prepare('SELECT * FROM replacement_requests WHERE id = ?').get(req.params.id);
   
-  broadcastUpdate('REPLACEMENT_RESOLVED', updated);
+  eventBus.emit(Events.REPLACEMENT_RESOLVED, updated);
 
   res.json(updated);
 }));

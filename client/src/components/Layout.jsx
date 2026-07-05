@@ -5,7 +5,7 @@ import {
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
   ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp,
-  Sun, Moon, ChevronDown, ChevronRight, UserPlus, HelpCircle
+  Sun, Moon, ChevronDown, ChevronRight, HelpCircle
 } from 'lucide-react';
 import { useAuthStore, useAppStore } from '../store/index.js';
 import api from '../lib/api.js';
@@ -26,7 +26,6 @@ const coordinatorNav = [
   { to: '/heatmap',     icon: BarChart3,    label: 'Faculty Heatmap' },
   { to: '/analytics',   icon: TrendingUp,   label: 'Historical Analytics' },
   { section: 'System' },
-  { to: '/search',    icon: SearchIcon,        label: 'Search', shortcut: '⌃K' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
   { to: '/health',    icon: Activity,      label: 'System Health' },
   { to: '/settings',  icon: UserCog,       label: 'Settings' },
@@ -34,7 +33,6 @@ const coordinatorNav = [
 
 const facultyNav = [
   { to: '/my-duties', icon: CalendarDays, label: 'My Duties', end: true },
-  { to: '/search',    icon: SearchIcon, label: 'Search', shortcut: '⌃K' },
 ];
 
 // Inline date for the edition strip
@@ -240,7 +238,6 @@ export default function Layout() {
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [collapsedSecs, setCollapsedSecs] = useState({
@@ -360,10 +357,6 @@ export default function Layout() {
                   })}
                   onClick={(e) => {
                     setMobileMenuOpen(false);
-                    if (item.to === '/search') {
-                      e.preventDefault();
-                      setSearchOpen(true);
-                    }
                   }}
                 >
                   <item.icon size={16} strokeWidth={1.5} />
@@ -442,16 +435,6 @@ export default function Layout() {
               )}
             </div>
             
-            {!sidebarCollapsed && (
-              <div style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
-                display: 'flex', alignItems: 'center', justifySelf: 'flex-end', justifyContent: 'center',
-                fontWeight: 700, fontSize: 10, color: '#FFFFFF', cursor: 'pointer', flexShrink: 0
-              }} title={`${user?.name} (${user?.role})`}>
-                {user?.name ? user.name[0].toUpperCase() : 'U'}
-              </div>
-            )}
           </div>
 
           {/* Search bar wrapper */}
@@ -498,12 +481,6 @@ export default function Layout() {
                       padding: sidebarCollapsed ? '10px 0' : '10px 12px',
                       gap: sidebarCollapsed ? 0 : 12,
                     }}
-                    onClick={(e) => {
-                      if (item.to === '/search') {
-                        e.preventDefault();
-                        setSearchOpen(true);
-                      }
-                    }}
                     title={sidebarCollapsed ? item.label : ''}
                   >
                     <item.icon size={13} strokeWidth={1.5} style={{ opacity: 0.7 }} />
@@ -516,10 +493,6 @@ export default function Layout() {
 
           {/* Footer list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderTop: '1px solid var(--border-faint)' }}>
-            <button className="btn btn-ghost" style={{ display: 'flex', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', border: 'none', background: 'transparent', padding: sidebarCollapsed ? '10px 0' : '6px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', color: 'var(--text-secondary)', gap: sidebarCollapsed ? 0 : 8 }} onClick={() => setInviteOpen(true)} title={sidebarCollapsed ? "Invite people" : ""}>
-              <UserPlus size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
-              {!sidebarCollapsed && <span>Invite people</span>}
-            </button>
             <NavLink to="/docs" className="saas-sidebar-nav-link" style={{ fontSize: 13, padding: sidebarCollapsed ? '10px 0' : '6px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', gap: sidebarCollapsed ? 0 : 8, display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'var(--text-secondary)' }} title={sidebarCollapsed ? "Documentation" : ""}>
               <HelpCircle size={13} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
               {!sidebarCollapsed && <span>Documentation</span>}
@@ -620,6 +593,7 @@ export default function Layout() {
                         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{user?.email}</div>
                       </div>
                       <div style={{ padding: '4px 0' }}>
+                        <button onClick={() => { setAccountMenuOpen(false); navigate('/profile'); }} style={{ display: 'block', width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>Profile</button>
                         {user?.role === 'coordinator' && (
                           <button onClick={() => { setAccountMenuOpen(false); navigate('/settings'); }} style={{ display: 'block', width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12 }}>Settings</button>
                         )}
@@ -646,10 +620,6 @@ export default function Layout() {
         <GlobalSearchModal onClose={() => setSearchOpen(false)} />
       )}
 
-      {inviteOpen && (
-        <InviteModal onClose={() => setInviteOpen(false)} />
-      )}
-
       {/* Mobile-specific styling injections */}
       <style>{`
         @media (max-width: 768px) {
@@ -674,65 +644,6 @@ export default function Layout() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </div>
-  );
-}
-
-function InviteModal({ onClose }) {
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('faculty');
-  const [sending, setSending] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSending(true);
-    setTimeout(() => {
-      setSending(false);
-      toast.success(`Invitation successfully sent to ${email} as ${role}!`);
-      onClose();
-    }, 800);
-  };
-
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 400 }}>
-        <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
-          <UserPlus size={18} strokeWidth={1.5} /> Invite Collaborator
-        </h2>
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20 }}>
-          Send institutional invite links to register invigilator faculty or coordinator accounts.
-        </p>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="form-group">
-            <label className="form-label">Email Address *</label>
-            <input
-              type="email"
-              className="input"
-              placeholder="name@mitwpu.edu.in"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Workspace Role *</label>
-            <select className="select" value={role} onChange={e => setRole(e.target.value)}>
-              <option value="faculty">Invigilator Faculty</option>
-              <option value="coordinator">Exam Cell Coordinator</option>
-            </select>
-          </div>
-
-          <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={sending}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={sending}>
-              {sending ? 'Sending...' : 'Send Invite'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

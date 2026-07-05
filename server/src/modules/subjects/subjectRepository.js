@@ -33,8 +33,8 @@ export class SubjectRepository {
   static async create(subject) {
     const db = getDb();
     return await db.prepare(
-      `INSERT INTO subjects (id, code, name, branch, year, semester, abbreviation, course_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO subjects (id, code, name, branch, year, semester, abbreviation, course_type, is_common, branches)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       subject.id,
       subject.code,
@@ -43,7 +43,9 @@ export class SubjectRepository {
       subject.year,
       subject.semester,
       subject.abbreviation || null,
-      subject.course_type || null
+      subject.course_type || null,
+      subject.is_common ? 1 : 0,
+      subject.is_common && subject.branches ? JSON.stringify(subject.branches) : null
     );
   }
 
@@ -57,7 +59,9 @@ export class SubjectRepository {
         year = ?, 
         semester = ?, 
         abbreviation = ?, 
-        course_type = ?
+        course_type = ?,
+        is_common = ?,
+        branches = ?
        WHERE id = ?`
     ).run(
       subject.code,
@@ -67,6 +71,8 @@ export class SubjectRepository {
       subject.semester,
       subject.abbreviation || null,
       subject.course_type || null,
+      subject.is_common ? 1 : 0,
+      subject.is_common && subject.branches ? JSON.stringify(subject.branches) : null,
       id
     );
   }

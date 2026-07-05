@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/index.js';
 import CountUp from '../components/ReactBits/CountUp.jsx';
 import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
-import DecryptedText from '../components/ReactBits/DecryptedText.jsx';
 
 const EMPTY = { name: '', email: '', department: '', password: '' };
 
@@ -410,7 +409,7 @@ export default function FacultyPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            <DecryptedText text="Faculty Roster" />
+            Faculty Roster
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Configure invigilator accounts, leaves, and subject conflict maps.</p>
         </div>

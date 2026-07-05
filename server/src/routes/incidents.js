@@ -3,7 +3,7 @@ import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
-import { broadcastUpdate } from '../services/socket.js';
+import eventBus, { Events } from '../services/eventBus.js';
 
 const router = Router();
 router.use(authenticate);
@@ -90,7 +90,7 @@ router.post('/', auditLog('REPORT_INCIDENT', 'incidents', (req, data) => data?.i
   `).run(id, slot_id, room_allocation_id || null, req.user.id, type, cleanDescription, cleanStudentPrn, cleanActionTaken, severity || 'low', evidence_image || null);
 
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(id);
-  broadcastUpdate('INCIDENT_REPORTED', incident);
+  eventBus.emit(Events.INCIDENT_REPORTED, incident);
   res.status(201).json(incident);
 }));
 
@@ -108,7 +108,7 @@ router.patch('/:id', requireCoordinator, auditLog('RESOLVE_INCIDENT', 'incidents
     WHERE id = ?
   `).run(status, cleanActionTaken, status, now, req.params.id);
   const incident = await db.prepare('SELECT * FROM incidents WHERE id=?').get(req.params.id);
-  broadcastUpdate('INCIDENT_UPDATED', incident);
+  eventBus.emit(Events.INCIDENT_UPDATED, incident);
   res.json(incident);
 }));
 

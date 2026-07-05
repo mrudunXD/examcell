@@ -427,6 +427,15 @@ class PgDatabase {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='broadcasts' AND column_name='classroom_id') THEN
           ALTER TABLE broadcasts ADD COLUMN classroom_id TEXT REFERENCES classrooms(id) ON DELETE SET NULL;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='broadcasts' AND column_name='expires_at') THEN
+          ALTER TABLE broadcasts ADD COLUMN expires_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='is_common') THEN
+          ALTER TABLE subjects ADD COLUMN is_common INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='branches') THEN
+          ALTER TABLE subjects ADD COLUMN branches TEXT;
+        END IF;
       END $$;
 
       CREATE TABLE IF NOT EXISTS broadcast_acknowledgments (

@@ -59,7 +59,7 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
 }));
 
 router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req, data) => data?.id, (req, data) => `Created subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
-  const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
+  const { code, name, branch, year, semester, abbreviation, course_type, is_common, branches } = req.body;
   if (!code || !name || !branch || !year || !semester)
     return res.status(400).json({ error: 'code, name, branch, year, semester required' });
   const finalBranch = inferBranchFromCode(code, branch);
@@ -72,13 +72,15 @@ router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req
     year,
     semester: parseInt(semester, 10),
     abbreviation,
-    course_type
+    course_type,
+    is_common,
+    branches
   });
   res.status(201).json(await SubjectRepository.findById(id));
 }));
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (req) => req.params.id, (req, data) => `Updated subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
-  const { code, name, branch, year, semester, abbreviation, course_type } = req.body;
+  const { code, name, branch, year, semester, abbreviation, course_type, is_common, branches } = req.body;
   const finalBranch = inferBranchFromCode(code, branch);
   await SubjectRepository.update(req.params.id, {
     code,
@@ -87,7 +89,9 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (r
     year,
     semester: parseInt(semester, 10),
     abbreviation,
-    course_type
+    course_type,
+    is_common,
+    branches
   });
   res.json(await SubjectRepository.findById(req.params.id));
 }));

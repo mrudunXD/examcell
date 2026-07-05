@@ -55,12 +55,23 @@ function getCountdown(slot, now) {
   return { diff, hh, mm, ss, phase };
 }
 
+// Shared AudioContext singleton to avoid browser resource exhaustion
+let sharedAudioCtx = null;
+function getAudioContext() {
+  if (!sharedAudioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    sharedAudioCtx = new AudioContextClass();
+  }
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume();
+  }
+  return sharedAudioCtx;
+}
+
 // Synthesizes chimes via browser Web Audio API
 function playChime(type) {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
     
     const playTone = (freq, duration, startTime) => {
       const osc = ctx.createOscillator();
@@ -615,9 +626,11 @@ export default function KioskPage() {
     }
   }, [cycleId, classroomId]);
 
-  // Initial and Polling load (Every 3 minutes / 180s)
+  // Initial and Polling load (Every 30s)
   useEffect(() => {
-    loadData();
+    let mounted = true;
+    loadData().then(() => { /* ensure promise settles */ });
+    return () => { mounted = false; };
   }, [loadData]);
 
   useEffect(() => {
@@ -642,12 +655,6 @@ export default function KioskPage() {
     socket.on('connect', () => {
       console.log('📡 WebSocket connected successfully');
       setSocketConnected(true);
-      if (classroomId) {
-        socket.emit('register_kiosk', {
-          classroomId,
-          roomNo: currentRoom?.room_no || `Room ${classroomId}`
-        });
-      }
     });
 
     socket.on('disconnect', () => {
@@ -663,6 +670,9 @@ export default function KioskPage() {
     // Listen for events
     socket.on('EMERGENCY_BROADCAST', (broadcast) => {
       console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
+      
+      // Skip expired broadcasts
+      if (broadcast.expires_at && new Date(broadcast.expires_at) <= new Date()) return;
       
       const isTargeted = classroomId && String(broadcast.classroom_id) === String(classroomId);
       const isGlobalUrgent = !broadcast.classroom_id && (broadcast.priority === 'urgent' || broadcast.priority === 'critical');
@@ -686,7 +696,7 @@ export default function KioskPage() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [cycleId, classroomId, currentRoom, loadData]);
+  }, [cycleId, classroomId, loadData]);
 
   // Sync kiosk registration when room info resolves
   useEffect(() => {
@@ -714,6 +724,7 @@ export default function KioskPage() {
 
   // Seating fetcher
   useEffect(() => {
+    let cancelled = false;
     if (!selectedAllocation) {
       setSeatingData(null);
       return;
@@ -721,13 +732,18 @@ export default function KioskPage() {
     setLoadingSeating(true);
     api.get(`/public/seating/${selectedAllocation.room_allocation_id}`)
       .then(res => {
-        setSeatingData(res.data);
-        setLoadingSeating(false);
+        if (!cancelled) {
+          setSeatingData(res.data);
+          setLoadingSeating(false);
+        }
       })
       .catch(err => {
-        console.error(err);
-        setLoadingSeating(false);
+        if (!cancelled) {
+          console.error(err);
+          setLoadingSeating(false);
+        }
       });
+    return () => { cancelled = true; };
   }, [selectedAllocation]);
 
   // Evaluate slots filter with fixed local reference
@@ -907,10 +923,9 @@ export default function KioskPage() {
               const nextVal = !chimesEnabled;
               setChimesEnabled(nextVal);
               if (nextVal) {
-                // Unlock Web Audio API context
+                // Unlock Web Audio API context using shared instance
                 try {
-                  const AudioContext = window.AudioContext || window.webkitAudioContext;
-                  const ctx = new AudioContext();
+                  const ctx = getAudioContext();
                   const osc = ctx.createOscillator();
                   const gain = ctx.createGain();
                   gain.gain.setValueAtTime(0, ctx.currentTime);

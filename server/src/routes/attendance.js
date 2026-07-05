@@ -3,7 +3,7 @@ import { getDb } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
-import { broadcastUpdate } from '../services/socket.js';
+import eventBus, { Events } from '../services/eventBus.js';
 
 const router = Router();
 router.use(authenticate);
@@ -123,7 +123,7 @@ router.post('/:slotId', verifyAttendanceAccess, auditLog('SAVE_ATTENDANCE', 'att
   });
 
   await upsert(records);
-  broadcastUpdate('ATTENDANCE_MARKED', { slotId: req.params.slotId, updatedCount: count });
+  eventBus.emit(Events.ATTENDANCE_MARKED, { slotId: req.params.slotId, updatedCount: count });
   res.json({ updated: count });
 }));
 
