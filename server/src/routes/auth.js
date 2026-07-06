@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import { authenticate, generateToken } from '../middleware/auth.js';
+import { authenticate, generateToken, parseUserAgent } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { UserRepository } from '../modules/auth/userRepository.js';
+import { getDb } from '../db/database.js';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -94,7 +96,84 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   // Clear failed login attempts and lockout on success
   await UserRepository.resetLockout(user.id);
 
-  const token = generateToken(user.id, user.updated_at);
+  const db = getDb();
+
+  // MFA Check
+  if (user.mfa_enabled === 1) {
+    const { totpToken } = req.body;
+    if (!totpToken) {
+      return res.json({ mfaRequired: true, userId: user.id });
+    }
+    
+    const { verifyTOTP } = await import('../utils/totp.js');
+    const isValid = verifyTOTP(totpToken, user.mfa_secret);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid MFA verification code' });
+    }
+  } else {
+    // Check if MFA is globally required for coordinators
+    const mfaRequiredSetting = await db.prepare("SELECT value FROM system_settings WHERE key = 'security.mfaRequired'").get();
+    const isMfaRequired = mfaRequiredSetting?.value === 'true';
+    if (isMfaRequired && (user.role === 'coordinator')) {
+      const { totpToken } = req.body;
+      if (!totpToken) {
+        const { generateSecret, getOTPAuthURL } = await import('../utils/totp.js');
+        const secret = user.mfa_secret || generateSecret();
+        await db.prepare('UPDATE users SET mfa_secret = ? WHERE id = ?').run(secret, user.id);
+        const otpauthUrl = getOTPAuthURL(user.email, secret);
+        return res.json({ mfaEnrollmentRequired: true, userId: user.id, secret, otpauthUrl });
+      }
+      
+      const { verifyTOTP } = await import('../utils/totp.js');
+      const isValid = verifyTOTP(totpToken, user.mfa_secret);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid MFA verification code' });
+      }
+      
+      // Auto-enable MFA since they verified the code!
+      await db.prepare('UPDATE users SET mfa_enabled = 1 WHERE id = ?').run(user.id);
+    }
+  }
+
+  // Create session tracking record
+  const sessionId = crypto.randomUUID();
+  const ua = parseUserAgent(req.headers['user-agent']);
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '::1';
+
+  await db.prepare(`
+    INSERT INTO user_sessions (id, user_id, token_hash, device, browser, os, ip_address)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(sessionId, user.id, sessionId, ua.device, ua.browser, ua.os, ip);
+
+  // Update last_login in users
+  await db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+
+  // Query previous session of the user to check for suspicious logins
+  const lastSession = await db.prepare(`
+    SELECT ip_address, device, browser, os 
+    FROM user_sessions 
+    WHERE user_id = ? AND id != ? AND is_revoked = 0 
+    ORDER BY login_time DESC 
+    LIMIT 1
+  `).get(user.id, sessionId);
+
+  if (lastSession) {
+    const ipChanged = lastSession.ip_address !== ip;
+    const uaChanged = lastSession.device !== ua.device || lastSession.browser !== ua.browser || lastSession.os !== ua.os;
+    if (ipChanged || uaChanged) {
+      const { createAlert } = await import('../services/alerting.js');
+      const details = [];
+      if (ipChanged) details.push(`IP changed from ${lastSession.ip_address} to ${ip}`);
+      if (uaChanged) details.push(`browser/OS changed from ${lastSession.browser}/${lastSession.os} to ${ua.browser}/${ua.os}`);
+      await createAlert(
+        'suspicious_login',
+        'warning',
+        `Suspicious login detected for user ${user.name} (${user.email}): ${details.join(', ')}`
+      );
+    }
+  }
+
+  const token = generateToken(user.id, user.updated_at, sessionId);
   
   // Set HttpOnly, Secure (in production), SameSite cookie
   res.cookie('token', token, {
@@ -128,16 +207,26 @@ router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
   if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, and a number.' });
   }
-
   const user = await UserRepository.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   const valid = bcrypt.compareSync(currentPassword, user.password_hash);
   if (!valid) return res.status(400).json({ error: 'Invalid current password' });
 
+  // Check password history (prevent reuse of last 5 passwords)
+  const db = getDb();
+  const history = await db.prepare(
+    'SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 5'
+  ).all(req.user.id);
+  
+  for (const record of history) {
+    if (bcrypt.compareSync(newPassword, record.password_hash)) {
+      return res.status(400).json({ error: 'You cannot reuse any of your last 5 passwords.' });
+    }
+  }
+
   const hash = bcrypt.hashSync(newPassword, 10);
   await UserRepository.updatePassword(req.user.id, hash);
-
   res.clearCookie('token');
   res.json({ success: true, message: 'Password updated. Please log in again.' });
 }));

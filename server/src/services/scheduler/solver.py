@@ -195,10 +195,22 @@ def solve():
 
     model1.Minimize(sum(penalties))
 
+class TelemetryCallback(cp_model.CpSolverSolutionCallback):
+    def __init__(self):
+        cp_model.CpSolverSolutionCallback.__init__(self)
+        self.__solution_count = 0
+
+    def on_solution_callback(self):
+        self.__solution_count += 1
+        obj = self.ObjectiveValue()
+        time_elapsed = self.WallTime()
+        print(f"TELEMETRY:{json.dumps({'objective': int(obj), 'time_ms': int(time_elapsed * 1000), 'solutions': self.__solution_count})}", flush=True)
+
     # Solve Phase 1
     solver1 = cp_model.CpSolver()
     solver1.parameters.max_time_in_seconds = time_limit
-    status1 = solver1.Solve(model1)
+    cb = TelemetryCallback()
+    status1 = solver1.Solve(model1, cb)
 
     if status1 not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         # Fall back to relaxed model for conflicts detection

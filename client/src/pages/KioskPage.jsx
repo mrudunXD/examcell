@@ -648,7 +648,12 @@ export default function KioskPage() {
     console.log(`Connecting to WebSocket server at: ${socketUrl}`);
     const socket = io(socketUrl, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5
     });
     socketRef.current = socket;
 
@@ -660,6 +665,14 @@ export default function KioskPage() {
     socket.on('disconnect', () => {
       console.warn('🔌 WebSocket disconnected');
       setSocketConnected(false);
+    });
+
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log(`🔌 WebSocket reconnect attempt #${attempt} with backoff`);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Kiosk WebSocket connection completely failed.');
     });
 
     socket.on('connect_error', (err) => {

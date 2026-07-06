@@ -3,6 +3,22 @@
  * Replaces Puppeteer-based approach which produced corrupted files on Windows.
  */
 import PDFDocument from 'pdfkit';
+import { getDb } from '../db/database.js';
+
+async function getLogoBuffer() {
+  try {
+    const db = getDb();
+    const logoSetting = await db.prepare("SELECT value FROM system_settings WHERE key = 'general.logo'").get();
+    const logo = logoSetting?.value;
+    if (logo && logo.startsWith('data:image/')) {
+      const base64Data = logo.replace(/^data:image\/\w+;base64,/, "");
+      return Buffer.from(base64Data, 'base64');
+    }
+  } catch (e) {
+    console.error('Failed to retrieve custom logo buffer:', e);
+  }
+  return null;
+}
 
 function formatDate(dateVal) {
   if (!dateVal) return '';
@@ -46,16 +62,27 @@ const YEAR_CLR  = { FY: '#1e40af', SY: '#166534', TY: '#92400e', LY: '#9d174d' }
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Render a navy header block and return the Y position after it */
-function header(doc, subtitle) {
+function header(doc, subtitle, logoBuffer = null) {
   doc.rect(0, 0, doc.page.width, 54).fill(NAVY);
+  
+  let leftOffset = 30;
   doc.fillColor('white').font('Helvetica-Bold').fontSize(12)
-    .text(BRAND, 30, 12, { lineBreak: false });
+    .text(BRAND, leftOffset, 12, { lineBreak: false });
   doc.font('Helvetica').fontSize(9).fillColor('rgba(255,255,255,0.8)')
-    .text(subtitle, 30, 28, { lineBreak: false });
+    .text(subtitle, leftOffset, 28, { lineBreak: false });
   const generatedDate = new Date();
   const formattedGen = `${String(generatedDate.getDate()).padStart(2, '0')}/${String(generatedDate.getMonth() + 1).padStart(2, '0')}/${generatedDate.getFullYear()} ` +
     `${(generatedDate.getHours() % 12) || 12}:${String(generatedDate.getMinutes()).padStart(2, '0')} ${generatedDate.getHours() >= 12 ? 'PM' : 'AM'}`;
-  doc.text(`${CELL}  ·  Generated: ${formattedGen}`, 30, 39, { lineBreak: false });
+  doc.text(`${CELL}  ·  Generated: ${formattedGen}`, leftOffset, 39, { lineBreak: false });
+  
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, doc.page.width - 70, 7, { width: 40, height: 40 });
+    } catch (err) {
+      console.error('Failed to stamp custom logo on PDF:', err);
+    }
+  }
+
   doc.fillColor('#111111');
   return 66;
 }
@@ -145,8 +172,9 @@ function docToBuffer(doc) {
 
 export async function generateSeatingPDF({ slot, classroom, assignments }) {
   const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+  const logoBuffer = await getLogoBuffer();
 
-  let y = header(doc, `Seating Arrangement — ${slot.cycle_name || slot.subject_code}`);
+  let y = header(doc, `Seating Arrangement — ${slot.cycle_name || slot.subject_code}`, logoBuffer);
 
   y = metaRow(doc, y, [
     ['Room', `${classroom.room_no} (${classroom.block})`],
@@ -173,7 +201,7 @@ export async function generateSeatingPDF({ slot, classroom, assignments }) {
     // Page break check
     if (y + CELL_H + 4 > doc.page.height - 50) {
       doc.addPage();
-      y = header(doc, 'Seating Layout (continued)') + 4;
+      y = header(doc, 'Seating Layout (continued)', logoBuffer) + 4;
     }
 
     // Row label
@@ -227,8 +255,9 @@ export async function generateSeatingPDF({ slot, classroom, assignments }) {
 
 export async function generateAttendancePDF({ slot, classroom, students }) {
   const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+  const logoBuffer = await getLogoBuffer();
 
-  let y = header(doc, `Attendance Sheet — ${slot.subject_code} — ${slot.subject_name}`);
+  let y = header(doc, `Attendance Sheet — ${slot.subject_code} — ${slot.subject_name}`, logoBuffer);
 
   y = metaRow(doc, y, [
     ['Room', `${classroom.room_no} (${classroom.block})`],
@@ -267,8 +296,9 @@ export async function generateAttendancePDF({ slot, classroom, students }) {
 
 export async function generateDutySheetPDF({ faculty, duties }) {
   const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+  const logoBuffer = await getLogoBuffer();
 
-  let y = header(doc, 'Supervisor Duty Sheet');
+  let y = header(doc, 'Supervisor Duty Sheet', logoBuffer);
 
   y = metaRow(doc, y, [
     ['Faculty', faculty.name],

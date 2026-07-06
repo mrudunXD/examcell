@@ -129,5 +129,104 @@ router.post('/detect/:cycleId', requireCoordinator, asyncHandler(async (req, res
   res.json({ detected, message: `Detected ${detected} conflict(s)` });
 }));
 
+// GET suggestions for resolving a conflict
+router.get('/:id/options', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const conflict = await db.prepare('SELECT * FROM conflicts WHERE id = ?').get(req.params.id);
+  if (!conflict) return res.status(404).json({ error: 'Conflict not found' });
+  
+  const slot = await db.prepare(`
+    SELECT es.*, s.branch, s.year, s.semester, s.id as subject_id, s.name as subject_name 
+    FROM exam_slots es 
+    JOIN subjects s ON s.id = es.subject_id 
+    WHERE es.id = ?
+  `).get(conflict.slot_id);
+  if (!slot) return res.status(404).json({ error: 'Associated exam slot not found' });
+
+  const suggestions = [];
+
+  if (conflict.type === 'FACULTY_CLASH') {
+    // Find active faculty who are not assigned to any duties in this slot date/time
+    const occupiedFaculty = await db.prepare(`
+      SELECT sd.faculty_id FROM supervisor_duties sd
+      JOIN room_allocations ra ON ra.id = sd.room_allocation_id
+      JOIN exam_slots es ON es.id = ra.slot_id
+      WHERE es.date = ? AND es.start_time = ?
+    `).all(slot.date, slot.start_time);
+    const occupiedIds = occupiedFaculty.map(f => f.faculty_id);
+
+    // Get subject taught map to avoid assigning teachers who teach the subject
+    const subjectTeaches = await db.prepare('SELECT faculty_id FROM faculty_subjects WHERE subject_id = ?').all(slot.subject_id);
+    const teachesIds = subjectTeaches.map(f => f.faculty_id);
+
+    const placeholders = occupiedIds.concat(teachesIds);
+    let query = `SELECT id, name, department, email FROM users WHERE role = 'faculty' AND is_active = 1`;
+    const params = [];
+    
+    if (placeholders.length > 0) {
+      query += ` AND id NOT IN (${placeholders.map(() => '?').join(',')})`;
+      params.push(...placeholders);
+    }
+    
+    const candidates = await db.prepare(query).all(...params);
+    suggestions.push(...candidates.map(c => ({
+      type: 'REASSIGN_FACULTY',
+      label: `Reassign to ${c.name} (${c.department})`,
+      payload: { faculty_id: c.id, faculty_name: c.name }
+    })));
+  } 
+  
+  else if (conflict.type === 'ROOM_OVERFLOW') {
+    // Find rooms not occupied in this slot with capacity >= students seated
+    const occupiedRooms = await db.prepare(`
+      SELECT classroom_id FROM room_allocations ra
+      JOIN exam_slots es ON es.id = ra.slot_id
+      WHERE es.date = ? AND es.start_time = ?
+    `).all(slot.date, slot.start_time);
+    const occupiedRoomIds = occupiedRooms.map(r => r.classroom_id);
+
+    // Get current seated count in the overflow room
+    const seatedCount = await db.prepare(`
+      SELECT COUNT(*) as cnt FROM seat_assignments WHERE room_allocation_id IN (
+        SELECT id FROM room_allocations WHERE slot_id = ?
+      )
+    `).get(slot.id);
+    const requiredCapacity = seatedCount?.cnt || 0;
+
+    let query = `SELECT id, room_no, capacity, block FROM classrooms WHERE is_active = 1 AND capacity >= ?`;
+    const params = [requiredCapacity];
+
+    if (occupiedRoomIds.length > 0) {
+      query += ` AND id NOT IN (${occupiedRoomIds.map(() => '?').join(',')})`;
+      params.push(...occupiedRoomIds);
+    }
+
+    const rooms = await db.prepare(query).all(...params);
+    suggestions.push(...rooms.map(r => ({
+      type: 'CHANGE_ROOM',
+      label: `Move to Room ${r.room_no} (${r.block || ''}, Capacity: ${r.capacity})`,
+      payload: { classroom_id: r.id, room_no: r.room_no }
+    })));
+  }
+
+  else if (conflict.type === 'STUDENT_CLASH') {
+    // Find all slots in this cycle that do not conflict with the student group's exams
+    const activeCycleSlots = await db.prepare(`
+      SELECT es.id, es.date, es.start_time, s.name as subject_name 
+      FROM exam_slots es
+      JOIN subjects s ON s.id = es.subject_id
+      WHERE es.cycle_id = ? AND es.id != ?
+    `).all(slot.cycle_id, slot.id);
+
+    suggestions.push(...activeCycleSlots.map(s => ({
+      type: 'RESCHEDULE_SLOT',
+      label: `Reschedule exam to ${s.date} at ${s.start_time} (${s.subject_name})`,
+      payload: { target_slot_id: s.id }
+    })));
+  }
+
+  res.json(suggestions);
+}));
+
 export default router;
 

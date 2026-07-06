@@ -140,14 +140,45 @@ function CSVImportModal({ onClose, onDone }) {
           <div style={{ marginBottom: 16 }}>
             <div className="alert alert-success">{result.inserted} inserted of {result.total} rows</div>
             {result.failed.length > 0 && (
-              <details style={{ marginTop: 8 }}>
-                <summary style={{ fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {result.failed.length} failed rows
-                </summary>
-                <div style={{ marginTop: 8, maxHeight: 100, overflowY: 'auto', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-                  {result.failed.map((f, i) => <div key={i} style={{ color: '#FF453A', padding: '2px 0' }}>{f.reason}</div>)}
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <AlertTriangle size={13} color="var(--accent-red)" />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Failed to Import {result.failed.length} Row(s):
+                  </span>
                 </div>
-              </details>
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {result.failed.map((f, i) => (
+                    <div key={i} style={{
+                      background: 'rgba(239,68,68,0.04)',
+                      border: '1px solid rgba(239,68,68,0.15)',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10
+                    }}>
+                      <span style={{
+                        background: 'var(--accent-red)',
+                        color: '#fff',
+                        fontSize: 9,
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        fontFamily: 'var(--font-mono)'
+                      }}>ROW {f.rowIndex || '?'}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{f.reason}</div>
+                        {f.row && (
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 4, wordBreak: 'break-all' }}>
+                            Data: {JSON.stringify(f.row)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}

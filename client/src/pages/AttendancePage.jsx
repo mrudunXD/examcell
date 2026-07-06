@@ -154,7 +154,20 @@ export default function AttendancePage() {
 
     const socket = io(socketUrl, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5
+    });
+
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log(`🔌 Attendance Socket reconnect attempt #${attempt} with backoff`);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Attendance Socket connection completely failed.');
     });
 
     socket.on('INVIGILATOR_LOG_ADDED', (newLog) => {

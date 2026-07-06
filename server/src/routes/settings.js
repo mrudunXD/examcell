@@ -63,6 +63,37 @@ router.post('/', requireCoordinator, asyncHandler(async (req, res) => {
         return res.status(400).json({ error: `Setting '${key}' must be a non-negative integer.` });
       }
     }
+
+    // Strict Setting Value Validators (Feature 18)
+    if (key === 'security.passwordPolicyMaxAgeDays') {
+      const num = parseInt(strVal, 10);
+      if (isNaN(num) || num < 1 || num > 365) {
+        return res.status(400).json({ error: "Password Policy Max Age must be an integer between 1 and 365 days." });
+      }
+    }
+    if (key === 'general.backgroundOpacity') {
+      const num = parseInt(strVal, 10);
+      if (isNaN(num) || num < 0 || num > 100) {
+        return res.status(400).json({ error: "Background Opacity must be an integer between 0 and 100." });
+      }
+    }
+    if (key === 'security.mfaRequired') {
+      if (strVal !== 'true' && strVal !== 'false') {
+        return res.status(400).json({ error: "MFA Required setting must be either 'true' or 'false'." });
+      }
+    }
+    if (key === 'security.loginAttemptLimit') {
+      const num = parseInt(strVal, 10);
+      if (isNaN(num) || num < 3 || num > 20) {
+        return res.status(400).json({ error: "Login attempt limit must be between 3 and 20." });
+      }
+    }
+    if (key === 'security.rateLimitMaxRequests') {
+      const num = parseInt(strVal, 10);
+      if (isNaN(num) || num <= 10) {
+        return res.status(400).json({ error: "Rate limit max requests must be greater than 10." });
+      }
+    }
   }
 
   const updated = await SettingsRepository.updateSettings(settingsMap, req.user.id);

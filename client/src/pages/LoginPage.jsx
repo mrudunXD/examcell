@@ -25,6 +25,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
 
+  // MFA States
+  const [totpToken, setTotpToken] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaEnrollRequired, setMfaEnrollRequired] = useState(false);
+  const [mfaEnrollData, setMfaEnrollData] = useState(null);
+
   const [cycles, setCycles] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
   const [kioskCycle, setKioskCycle] = useState('');
@@ -50,9 +56,24 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await login(email, password);
-    if (result.success) { toast.success('Signed in successfully'); navigate('/'); }
-    else toast.error(result.error);
+    const result = await login(email, password, totpToken || null);
+    if (result.success) {
+      if (result.mfaRequired) {
+        setMfaRequired(true);
+        setTotpToken('');
+        toast.success('Please enter your 2FA verification code');
+      } else if (result.mfaEnrollmentRequired) {
+        setMfaEnrollRequired(true);
+        setMfaEnrollData({ secret: result.secret, otpauthUrl: result.otpauthUrl });
+        setTotpToken('');
+        toast.success('Please enroll in Multi-Factor Authentication');
+      } else {
+        toast.success('Signed in successfully');
+        navigate('/');
+      }
+    } else {
+      toast.error(result.error);
+    }
   };
 
   return (
@@ -217,108 +238,179 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="email">Email Address</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', zIndex: 2 }} />
+          {mfaEnrollRequired && mfaEnrollData ? (
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ background: '#FFF', padding: 10, borderRadius: 8, display: 'flex', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 }}>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mfaEnrollData.otpauthUrl)}`} 
+                  alt="MFA QR Code" 
+                  style={{ display: 'block', width: 150, height: 150 }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>1. Scan QR Code or enter manual key</span>
+                <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>Scan the QR code with Google Authenticator or enter the manual setup secret:</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '8px 12px', borderRadius: 8, color: 'var(--accent-purple)', fontWeight: 600, textAlign: 'center', letterSpacing: '0.05em' }}>
+                  {mfaEnrollData.secret}
+                </span>
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--border-faint)', paddingTop: 18 }}>
+                <label className="form-label" htmlFor="mfaTokenEnroll">2. Enter 6-Digit Verification Code</label>
                 <input
-                  id="email"
-                  type="email"
+                  id="mfaTokenEnroll"
+                  type="text"
                   className="input"
-                  placeholder="you@mitwpu.edu.in"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  placeholder="000000"
+                  value={totpToken}
+                  onChange={e => setTotpToken(e.target.value)}
                   required
+                  maxLength={6}
                   autoFocus
-                  style={{ paddingLeft: 38 }}
+                  style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', letterSpacing: '0.2em', fontSize: 16 }}
                 />
               </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="password">Password</label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', zIndex: 2 }} />
-                <input
-                  id="password"
-                  type={showPwd ? 'text' : 'password'}
-                  className="input"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  style={{ paddingLeft: 38, paddingRight: 40 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  style={{
-                    position: 'absolute', right: 10, top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none', border: 'none',
-                    color: 'var(--text-secondary)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', padding: 4,
-                    zIndex: 2
-                  }}
-                  aria-label={showPwd ? 'Hide password' : 'Show password'}
-                >
-                  {showPwd ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Default creds hint */}
-            <div style={{
-              padding: '12px 16px',
-              background: 'rgba(0, 0, 0, 0.2)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-                  Default Credentials
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', minHeight: 44, fontSize: 13, marginTop: 4, background: 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)', border: 'none', fontWeight: 600 }}>
+                {isLoading ? 'Verifying & Activating...' : 'Verify and Activate 2FA'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => { setMfaEnrollRequired(false); setMfaEnrollData(null); setTotpToken(''); }} style={{ width: '100%', justifyContent: 'center' }}>
+                Cancel
+              </button>
+            </form>
+          ) : mfaRequired ? (
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.25)', padding: '14px 18px', borderRadius: 10, marginBottom: 10 }}>
+                <Shield size={20} color="var(--accent-purple)" />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>MFA Verification Required</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Enter the code generated by your authenticator app.</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => { setEmail('admin@mitwpu.edu.in'); setPassword('admin123'); }}
-                  style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
-                    background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)',
-                    color: '#c084fc', cursor: 'pointer', padding: '2px 8px',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  AUTO-FILL
-                </button>
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                admin@mitwpu.edu.in<br />admin123
+              <div className="form-group">
+                <label className="form-label" htmlFor="mfaToken">6-Digit Verification Code</label>
+                <input
+                  id="mfaToken"
+                  type="text"
+                  className="input"
+                  placeholder="000000"
+                  value={totpToken}
+                  onChange={e => setTotpToken(e.target.value)}
+                  required
+                  maxLength={6}
+                  autoFocus
+                  style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', letterSpacing: '0.2em', fontSize: 16 }}
+                />
               </div>
-            </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', minHeight: 44, fontSize: 13, marginTop: 4, background: 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)', border: 'none', fontWeight: 600 }}>
+                {isLoading ? 'Verifying...' : 'Verify Code'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => { setMfaRequired(false); setTotpToken(''); }} style={{ width: '100%', justifyContent: 'center' }}>
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="email">Email Address</label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', zIndex: 2 }} />
+                  <input
+                    id="email"
+                    type="email"
+                    className="input"
+                    placeholder="you@mitwpu.edu.in"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    style={{ paddingLeft: 38 }}
+                  />
+                </div>
+              </div>
 
-            <button
-              id="login-submit"
-              type="submit"
-              className="btn btn-primary"
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                justifyContent: 'center',
-                minHeight: 44,
-                fontSize: 13,
-                marginTop: 4,
-                background: 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)',
-                border: 'none',
-                boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)',
-                fontWeight: 600
-              }}
-            >
-              {isLoading
-                ? <><div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> Signing in…</>
-                : 'Sign In to ExamCell'}
-            </button>
-          </form>
+              <div className="form-group">
+                <label className="form-label" htmlFor="password">Password</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', zIndex: 2 }} />
+                  <input
+                    id="password"
+                    type={showPwd ? 'text' : 'password'}
+                    className="input"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    style={{ paddingLeft: 38, paddingRight: 40 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(!showPwd)}
+                    style={{
+                      position: 'absolute', right: 10, top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none', border: 'none',
+                      color: 'var(--text-secondary)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', padding: 4,
+                      zIndex: 2
+                    }}
+                    aria-label={showPwd ? 'Hide password' : 'Show password'}
+                  >
+                    {showPwd ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Default creds hint */}
+              <div style={{
+                padding: '12px 16px',
+                background: 'rgba(0, 0, 0, 0.2)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                    Default Credentials
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('admin@mitwpu.edu.in'); setPassword('admin123'); }}
+                    style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+                      background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)',
+                      color: '#c084fc', cursor: 'pointer', padding: '2px 8px',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    AUTO-FILL
+                  </button>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  admin@mitwpu.edu.in<br />admin123
+                </div>
+              </div>
+
+              <button
+                id="login-submit"
+                type="submit"
+                className="btn btn-primary"
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  minHeight: 44,
+                  fontSize: 13,
+                  marginTop: 4,
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)',
+                  fontWeight: 600
+                }}
+              >
+                {isLoading
+                  ? <><div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> Signing in…</>
+                  : 'Sign In to ExamCell'}
+              </button>
+            </form>
+          )}
 
           {/* Kiosk launcher */}
           <div style={{

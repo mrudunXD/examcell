@@ -20,4 +20,48 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(logs);
 }));
 
+// POST /api/audit/verify — Verify cryptographic integrity of audit logs chain
+router.post('/verify', asyncHandler(async (req, res) => {
+  const db = getDb();
+  const { default: crypto } = await import('crypto');
+  
+  // Fetch all logs in chronological order
+  const logs = await db.prepare('SELECT * FROM audit_log ORDER BY created_at ASC, id ASC').all();
+
+  let prevHash = 'GENESIS_HASH';
+  let verifiedCount = 0;
+
+  for (const log of logs) {
+    // 1. Verify prev_hash link
+    if (log.prev_hash !== prevHash) {
+      return res.json({
+        success: false,
+        error: 'Chain broken: prev_hash link mismatch',
+        failedLog: log,
+        expectedPrevHash: prevHash,
+        actualPrevHash: log.prev_hash
+      });
+    }
+
+    // 2. Verify block hash calculation
+    const input = `${prevHash}-${log.user_id}-${log.action}-${log.entity}-${log.entity_id || ''}-${log.details || ''}-${log.created_at}`;
+    const calculatedHash = crypto.createHash('sha256').update(input).digest('hex');
+
+    if (log.hash !== calculatedHash) {
+      return res.json({
+        success: false,
+        error: 'Data tampered: block hash mismatch',
+        failedLog: log,
+        expectedHash: calculatedHash,
+        actualHash: log.hash
+      });
+    }
+
+    prevHash = log.hash;
+    verifiedCount++;
+  }
+
+  res.json({ success: true, verifiedCount });
+}));
+
 export default router;

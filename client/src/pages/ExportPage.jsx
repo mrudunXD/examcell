@@ -53,12 +53,21 @@ export default function ExportPage() {
           <h1 className="page-title">Export Documents</h1>
           <p className="page-subtitle">{cycle?.name}</p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => download(`/export/timetable/${cycleId}`, `timetable_${cycle?.name?.replace(/\s+/g,'_')}.pdf`)}
-        >
-          <Calendar size={13} strokeWidth={1.5} /> Timetable PDF
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            className="btn btn-ghost"
+            style={{ border: '1px solid var(--border)' }}
+            onClick={() => download(`/export/batch-zip/${cycleId}`, `exam_docs_${cycle?.name?.replace(/\s+/g,'_')}.zip`)}
+          >
+            <FileDown size={13} strokeWidth={1.5} /> Batch ZIP Export
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => download(`/export/timetable/${cycleId}`, `timetable_${cycle?.name?.replace(/\s+/g,'_')}.pdf`)}
+          >
+            <Calendar size={13} strokeWidth={1.5} /> Timetable PDF
+          </button>
+        </div>
       </div>
 
       <div className="alert alert-warning" style={{ marginBottom: 24 }}>

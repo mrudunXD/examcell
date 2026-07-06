@@ -437,7 +437,115 @@ export default function SettingsPage() {
                   <Inp value={strV('general.address')} onChange={v => setK('general.address', v)} placeholder="Pune, Maharashtra" />
                 </Field>
                 <Field label="Logo Path / URL">
-                  <Inp value={strV('general.logo')} onChange={v => setK('general.logo', v)} placeholder="/logo.png" />
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    {strV('general.logo') && (
+                      <img src={strV('general.logo')} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }} alt="Logo Preview" />
+                    )}
+                    <Inp value={strV('general.logo')} onChange={v => setK('general.logo', v)} placeholder="/logo.png" style={{ flex: 1 }} />
+                    <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', height: 36, display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '0 12px', fontSize: 12 }}>
+                      <Upload size={13} />
+                      Upload Logo
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              toast.error('Logo image must be smaller than 2MB');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setK('general.logo', event.target.result);
+                              toast.success('Logo uploaded. Save settings to apply.');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </Field>
+                <Field label="Sidebar Header Banner">
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    {strV('general.sidebarBanner') && (
+                      <img src={strV('general.sidebarBanner')} style={{ height: 36, width: 90, borderRadius: 6, objectFit: 'contain', background: 'var(--bg-base)', border: '1px solid var(--border)' }} alt="Banner Preview" />
+                    )}
+                    <Inp value={strV('general.sidebarBanner')} onChange={v => setK('general.sidebarBanner', v)} placeholder="URL or Base64 Image string" style={{ flex: 1 }} />
+                    <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', height: 36, display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '0 12px', fontSize: 12 }}>
+                      <Upload size={13} />
+                      Upload Banner
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              toast.error('Banner image must be smaller than 2MB');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setK('general.sidebarBanner', event.target.result);
+                              toast.success('Sidebar banner loaded. Save settings to apply.');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+            <div style={card}>
+              <div style={GH}>Application Background</div>
+              <div style={g2}>
+                <Field label="Background Image">
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    {strV('general.backgroundImage') && (
+                      <img src={strV('general.backgroundImage')} style={{ height: 36, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border)' }} alt="Background Preview" />
+                    )}
+                    <Inp value={strV('general.backgroundImage')} onChange={v => setK('general.backgroundImage', v)} placeholder="URL or Base64 Image string" style={{ flex: 1 }} />
+                    <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', height: 36, display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '0 12px', fontSize: 12 }}>
+                      <Upload size={13} />
+                      Upload Image
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            if (file.size > 3 * 1024 * 1024) {
+                              toast.error('Background image must be smaller than 3MB');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setK('general.backgroundImage', event.target.result);
+                              toast.success('Background image loaded. Save settings to apply.');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </Field>
+                <Field label={`Overlay Opacity (${strV('general.backgroundOpacity') || '75'}%)`}>
+                  <Slider 
+                    value={parseInt(strV('general.backgroundOpacity') || '75')} 
+                    onChange={v => setK('general.backgroundOpacity', String(v))} 
+                    min={0} 
+                    max={100} 
+                    step={5}
+                  />
                 </Field>
               </div>
             </div>

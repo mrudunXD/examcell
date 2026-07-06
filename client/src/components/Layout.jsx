@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import {
   LayoutDashboard, Users, BookOpen, Building2, UserCheck,
@@ -7,7 +7,7 @@ import {
   ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp,
   Sun, Moon, ChevronDown, ChevronRight, HelpCircle
 } from 'lucide-react';
-import { useAuthStore, useAppStore } from '../store/index.js';
+import { useAuthStore, useAppStore, useSettingsStore } from '../store/index.js';
 import api from '../lib/api.js';
 import { ICONS, LABELS, getResultLink, getResultSub } from '../pages/SearchPage.jsx';
 import ShinyText from './ReactBits/ShinyText.jsx';
@@ -234,6 +234,74 @@ function GlobalSearchModal({ onClose }) {
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useAppStore();
+  const { settings, fetchSettings } = useSettingsStore();
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const location = useLocation();
+  const pathnames = location.pathname.split('/').filter(x => x);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Dynamic Theme Sync (Feature 19)
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleOSThemeChange = (e) => {
+      const targetTheme = e.matches ? 'dark' : 'light';
+      if (document.documentElement.getAttribute('data-theme') !== targetTheme) {
+        document.documentElement.setAttribute('data-theme', targetTheme);
+      }
+    };
+    
+    if (!localStorage.getItem('theme')) {
+      const initialTheme = mediaQuery.matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', initialTheme);
+    }
+    
+    mediaQuery.addEventListener('change', handleOSThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleOSThemeChange);
+  }, []);
+
+  // Inactivity Session Logout (Feature 2)
+  useEffect(() => {
+    let inactivityTimer;
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        toast.error('Session expired due to inactivity. Logging out...');
+        handleLogout();
+      }, 15 * 60 * 1000);
+    };
+
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach(event => window.addEventListener(event, resetTimer));
+    
+    resetTimer();
+    
+    return () => {
+      clearTimeout(inactivityTimer);
+      activityEvents.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, []);
+
+  // Global Shift+? Keyboard Shortcut Guide (Feature 21)
+  useEffect(() => {
+    const handleShortcutsKey = (e) => {
+      if (e.key === '?' && e.shiftKey) {
+        setShortcutsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleShortcutsKey);
+    return () => window.removeEventListener('keydown', handleShortcutsKey);
+  }, []);
+
+  const logoSetting = settings.find(s => s.key === 'general.logo')?.value;
+  const bgImage = settings.find(s => s.key === 'general.backgroundImage')?.value;
+  const bgOpacitySetting = settings.find(s => s.key === 'general.backgroundOpacity')?.value;
+  const bgOpacity = bgOpacitySetting ? parseFloat(bgOpacitySetting) / 100 : 0.75;
+  const sidebarBanner = settings.find(s => s.key === 'general.sidebarBanner')?.value;
+
   const navigate = useNavigate();
   const navItems = user?.role === 'coordinator' ? coordinatorNav : facultyNav;
   const [searchOpen, setSearchOpen] = useState(false);
@@ -267,6 +335,44 @@ export default function Layout() {
 
   return (
     <div className="app-shell" style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
+      {bgImage && (
+        <style>{`
+          [data-theme="dark"], :root:not([data-theme="light"]) {
+            --bg-base: rgba(8, 7, 16, 0.4) !important;
+            --bg-sidebar: rgba(13, 12, 24, 0.6) !important;
+            --bg-surface: rgba(19, 18, 36, 0.5) !important;
+            --bg-elevated: rgba(30, 29, 53, 0.65) !important;
+          }
+          [data-theme="light"] {
+            --bg-base: rgba(250, 250, 250, 0.45) !important;
+            --bg-sidebar: rgba(244, 244, 245, 0.65) !important;
+            --bg-surface: rgba(255, 255, 255, 0.55) !important;
+            --bg-elevated: rgba(244, 244, 245, 0.7) !important;
+            --bg-topbar: rgba(255, 255, 255, 0.55) !important;
+            --border: rgba(228, 228, 231, 0.4) !important;
+          }
+          .app-shell {
+            background-image: url(${bgImage}) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
+            position: relative;
+          }
+          .app-shell::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: ${theme === 'dark' ? `rgba(8, 7, 16, ${bgOpacity})` : `rgba(255, 255, 255, ${bgOpacity})`} !important;
+            z-index: 0;
+            pointer-events: none;
+          }
+          .app-shell > * {
+            position: relative;
+            z-index: 1;
+          }
+        `}</style>
+      )}
       {/* Mobile Top Header (hidden on desktop via css) */}
       <header className="mobile-header" style={{
         display: 'none',
@@ -414,7 +520,7 @@ export default function Layout() {
         {/* ── Sidebar ───────────────────────────────────────────────────────── */}
         <nav className="sidebar" style={{ 
           background: 'var(--bg-sidebar)', 
-          padding: '12px 0 0',
+          padding: sidebarBanner && !sidebarCollapsed ? '0' : '12px 0 0',
           width: sidebarCollapsed ? '64px' : '240px',
           display: 'flex',
           flexDirection: 'column',
@@ -424,17 +530,36 @@ export default function Layout() {
           borderRight: '1px solid var(--border-faint)'
         }}>
           {/* Workspace select header (SaaS UI style) */}
-          <div style={{ padding: '4px 12px 12px', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between', borderBottom: '1px solid var(--border-faint)' }}>
-            <div className="saas-workspace-select" style={{ flex: sidebarCollapsed ? 'none' : 1 }} onClick={() => setSearchOpen(true)}>
-              <div className="saas-avatar-circle">EC</div>
-              {!sidebarCollapsed && (
-                <>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 8 }}>ExamCell</span>
-                  <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 4 }} />
-                </>
-              )}
-            </div>
-            
+          <div style={{ 
+            padding: sidebarBanner && !sidebarCollapsed ? '0' : '4px 12px 12px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: sidebarCollapsed ? 'center' : 'space-between', 
+            borderBottom: '1px solid var(--border-faint)',
+            height: sidebarBanner && !sidebarCollapsed ? '64px' : 'auto',
+            overflow: 'hidden'
+          }}>
+            {sidebarBanner && !sidebarCollapsed ? (
+              <div style={{ width: '100%', height: '100%', cursor: 'pointer' }} onClick={() => setSearchOpen(true)}>
+                <img src={sidebarBanner} alt="Sidebar Banner" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </div>
+            ) : (
+              <div className="saas-workspace-select" style={{ flex: sidebarCollapsed ? 'none' : 1 }} onClick={() => setSearchOpen(true)}>
+                <div className="saas-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
+                  {logoSetting ? (
+                    <img src={logoSetting} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    'EC'
+                  )}
+                </div>
+                {!sidebarCollapsed && (
+                  <>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 8 }}>ExamCell</span>
+                    <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 4 }} />
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Search bar wrapper */}
@@ -536,9 +661,30 @@ export default function Layout() {
               >
                 <Menu size={14} strokeWidth={1.5} />
               </button>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                MIT WPU · Examination Cell Management System
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500, userSelect: 'none' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>MIT WPU</span>
+                <span>/</span>
+                {pathnames.length === 0 ? (
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Dashboard</span>
+                ) : (
+                  pathnames.map((name, index) => {
+                    const routeTo = `/${pathnames.slice(0, index + 1).join('/')}`;
+                    const isLast = index === pathnames.length - 1;
+                    const cleanName = name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    
+                    return (
+                      <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isLast ? (
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{cleanName}</span>
+                        ) : (
+                          <span style={{ cursor: 'pointer', transition: 'color 0.2s' }} onClick={() => navigate(routeTo)} className="hover:text-primary">{cleanName}</span>
+                        )}
+                        {!isLast && <span>/</span>}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -570,12 +716,17 @@ export default function Layout() {
                   className="saas-avatar-circle"
                   style={{
                     width: 32, height: 32, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
+                    background: user?.profile_picture ? 'transparent' : 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700, fontSize: 11, color: '#FFFFFF', cursor: 'pointer', border: '1px solid var(--border-faint)'
+                    fontWeight: 700, fontSize: 11, color: '#FFFFFF', cursor: 'pointer', border: '1px solid var(--border-faint)',
+                    overflow: 'hidden', padding: 0
                   }}
                 >
-                  {user?.name ? user.name[0].toUpperCase() : 'U'}
+                  {user?.profile_picture ? (
+                    <img src={user.profile_picture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    user?.name ? user.name[0].toUpperCase() : 'U'
+                  )}
                 </button>
                 {accountMenuOpen && (
                   <>
@@ -618,6 +769,46 @@ export default function Layout() {
       
       {searchOpen && (
         <GlobalSearchModal onClose={() => setSearchOpen(false)} />
+      )}
+
+      {shortcutsOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: '24px 32px', width: '90%', maxWidth: 440,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Keyboard Shortcuts Guide</h3>
+              <button 
+                onClick={() => setShortcutsOpen(false)} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Global Search Modal</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 4, color: 'var(--text-primary)' }}>Ctrl + K</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Shortcuts Helper Guide</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 4, color: 'var(--text-primary)' }}>Shift + ?</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Close Modals</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 4, color: 'var(--text-primary)' }}>Esc</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Mobile-specific styling injections */}

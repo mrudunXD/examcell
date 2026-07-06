@@ -4,6 +4,7 @@ import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateSeatingPDF, generateDutySheetPDF, generateTimetablePDF, generateAttendancePDF } from '../services/pdfGenerator.js';
 import { formatDate, formatTime } from '../utils/format.js';
+import AdmZip from 'adm-zip';
 
 const router = Router();
 router.use(authenticate);
@@ -229,6 +230,74 @@ router.get('/door-notice/:roomAllocationId', requireCoordinator, asyncHandler(as
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="door_${classroom.room_no}_${slot.date}.pdf"`);
   res.send(pdfBuffer);
+}));
+
+// GET /batch-zip/:cycleId — Pack all seating layouts and attendance sheets for a cycle into a ZIP archive
+router.get('/batch-zip/:cycleId', requireCoordinator, asyncHandler(async (req, res) => {
+  const db = getDb();
+  const cycle = await db.prepare('SELECT * FROM exam_cycles WHERE id=?').get(req.params.cycleId);
+  if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+
+  // Get all slots with subject information
+  const slots = await db.prepare(`
+    SELECT es.*, s.name as subject_name, s.code as subject_code
+    FROM exam_slots es
+    JOIN subjects s ON s.id=es.subject_id
+    WHERE es.cycle_id=?
+  `).all(req.params.cycleId);
+
+  if (!slots.length) return res.status(404).json({ error: 'No slots found for this cycle' });
+
+  const zip = new AdmZip();
+
+  for (const slot of slots) {
+    const dateFormatted = slot.date.replace(/[-:]/g, '');
+    const timeFormatted = slot.start_time.replace(/[: ]/g, '');
+    const slotFolder = `${dateFormatted}_${timeFormatted}_${slot.subject_code}`;
+
+    // Get all room allocations for this slot
+    const allocations = await db.prepare('SELECT * FROM room_allocations WHERE slot_id=?').all(slot.id);
+
+    for (const ra of allocations) {
+      const classroom = await db.prepare('SELECT * FROM classrooms WHERE id=?').get(ra.classroom_id);
+      if (!classroom) continue;
+
+      // 1. Seating PDF
+      const assignments = await db.prepare(`
+        SELECT sa.bench_row, sa.bench_col,
+          st.name as student_name, st.prn, st.roll_no, st.branch, st.year
+        FROM seat_assignments sa
+        JOIN students st ON st.id=sa.student_id
+        WHERE sa.room_allocation_id=?
+        ORDER BY sa.bench_row, sa.bench_col
+      `).all(ra.id);
+
+      if (assignments.length > 0) {
+        const seatingPdf = await generateSeatingPDF({ slot, classroom, assignments });
+        zip.addFile(`${slotFolder}/seating_${classroom.room_no}.pdf`, seatingPdf);
+      }
+
+      // 2. Attendance PDF
+      const students = await db.prepare(`
+        SELECT st.name, st.prn, st.roll_no, st.branch, st.year, sa.bench_row, sa.bench_col
+        FROM seat_assignments sa
+        JOIN students st ON st.id=sa.student_id
+        WHERE sa.room_allocation_id=?
+        ORDER BY st.roll_no
+      `).all(ra.id);
+
+      if (students.length > 0) {
+        const attendancePdf = await generateAttendancePDF({ slot, classroom, students });
+        zip.addFile(`${slotFolder}/attendance_${classroom.room_no}.pdf`, attendancePdf);
+      }
+    }
+  }
+
+  const zipBuffer = zip.toBuffer();
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="exam_docs_${cycle.name.replace(/\s+/g,'_')}.zip"`);
+  res.send(zipBuffer);
 }));
 
 export default router;

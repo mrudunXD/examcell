@@ -5,10 +5,18 @@ export const useAuthStore = create((set) => ({
   user: JSON.parse(localStorage.getItem('user') || 'null'),
   isLoading: false,
 
-  login: async (email, password) => {
+  login: async (email, password, totpToken = null) => {
     set({ isLoading: true });
     try {
-      const { data } = await api.post('/auth/login', { email, password });
+      const { data } = await api.post('/auth/login', { email, password, totpToken });
+      if (data.mfaRequired) {
+        set({ isLoading: false });
+        return { success: true, mfaRequired: true, userId: data.userId };
+      }
+      if (data.mfaEnrollmentRequired) {
+        set({ isLoading: false });
+        return { success: true, mfaEnrollmentRequired: true, userId: data.userId, secret: data.secret, otpauthUrl: data.otpauthUrl };
+      }
       localStorage.setItem('user', JSON.stringify(data.user));
       set({ user: data.user, isLoading: false });
       return { success: true, mustChangePassword: data.mustChangePassword };

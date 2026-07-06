@@ -595,10 +595,25 @@ export default function FacultyDutyPage() {
     const socketUrl = window.location.origin.includes('5173')
       ? 'http://localhost:5000'
       : window.location.origin;
-    const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+    const socket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5
+    });
 
     socket.on('connect', () => {
       console.log('📡 Faculty Portal WebSocket connected');
+    });
+
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log(`🔌 Faculty Portal Socket reconnect attempt #${attempt} with backoff`);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Faculty Portal Socket connection completely failed.');
     });
 
     socket.on('EMERGENCY_BROADCAST', (broadcast) => {

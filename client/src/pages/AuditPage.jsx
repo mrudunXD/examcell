@@ -18,6 +18,24 @@ export default function AuditPage() {
   const [filterEntity, setFilterEntity] = useState('All');
   const [filterAction, setFilterAction] = useState('All');
   const [search, setSearch] = useState('');
+  const [verifying, setVerifying] = useState(false);
+
+  const handleVerifyIntegrity = async () => {
+    setVerifying(true);
+    const toastId = toast.loading('Running cryptographic verification of the audit chain...');
+    try {
+      const { data } = await api.post('/audit/verify');
+      if (data.success) {
+        toast.success(`Integrity verified! All ${data.verifiedCount} log blocks are valid and untampered.`, { id: toastId });
+      } else {
+        toast.error(`Tampering detected! ${data.error}. Failed at block ID: ${data.failedLog?.id}`, { id: toastId, duration: 6000 });
+      }
+    } catch {
+      toast.error('Cryptographic verification failed to execute.', { id: toastId });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -70,9 +88,14 @@ export default function AuditPage() {
           <h1 className="page-title">Operational Audit Log</h1>
           <p className="page-subtitle">Inspect coordinator actions, system alerts, and data revision trails.</p>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={fetchLogs} disabled={loading} style={{ borderRadius: 8 }}>
-          <RefreshCw size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Refresh Logs
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-ghost btn-sm" onClick={handleVerifyIntegrity} disabled={verifying || loading} style={{ borderRadius: 8, border: '1px solid var(--border)' }}>
+            <Shield size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Verify Chain Integrity
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={fetchLogs} disabled={loading} style={{ borderRadius: 8 }}>
+            <RefreshCw size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Refresh Logs
+          </button>
+        </div>
       </div>
 
       {/* Row 1: KPI Summary Row */}

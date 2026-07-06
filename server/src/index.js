@@ -32,6 +32,7 @@ import attendanceLogsRouter from './routes/attendanceLogs.js';
 import facultyLeavesRouter from './routes/facultyLeaves.js';
 import subjectConstraintsRouter from './routes/subjectConstraints.js';
 import settingsRouter from './routes/settings.js';
+import iamRouter from './routes/iam.js';
 import { initAutoBackupScheduler } from './services/autoBackup.js';
 import { initAlertingMonitor } from './services/alerting.js';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -41,9 +42,10 @@ import { authenticate, requireCoordinator } from './middleware/auth.js';
 
 
 
-import { initDb } from './db/database.js';
+import { initDb, getDb } from './db/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,7 +73,23 @@ const apiLimiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again after a minute.' }
+  message: { error: 'Too many requests, please try again after a minute.' },
+  handler: (req, res, next, options) => {
+    try {
+      const db = getDb();
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '::1';
+      db.prepare(`
+        INSERT INTO audit_log (id, user_id, action, entity, details)
+        VALUES (?, 'system', 'RATE_LIMIT_BLOCK', 'network', ?)
+      `).run(
+        crypto.randomUUID(),
+        `IP ${ip} blocked at ${req.originalUrl || req.url}`
+      );
+    } catch (e) {
+      console.error('Failed to log rate limit block:', e);
+    }
+    res.status(options.statusCode).send(options.message);
+  }
 });
 app.use('/api', apiLimiter);
 
@@ -149,6 +167,7 @@ v1Router.use('/attendance-logs', attendanceLogsRouter);
 v1Router.use('/faculty-leaves', facultyLeavesRouter);
 v1Router.use('/subject-constraints', subjectConstraintsRouter);
 v1Router.use('/settings', settingsRouter);
+v1Router.use('/iam', iamRouter);
 
 app.use('/api/v1', v1Router);
 app.use('/api', v1Router); // Client compatibility alias

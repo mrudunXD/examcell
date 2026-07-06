@@ -38,9 +38,14 @@ router.post('/restore', auditLog('RESTORE_BACKUP', 'system', () => 'system', (re
   }
   if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Backup file not found' });
 
-  const backupData = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
-  const result = await restoreBackup(backupData);
-  res.json({ message: 'Database restored successfully', timestamp: result.timestamp });
+  if (safeFilename.endsWith('.dump')) {
+    const result = await restoreBackup(null, safeFilename);
+    res.json({ message: 'Database restored successfully via pg_restore', timestamp: new Date().toISOString() });
+  } else {
+    const backupData = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
+    const result = await restoreBackup(backupData);
+    res.json({ message: 'Database restored successfully', timestamp: result.timestamp });
+  }
 }));
 
 // POST /api/backups/restore-upload - Upload and restore JSON file directly

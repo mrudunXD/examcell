@@ -242,7 +242,21 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!activeCycleId) return;
     const socketUrl = window.location.origin.includes('5173') ? 'http://localhost:5000' : window.location.origin;
-    const socket = io(socketUrl, { withCredentials: true, transports: ['websocket', 'polling'] });
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5
+    });
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log(`🔌 Dashboard Socket reconnect attempt #${attempt} with backoff`);
+    });
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Dashboard Socket connection completely failed.');
+    });
     socket.on('ATTENDANCE_MARKED', () => loadDashboardData());
     socket.on('INCIDENT_REPORTED', (inc) => { toast.error(`New Incident: ${inc.type} — ${inc.description}`); loadDashboardData(); });
     socket.on('INCIDENT_UPDATED', () => loadDashboardData());

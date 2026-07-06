@@ -206,9 +206,30 @@ const runSolver = (inputData) => {
     
     let stdout = '';
     let stderr = '';
+    let buffer = '';
     
-    solverProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
+    solverProcess.stdout.on('data', async (data) => {
+      const text = data.toString();
+      stdout += text;
+      buffer += text;
+      
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep last unfinished line in buffer
+      
+      for (const line of lines) {
+        if (line.startsWith('TELEMETRY:')) {
+          try {
+            const telemetryData = JSON.parse(line.substring(10));
+            const { broadcastUpdate } = await import('../services/socket.js');
+            broadcastUpdate('SOLVER_TELEMETRY', {
+              cycleId: inputData.cycle?.id,
+              ...telemetryData
+            });
+          } catch (e) {
+            console.error('Failed to parse solver telemetry line:', e);
+          }
+        }
+      }
     });
     
     solverProcess.stderr.on('data', (data) => {
@@ -221,7 +242,10 @@ const runSolver = (inputData) => {
         return;
       }
       try {
-        const result = JSON.parse(stdout);
+        // Strip out telemetry lines to parse pure JSON output
+        const lines = stdout.split('\n');
+        const jsonLines = lines.filter(l => !l.startsWith('TELEMETRY:')).join('\n').trim();
+        const result = JSON.parse(jsonLines);
         resolve(result);
       } catch (err) {
         reject(new Error(`Failed to parse solver output: ${stdout}. Err: ${err.message}`));

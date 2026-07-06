@@ -248,11 +248,12 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
   `);
 
   const insertMany = await db.transaction(async (rows) => {
+    let rowIndex = 2;
     for (const row of rows) {
       try {
         const required = ['name', 'prn', 'roll_no', 'branch', 'year', 'semester'];
         const missing = required.filter(f => !row[f]);
-        if (missing.length) { failed.push({ row, reason: `Missing: ${missing.join(', ')}` }); continue; }
+        if (missing.length) { failed.push({ row, rowIndex, reason: `Row ${rowIndex}: Missing: ${missing.join(', ')}` }); rowIndex++; continue; }
 
         // Prevent formula / CSV injection
         let hasFormula = false;
@@ -264,13 +265,16 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
           }
         }
         if (hasFormula) {
-          failed.push({ row, reason: 'CSV injection threat detected: values cannot start with =, +, -, @' });
+          failed.push({ row, rowIndex, reason: `Row ${rowIndex}: CSV injection threat detected: values cannot start with =, +, -, @` });
+          rowIndex++;
           continue;
         }
 
         const validYears = ['FY', 'SY', 'TY', 'LY'];
         if (!validYears.includes(row.year?.toUpperCase())) {
-          failed.push({ row, reason: 'year must be FY/SY/TY/LY' }); continue;
+          failed.push({ row, rowIndex, reason: `Row ${rowIndex}: year must be FY/SY/TY/LY` });
+          rowIndex++;
+          continue;
         }
         await stmt.run(
           crypto.randomUUID(),
@@ -280,8 +284,9 @@ router.post('/import', requireCoordinator, upload.single('file'), auditLog('IMPO
         );
         inserted.push(row.prn);
       } catch (e) {
-        failed.push({ row, reason: e.message });
+        failed.push({ row, rowIndex, reason: `Row ${rowIndex}: ${e.message}` });
       }
+      rowIndex++;
     }
   });
 

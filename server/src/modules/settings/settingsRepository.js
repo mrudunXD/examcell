@@ -1,13 +1,26 @@
 import { getDb } from '../../db/database.js';
 import crypto from 'crypto';
 
+let settingsCache = null;
+
 export class SettingsRepository {
+  static clearCache() {
+    settingsCache = null;
+  }
+
   static async findAll() {
+    if (settingsCache) return settingsCache;
     const db = getDb();
-    return await db.prepare('SELECT * FROM system_settings ORDER BY category, key').all();
+    const result = await db.prepare('SELECT * FROM system_settings ORDER BY category, key').all();
+    settingsCache = result;
+    return result;
   }
 
   static async findByKey(key) {
+    if (settingsCache) {
+      const found = settingsCache.find(s => s.key === key);
+      if (found) return found;
+    }
     const db = getDb();
     return await db.prepare('SELECT * FROM system_settings WHERE key = ?').get(key);
   }
@@ -43,7 +56,9 @@ export class SettingsRepository {
       return updatedCount;
     });
 
-    return executeTx();
+    const result = executeTx();
+    SettingsRepository.clearCache();
+    return result;
   }
 
   static async resetToDefaults(userId) {
@@ -73,7 +88,9 @@ export class SettingsRepository {
       return resetCount;
     });
 
-    return executeTx();
+    const result = executeTx();
+    SettingsRepository.clearCache();
+    return result;
   }
 
   static async getHistory() {

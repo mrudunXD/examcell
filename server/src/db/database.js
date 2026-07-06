@@ -32,6 +32,36 @@ export function getSlowQueryLog() {
   return dbSlowQueryLog;
 }
 
+let lastOptimizationTime = 0;
+let isOptimizing = false;
+
+export async function triggerDbAutoOptimization() {
+  const now = Date.now();
+  if (isOptimizing || (now - lastOptimizationTime < 60 * 60 * 1000)) {
+    return;
+  }
+  isOptimizing = true;
+  lastOptimizationTime = now;
+  console.log('⚠️ DATABASE LATENCY CRITICAL (avg > 200ms). Triggering auto-optimization...');
+  setTimeout(async () => {
+    try {
+      const client = await pool.connect();
+      try {
+        console.log('🚀 Running database auto-optimization (VACUUM and REINDEX)...');
+        await client.query('VACUUM');
+        await client.query('REINDEX SCHEMA public');
+        console.log('✓ Database auto-optimization complete.');
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      console.error('Failed to execute database auto-optimization:', err);
+    } finally {
+      isOptimizing = false;
+    }
+  }, 0);
+}
+
 dotenv.config();
 
 const pgPassword = process.env.PGPASSWORD;
@@ -554,6 +584,10 @@ class PgStatement {
       dbLatencySamples.push(duration);
       if (dbLatencySamples.length > 100) {
         dbLatencySamples.shift();
+      }
+      const avgLatency = getDbLatencyMetrics();
+      if (avgLatency > 200) {
+        triggerDbAutoOptimization();
       }
       if (duration > 50) {
         dbSlowQueryLog.push({
