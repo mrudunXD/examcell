@@ -81,6 +81,10 @@ const pool = new pg.Pool({
   connectionTimeoutMillis: 2000,
 });
 
+pool.on('error', (err, client) => {
+  console.error('⚠️ Unexpected PostgreSQL pool error on idle client:', err.message);
+});
+
 const transactionContext = new AsyncLocalStorage();
 let dbInstance = null;
 

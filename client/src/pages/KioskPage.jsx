@@ -598,7 +598,7 @@ export default function KioskPage() {
       
       setCycle(data.cycle);
       setSlots(data.slots || []);
-      setBroadcasts((data.broadcasts || []).slice(0, 5));
+      setBroadcasts([]);
       setIsOffline(false);
 
       // Extract classroom info
@@ -611,7 +611,7 @@ export default function KioskPage() {
       // Cache data
       localStorage.setItem(
         `kiosk_cache_${cycleId}_${classroomId || ''}`,
-        JSON.stringify({ cycle: data.cycle, slots: data.slots, broadcasts: data.broadcasts })
+        JSON.stringify({ cycle: data.cycle, slots: data.slots, broadcasts: [] })
       );
     } catch (err) {
       console.warn("Connection lost. Reading cache.", err);
@@ -621,7 +621,7 @@ export default function KioskPage() {
         const parsed = JSON.parse(cached);
         setCycle(parsed.cycle);
         setSlots(parsed.slots || []);
-        setBroadcasts((parsed.broadcasts || []).slice(0, 5));
+        setBroadcasts([]);
       }
     }
   }, [cycleId, classroomId]);
@@ -682,19 +682,7 @@ export default function KioskPage() {
 
     // Listen for events
     socket.on('EMERGENCY_BROADCAST', (broadcast) => {
-      console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
-      
-      // Skip expired broadcasts
-      if (broadcast.expires_at && new Date(broadcast.expires_at) <= new Date()) return;
-      
-      const isTargeted = classroomId && String(broadcast.classroom_id) === String(classroomId);
-      const isGlobalUrgent = !broadcast.classroom_id && (broadcast.priority === 'urgent' || broadcast.priority === 'critical');
-      
-      if (isTargeted || isGlobalUrgent) {
-        setActiveAlert(broadcast);
-        playChime('alert');
-      }
-
+      console.log('📣 EMERGENCY_BROADCAST received (Alert skipped on kiosk):', broadcast);
       loadData();
     });
 
