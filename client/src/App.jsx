@@ -20,7 +20,6 @@ import SearchPage from './pages/SearchPage.jsx';
 import CalendarPage from './pages/CalendarPage.jsx';
 import AttendancePage from './pages/AttendancePage.jsx';
 import LiveDashboardPage from './pages/LiveDashboardPage.jsx';
-import HeatmapPage from './pages/HeatmapPage.jsx';
 import KioskPage from './pages/KioskPage.jsx';
 import SystemHealthPage from './pages/SystemHealthPage.jsx';
 import HistoricalAnalyticsPage from './pages/HistoricalAnalyticsPage.jsx';
@@ -86,13 +85,13 @@ export default function App() {
           <Route path="attendance/:slotId"  element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
           <Route path="conflicts/:cycleId"  element={<ProtectedRoute role="coordinator"><ConflictsPage /></ProtectedRoute>} />
           <Route path="calendar/:cycleId"   element={<ProtectedRoute role="coordinator"><CalendarPage /></ProtectedRoute>} />
+          <Route path="calendar"            element={<ProtectedRoute role="coordinator"><CalendarPage /></ProtectedRoute>} />
           <Route path="planner/:cycleId"    element={<ProtectedRoute role="coordinator"><PlannerPage /></ProtectedRoute>} />
           <Route path="export/:cycleId"     element={<ProtectedRoute role="coordinator"><ExportPage /></ProtectedRoute>} />
           <Route path="audit"   element={<ProtectedRoute role="coordinator"><AuditPage /></ProtectedRoute>} />
           <Route path="search"  element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="my-duties" element={<ProtectedRoute><FacultyDutyPage /></ProtectedRoute>} />
           <Route path="live-dashboard" element={<Navigate to="/" replace />} />
-          <Route path="heatmap" element={<ProtectedRoute role="coordinator"><HeatmapPage /></ProtectedRoute>} />
           <Route path="analytics" element={<ProtectedRoute role="coordinator"><HistoricalAnalyticsPage /></ProtectedRoute>} />
           <Route path="health" element={<ProtectedRoute role="coordinator"><SystemHealthPage /></ProtectedRoute>} />
           <Route path="settings" element={<ProtectedRoute role="coordinator"><SettingsPage /></ProtectedRoute>} />

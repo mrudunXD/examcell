@@ -21,10 +21,10 @@ const coordinatorNav = [
   { to: '/subjects',  icon: BookOpen,   label: 'Subjects' },
   { to: '/classrooms',icon: Building2,  label: 'Classrooms' },
   { to: '/faculty',   icon: UserCheck,  label: 'Faculty' },
+  { to: '/calendar',  icon: CalendarDays, label: 'Calendar' },
   { section: 'Exam Management' },
   { to: '/exam-cycles', icon: CalendarDays, label: 'Exam Cycles' },
-  { to: '/heatmap',     icon: BarChart3,    label: 'Faculty Heatmap' },
-  { to: '/analytics',   icon: TrendingUp,   label: 'Historical Analytics' },
+  { to: '/analytics',   icon: TrendingUp,   label: 'Analytics & Heatmap' },
   { section: 'System' },
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
   { to: '/health',    icon: Activity,      label: 'System Health' },
@@ -232,12 +232,25 @@ function GlobalSearchModal({ onClose }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const { theme, toggleTheme } = useAppStore();
   const { settings, fetchSettings } = useSettingsStore();
 
   useEffect(() => {
     fetchSettings();
+    api.get('/iam/profile')
+      .then(({ data }) => {
+        if (data?.user) {
+          const updatedUser = {
+            ...data.user,
+            role: data.user.role || (data.user.roles && data.user.roles[0]) || 'faculty'
+          };
+          setUser(updatedUser);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to sync profile details:', err);
+      });
   }, []);
 
   const location = useLocation();

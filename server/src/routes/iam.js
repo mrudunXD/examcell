@@ -34,6 +34,7 @@ router.get('/profile', asyncHandler(async (req, res) => {
       id: req.user.id,
       name: req.user.name,
       email: req.user.email,
+      role: req.user.role,
       roles: req.user.roles,
       permissions: req.user.permissions,
       department: req.user.department,

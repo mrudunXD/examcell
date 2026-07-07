@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
 import toast from 'react-hot-toast';
+import { useAppStore } from '../store/index.js';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -28,6 +29,7 @@ function getMonthGrid(year, month) {
 
 export default function CalendarPage() {
   const { cycleId } = useParams();
+  const activeCycleId = useAppStore(state => state.activeCycleId);
   const [cycle, setCycle] = useState(null);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,14 +38,23 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/exam-cycles'),
-      api.get(`/exam-cycles/${cycleId}/slots`),
-    ]).then(([cr, sr]) => {
-      const c = cr.data.find(x => x.id === cycleId);
+    api.get('/exam-cycles').then(async (cr) => {
+      const targetId = cycleId || activeCycleId || cr.data[0]?.id;
+      if (!targetId) {
+        setLoading(false);
+        return;
+      }
+      
+      const c = cr.data.find(x => x.id === targetId);
       setCycle(c);
-      setSlots(sr.data);
-      // Jump to the month of the cycle start date
+
+      try {
+        const sr = await api.get(`/exam-cycles/${targetId}/slots`);
+        setSlots(sr.data);
+      } catch (err) {
+        toast.error('Failed to load slots');
+      }
+
       if (c?.start_date) {
         const d = new Date(c.start_date + 'T00:00:00');
         setViewYear(d.getFullYear());
@@ -51,7 +62,7 @@ export default function CalendarPage() {
       }
     }).catch(() => toast.error('Failed to load calendar'))
       .finally(() => setLoading(false));
-  }, [cycleId]);
+  }, [cycleId, activeCycleId]);
 
   // Build a map of date → slots
   const slotsByDate = {};

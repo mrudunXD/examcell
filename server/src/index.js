@@ -1,3 +1,4 @@
+import './utils/consoleCapture.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

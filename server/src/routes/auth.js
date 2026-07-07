@@ -185,7 +185,7 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
 
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department, profile_picture: user.profile_picture },
     mustChangePassword: user.must_change_password === 1
   });
 }));
@@ -267,7 +267,7 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
   });
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department }
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department, profile_picture: user.profile_picture }
   });
 }));
 

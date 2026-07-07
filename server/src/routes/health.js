@@ -97,4 +97,11 @@ router.post('/alerts/resolve/:id', asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+// POST /api/health/test-log — Print a test message to stdout
+router.post('/test-log', asyncHandler(async (req, res) => {
+  const { message = 'Test log message' } = req.body;
+  console.log(`🧪 TEST LOG: ${message} (Triggered by coordinator session user ID: ${req.user.id})`);
+  res.json({ success: true });
+}));
+
 export default router;

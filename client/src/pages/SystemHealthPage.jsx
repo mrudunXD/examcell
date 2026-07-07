@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import io from 'socket.io-client';
 import { 
   Activity, 
   Cpu, 
@@ -28,6 +29,57 @@ export default function SystemHealthPage() {
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [fileRestoreData, setFileRestoreData] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [sendingTest, setSendingTest] = useState(false);
+
+  const handleTriggerTestLog = async () => {
+    setSendingTest(true);
+    try {
+      await api.post('/health/test-log', { message: 'TEST LOG: System Health Log Console Verification Success!' });
+      toast.success('Test log printed to Node console');
+    } catch (err) {
+      toast.error('Failed to trigger test log');
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  useEffect(() => {
+    const socketUrl = window.location.origin.includes('5173')
+      ? 'http://localhost:5000'
+      : window.location.origin;
+
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5
+    });
+
+    socket.on('connect', () => {
+      console.log('📡 Connected to server console log stream');
+      socket.emit('join-console-logs');
+    });
+
+    socket.on('initial-console-logs', (initialLogs) => {
+      setLogs(initialLogs);
+    });
+
+    socket.on('SERVER_LOG', (log) => {
+      setLogs(prev => {
+        const next = [...prev, log];
+        if (next.length > 500) next.shift();
+        return next;
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const fetchHealthData = async () => {
     try {
@@ -179,10 +231,16 @@ export default function SystemHealthPage() {
             Internal Operations Operations Control Panel
           </p>
         </div>
-        <button className="btn btn-primary" onClick={handleRefresh} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          {refreshing ? 'Refreshing...' : 'Force Refresh'}
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary" onClick={handleTriggerTestLog} disabled={sendingTest} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 13, cursor: 'pointer' }}>
+            <Play size={14} />
+            {sendingTest ? 'Sending...' : 'Test Console Log'}
+          </button>
+          <button className="btn btn-primary" onClick={handleRefresh} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing...' : 'Force Refresh'}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 24 }}>
@@ -544,6 +602,83 @@ export default function SystemHealthPage() {
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Node Server Console Output Terminal */}
+      <div style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)', padding: 24, borderRadius: 8, marginTop: 24, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 10, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Activity size={18} />
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0, fontSize: 18 }}>App Server Log Console</h3>
+          </div>
+          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: '#22c55e', color: '#fff', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>LIVE STREAMING</span>
+        </div>
+        
+        {/* Terminal Window */}
+        <div style={{
+          background: '#0c0a09',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          overflow: 'hidden',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+        }}>
+          {/* Terminal Title Bar */}
+          <div style={{
+            background: '#1c1917',
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            borderBottom: '1px solid #292524'
+          }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
+            </div>
+            <span style={{ color: '#78716c', fontSize: 11, marginLeft: 8 }}>NODE APP SERVER CONSOLE LOGS</span>
+          </div>
+          
+          {/* Terminal Logs Output */}
+          <div 
+            style={{
+              padding: 16,
+              height: 320,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              color: '#34d399',
+              background: '#0c0a09',
+              textAlign: 'left'
+            }}
+            className="custom-scrollbar"
+            ref={(el) => {
+              if (el) el.scrollTop = el.scrollHeight;
+            }}
+          >
+            {logs.length === 0 ? (
+              <span style={{ color: '#78716c', fontStyle: 'italic' }}>Listening for app server logs...</span>
+            ) : (
+              logs.map((log) => (
+                <div key={log.id} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #1c1917', paddingBottom: 2 }}>
+                  <span style={{ color: '#78716c', fontSize: 10, flexShrink: 0 }}>
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span style={{
+                    color: log.type === 'error' ? '#f87171' : '#34d399',
+                    wordBreak: 'break-all',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {log.text}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

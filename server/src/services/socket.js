@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import eventBus, { Events } from './eventBus.js';
+import { consoleLogs, consoleEmitter } from '../utils/consoleCapture.js';
 
 let ioInstance = null;
 const activeKiosks = new Map();
@@ -125,6 +126,33 @@ export function initSocket(server) {
       }
     });
 
+    socket.on('join-console-logs', async () => {
+      console.log(`🔑 Client requested console logs. Authenticated User:`, socket.user);
+      if (!socket.user?.userId) {
+        console.warn(`❌ Client ${socket.id} rejected: no authenticated session.`);
+        socket.emit('error', 'Unauthorized access to system logs');
+        return;
+      }
+
+      try {
+        const { getDb } = await import('../db/database.js');
+        const db = getDb();
+        const user = await db.prepare('SELECT role FROM users WHERE id = ?').get(socket.user.userId);
+        
+        if (user && (user.role === 'coordinator' || user.role === 'superadmin' || user.role === 'admin')) {
+          console.log(`✓ Client ${socket.id} (Role: ${user.role}) joined console-logs room.`);
+          socket.join('console-logs');
+          socket.emit('initial-console-logs', consoleLogs);
+        } else {
+          console.warn(`❌ Client ${socket.id} rejected: Role '${user?.role}' is not allowed.`);
+          socket.emit('error', 'Unauthorized access to system logs');
+        }
+      } catch (err) {
+        console.error('Failed to authenticate socket user role:', err);
+        socket.emit('error', 'Internal server error during authorization');
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log(`🔌 WebSocket Client Disconnected: ${socket.id}`);
       activeSessions.delete(socket.id);
@@ -133,6 +161,13 @@ export function initSocket(server) {
         ioInstance.emit('KIOSKS_UPDATED', getActiveKiosksList());
       }
     });
+  });
+
+  // Broadcast captured console logs
+  consoleEmitter.on('log', (logEntry) => {
+    if (ioInstance) {
+      ioInstance.to('console-logs').emit('SERVER_LOG', logEntry);
+    }
   });
 
   // Subscribe to internal event bus — decouples HTTP controllers from WebSocket

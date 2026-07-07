@@ -32,19 +32,27 @@ router.post('/verify', asyncHandler(async (req, res) => {
   let verifiedCount = 0;
 
   for (const log of logs) {
+    // Skip legacy unhashed records
+    if (log.hash === null && log.prev_hash === null) {
+      continue;
+    }
+
+    const expectedPrev = log.prev_hash === 'GENESIS_HASH' ? 'GENESIS_HASH' : prevHash;
+
     // 1. Verify prev_hash link
-    if (log.prev_hash !== prevHash) {
+    if (log.prev_hash !== expectedPrev) {
       return res.json({
         success: false,
         error: 'Chain broken: prev_hash link mismatch',
         failedLog: log,
-        expectedPrevHash: prevHash,
+        expectedPrevHash: expectedPrev,
         actualPrevHash: log.prev_hash
       });
     }
 
     // 2. Verify block hash calculation
-    const input = `${prevHash}-${log.user_id}-${log.action}-${log.entity}-${log.entity_id || ''}-${log.details || ''}-${log.created_at}`;
+    const formattedTime = new Date(log.created_at).toISOString();
+    const input = `${expectedPrev}-${log.user_id}-${log.action}-${log.entity}-${log.entity_id || ''}-${log.details || ''}-${formattedTime}`;
     const calculatedHash = crypto.createHash('sha256').update(input).digest('hex');
 
     if (log.hash !== calculatedHash) {
