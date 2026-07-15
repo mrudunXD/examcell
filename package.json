@@ -4,6 +4,7 @@
   "description": "MIT WPU Exam Management System",
   "private": true,
   "scripts": {
+    "start": "node start.js",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
     "install:all": "npm install --prefix server && npm install --prefix client"

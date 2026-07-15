@@ -27,6 +27,7 @@ import PlannerPage from './pages/PlannerPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import DocumentationPage from './pages/DocumentationPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import BugTrackerPage from './pages/BugTrackerPage.jsx';
 
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="settings" element={<ProtectedRoute role="coordinator"><SettingsPage /></ProtectedRoute>} />
           <Route path="docs" element={<ProtectedRoute><DocumentationPage /></ProtectedRoute>} />
           <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="bugs" element={<ProtectedRoute role="coordinator"><BugTrackerPage /></ProtectedRoute>} />
         </Route>
         <Route path="kiosk/:cycleId" element={<div className="kiosk-theme" style={{ height: '100vh', width: '100vw' }}><KioskPage /></div>} />
       </Routes>

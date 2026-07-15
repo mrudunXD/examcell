@@ -10,7 +10,10 @@ const activeSessions = new Set();
 export function initSocket(server) {
   ioInstance = new Server(server, {
     cors: {
-      origin: 'http://localhost:5173',
+      origin: (origin, callback) => {
+        // Allow all origins to support ngrok tunnel connections
+        callback(null, true);
+      },
       methods: ['GET', 'POST'],
       credentials: true
     }

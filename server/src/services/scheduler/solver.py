@@ -195,16 +195,16 @@ def solve():
 
     model1.Minimize(sum(penalties))
 
-class TelemetryCallback(cp_model.CpSolverSolutionCallback):
-    def __init__(self):
-        cp_model.CpSolverSolutionCallback.__init__(self)
-        self.__solution_count = 0
+    class TelemetryCallback(cp_model.CpSolverSolutionCallback):
+        def __init__(self):
+            cp_model.CpSolverSolutionCallback.__init__(self)
+            self.__solution_count = 0
 
-    def on_solution_callback(self):
-        self.__solution_count += 1
-        obj = self.ObjectiveValue()
-        time_elapsed = self.WallTime()
-        print(f"TELEMETRY:{json.dumps({'objective': int(obj), 'time_ms': int(time_elapsed * 1000), 'solutions': self.__solution_count})}", flush=True)
+        def on_solution_callback(self):
+            self.__solution_count += 1
+            obj = self.ObjectiveValue()
+            time_elapsed = self.WallTime()
+            print(f"TELEMETRY:{json.dumps({'objective': int(obj), 'time_ms': int(time_elapsed * 1000), 'solutions': self.__solution_count})}", flush=True)
 
     # Solve Phase 1
     solver1 = cp_model.CpSolver()
@@ -288,18 +288,67 @@ class TelemetryCallback(cp_model.CpSolverSolutionCallback):
                 else:
                     model2.Add(num_inv >= 1)
 
-    # Supervisor Load Balancing Penalties
+    # Supervisor Load Balancing Penalties & Custom Constraints
     penalties2 = []
     if faculty:
         faculty_duties = {}
         for f in faculty:
             faculty_duties[f["id"]] = sum(inv[f["id"], r["id"], t["id"]] for r in classrooms for t in slots)
 
-        max_duties = model2.NewIntVar(0, len(slots), "max_duties")
-        min_duties = model2.NewIntVar(0, len(slots), "min_duties")
-        model2.AddMaxEquality(max_duties, list(faculty_duties.values()))
-        model2.AddMinEquality(min_duties, list(faculty_duties.values()))
-        penalties2.append(w["supervisor_load_balance"] * (max_duties - min_duties))
+            # A. Check Exemption Toggle
+            if f.get("exempted") == 1:
+                model2.Add(faculty_duties[f["id"]] == 0)
+                continue
+
+            # B. Check Custom Min / Max duties bounds
+            f_min = f.get("min_duties")
+            f_max = f.get("max_duties")
+            if f_min is not None:
+                model2.Add(faculty_duties[f["id"]] >= int(f_min))
+            if f_max is not None:
+                model2.Add(faculty_duties[f["id"]] <= int(f_max))
+
+            # C. Check Assignment Priority (Soft bias)
+            p = f.get("priority", "normal")
+            if p == "high":
+                penalties2.append(-10 * faculty_duties[f["id"]])
+            elif p == "low":
+                penalties2.append(10 * faculty_duties[f["id"]])
+
+        # D. Consecutive Duties Constraint (sliding window on the same day)
+        slots_by_date = {}
+        for t in slots:
+            d = t["date"]
+            if d not in slots_by_date:
+                slots_by_date[d] = []
+            slots_by_date[d].append(t)
+        
+        for d in slots_by_date:
+            slots_by_date[d].sort(key=lambda x: x["start_time"])
+
+        for f in faculty:
+            if f.get("exempted") == 1:
+                continue
+            max_con = f.get("max_consecutive", 2)
+            if max_con is None:
+                max_con = 2
+            
+            for d, day_slots in slots_by_date.items():
+                if len(day_slots) > max_con:
+                    for i in range(len(day_slots) - max_con):
+                        window = day_slots[i : i + max_con + 1]
+                        model2.Add(sum(inv[f["id"], r["id"], t["id"]] for r in classrooms for t in window) <= max_con)
+
+        # E. Global load balancing (only applicable for non-exempted faculty)
+        active_faculty_duties = [duties for fid, duties in faculty_duties.items() 
+                                 if next((fac for fac in faculty if fac["id"] == fid), {}).get("exempted") != 1]
+        
+        if active_faculty_duties:
+            max_duties = model2.NewIntVar(0, len(slots), "max_duties")
+            min_duties = model2.NewIntVar(0, len(slots), "min_duties")
+            model2.AddMaxEquality(max_duties, active_faculty_duties)
+            model2.AddMinEquality(min_duties, active_faculty_duties)
+            penalties2.append(w["supervisor_load_balance"] * (max_duties - min_duties))
 
     model2.Minimize(sum(penalties2))
 

@@ -9,9 +9,11 @@ import { useAppStore } from '../store/index.js';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-const SEM_COLORS = {
-  1: '#1e40af', 2: '#0e7490', 3: '#166534', 4: '#92400e',
-  5: '#7c3aed', 6: '#be185d', 7: '#c2410c', 8: '#374151',
+const YEAR_COLORS = {
+  'FY': '#3b82f6', // First Year (Blue)
+  'SY': '#06b6d4', // Second Year (Cyan)
+  'TY': '#10b981', // Third Year (Green)
+  'LY': '#a855f7', // Last/Fourth Year (Purple)
 };
 
 function getMonthGrid(year, month) {
@@ -108,25 +110,41 @@ export default function CalendarPage() {
 
       {/* Legend */}
       <div className="flex-row" style={{ gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-        {Object.entries(SEM_COLORS).map(([sem, color]) => (
-          <div key={sem} className="flex-row" style={{ gap: 5, alignItems: 'center' }}>
-            <div style={{ width: 10, height: 10, background: color, flexShrink: 0 }} />
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--np-n500)' }}>Sem {sem}</span>
+        {Object.entries(YEAR_COLORS).map(([year, color]) => (
+          <div key={year} className="flex-row" style={{ gap: 5, alignItems: 'center' }}>
+            <div style={{ width: 10, height: 10, borderRadius: '3px', background: color, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)' }}>{year}</span>
           </div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div style={{ border: '2px solid #111', overflow: 'hidden' }}>
+      <div style={{ 
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+        marginBottom: '24px'
+      }}>
         {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '2px solid #111' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(7, 1fr)', 
+          borderBottom: '1px solid var(--border)',
+          backgroundColor: 'var(--bg-elevated)'
+        }}>
           {DAYS.map(d => (
             <div key={d} style={{
-              textAlign: 'center', padding: '8px 0',
-              fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em',
-              textTransform: 'uppercase', color: d === 'Sun' ? '#FF453A' : 'var(--np-n500)',
-              background: '#111', color: d === 'Sun' ? '#fca5a5' : 'rgba(255,255,255,0.6)',
-              borderRight: '1px solid rgba(255,255,255,0.1)',
+              textAlign: 'center', 
+              padding: '12px 0',
+              fontFamily: 'var(--font-serif)', 
+              fontSize: '11px', 
+              fontWeight: '600',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase', 
+              color: d === 'Sun' ? 'var(--accent-red)' : 'var(--text-secondary)',
+              borderRight: d !== 'Sat' ? '1px solid var(--border)' : 'none'
             }}>
               {d}
             </div>
@@ -135,7 +153,11 @@ export default function CalendarPage() {
 
         {/* Weeks */}
         {grid.map((week, wi) => (
-          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < grid.length - 1 ? '1px solid var(--border)' : 'none' }}>
+          <div key={wi} style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(7, 1fr)', 
+            borderBottom: wi < grid.length - 1 ? '1px solid var(--border)' : 'none' 
+          }}>
             {week.map((day, di) => {
               const isSun = di === 0;
               const dateStr = day ? `${viewYear}-${String(viewMonth + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : null;
@@ -147,37 +169,86 @@ export default function CalendarPage() {
                 <div
                   key={di}
                   style={{
-                    minHeight: 90, padding: '6px 8px',
+                    minHeight: '110px', 
+                    padding: '8px 10px',
                     borderRight: di < 6 ? '1px solid var(--border)' : 'none',
-                    background: !day ? 'var(--text-primary)' : isSun ? '#FFF5F5' : isInCycle ? '#FEFEFE' : 'var(--text-primary)',
+                    background: !day ? 'var(--bg-base)' : isInCycle ? 'var(--bg-surface)' : 'var(--bg-base)',
+                    opacity: !day ? 0.4 : 1,
                     cursor: daySlots.length ? 'pointer' : 'default',
+                    transition: 'all 0.2s ease',
                     position: 'relative',
+                    borderTop: isInCycle ? '2px solid var(--accent-purple)' : 'none',
                   }}
+                  className="calendar-day-cell"
                   onClick={() => daySlots.length && setSelected(selected?.date === dateStr ? null : { date: dateStr, slots: daySlots })}
                 >
                   {day && (
                     <>
                       <div style={{
-                        fontFamily: 'var(--font-mono)', fontSize: 11,
-                        color: isSun ? '#FF453A' : !isInCycle ? '#CCCCCC' : '#111',
-                        fontWeight: isToday ? 700 : 400,
-                        marginBottom: 4,
-                        ...(isToday ? { background: '#111', color: 'var(--bg-base)', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 10 } : {}),
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
                       }}>
-                        {day}
-                      </div>
-                      {daySlots.slice(0, 3).map((slot, si) => (
-                        <div key={slot.id} style={{
-                          background: SEM_COLORS[slot.subject_semester] || '#374151',
-                          color: 'white', padding: '2px 5px', marginBottom: 2,
-                          fontFamily: 'var(--font-mono)', fontSize: 8, lineHeight: 1.3,
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        <div style={{
+                          fontFamily: 'var(--font-mono)', 
+                          fontSize: '12px',
+                          color: isToday ? '#ffffff' : isSun ? 'var(--accent-red)' : isInCycle ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                          fontWeight: isToday || isInCycle ? '700' : '400',
+                          backgroundColor: isToday ? 'var(--accent-purple)' : 'transparent',
+                          borderRadius: '50%',
+                          width: isToday ? '22px' : 'auto',
+                          height: isToday ? '22px' : 'auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: isToday ? '0 0 10px rgba(168, 85, 247, 0.5)' : 'none'
                         }}>
-                          {slot.subject_code || slot.abbreviation}
+                          {day}
                         </div>
-                      ))}
+                        {isInCycle && daySlots.length > 0 && (
+                          <span style={{
+                            fontSize: '9px',
+                            color: 'var(--accent-purple)',
+                            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            fontWeight: '600'
+                          }}>
+                            {daySlots.length}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {daySlots.slice(0, 3).map((slot, si) => (
+                          <div key={slot.id} style={{
+                            background: YEAR_COLORS[slot.year] || '#374151',
+                            color: '#ffffff', 
+                            padding: '3px 6px', 
+                            borderRadius: '4px',
+                            fontFamily: 'var(--font-sans)', 
+                            fontSize: '9px', 
+                            fontWeight: '600',
+                            lineHeight: '1.2',
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis', 
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                          }}
+                          title={`${slot.subject_code} - ${slot.subject_name} (${slot.branch} ${slot.year})`}>
+                            {slot.abbreviation || (slot.subject_name && slot.subject_name.length > 12 ? slot.subject_name.slice(0, 12) + '...' : slot.subject_name) || slot.subject_code}
+                          </div>
+                        ))}
+                      </div>
                       {daySlots.length > 3 && (
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--np-n400)', marginTop: 1 }}>
+                        <div style={{ 
+                          fontFamily: 'var(--font-sans)', 
+                          fontSize: '10px', 
+                          color: 'var(--text-secondary)', 
+                          fontWeight: '600',
+                          marginTop: '4px',
+                          textAlign: 'right'
+                        }}>
                           +{daySlots.length - 3} more
                         </div>
                       )}
@@ -192,27 +263,83 @@ export default function CalendarPage() {
 
       {/* Selected day detail panel */}
       {selected && (
-        <div style={{ marginTop: 24, border: '2px solid #111', padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ 
+          marginTop: '24px', 
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)', 
+          borderRadius: '16px',
+          padding: '24px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+        }} className="fade-in">
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '20px',
+            borderBottom: '1px solid var(--border)',
+            paddingBottom: '12px'
+          }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--np-n500)', marginBottom: 4 }}>
+              <div style={{ 
+                fontFamily: 'var(--font-mono)', 
+                fontSize: '10px', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.15em', 
+                color: 'var(--text-tertiary)', 
+                marginBottom: '4px' 
+              }}>
                 {new Date(selected.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' })}, {formatDate(selected.date)}
               </div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.slots.length} Exam{selected.slots.length > 1 ? 's' : ''} Scheduled</div>
+              <h3 style={{ 
+                fontWeight: '700', 
+                fontSize: '18px',
+                color: 'var(--text-primary)',
+                margin: 0
+              }}>
+                {selected.slots.length} Scheduled {selected.slots.length > 1 ? 'Exams' : 'Exam'}
+              </h3>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>Close</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}>Close</button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {selected.slots.map(slot => (
-              <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid var(--border)', background: '#FEFEFE' }}>
-                <div style={{ width: 4, alignSelf: 'stretch', background: SEM_COLORS[slot.subject_semester] || '#374151', flexShrink: 0 }} />
+              <div key={slot.id} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '16px', 
+                padding: '14px 18px', 
+                borderRadius: '10px',
+                border: '1px solid var(--border)', 
+                background: 'var(--bg-elevated)' 
+              }}>
+                <div style={{ 
+                  width: '4px', 
+                  alignSelf: 'stretch', 
+                  background: YEAR_COLORS[slot.year] || '#374151', 
+                  borderRadius: '2px',
+                  flexShrink: 0 
+                }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{slot.subject_code} — {slot.subject_name}</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--np-n500)', marginTop: 2 }}>
-                    {slot.branch} · {slot.year} · Sem {slot.subject_semester} · {formatTime(slot.start_time)} · {slot.student_count} students
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-primary)' }}>
+                    {slot.subject_code} — {slot.subject_name}
+                  </div>
+                  <div style={{ 
+                    fontFamily: 'var(--font-sans)', 
+                    fontSize: '11px', 
+                    color: 'var(--text-secondary)', 
+                    marginTop: '4px',
+                    display: 'flex',
+                    gap: '12px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <span><strong>Branch:</strong> {slot.branch}</span>
+                    <span><strong>Year:</strong> {slot.year}</span>
+                    <span><strong>Semester:</strong> {slot.subject_semester}</span>
+                    <span><strong>Time:</strong> {formatTime(slot.start_time)} ({slot.duration_mins} mins)</span>
+                    <span><strong>Students:</strong> {slot.student_count}</span>
                   </div>
                 </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, textTransform: 'uppercase', padding: '2px 8px', border: '1px solid var(--border)', color: 'var(--np-n500)' }}>
+                <span className={`badge ${slot.status === 'draft' ? 'badge-amber' : 'badge-green'}`}>
                   {slot.status}
                 </span>
               </div>

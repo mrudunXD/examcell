@@ -32,7 +32,7 @@ router.post('/', requireCoordinator, auditLog('CREATE_FACULTY', 'users', (req, d
 
 // PUT update faculty
 router.put('/:id', requireCoordinator, auditLog('UPDATE_FACULTY', 'users', (req) => req.params.id, (req, data) => `Updated faculty account for ${data?.name} (${data?.email})`), asyncHandler(async (req, res) => {
-  const { name, email, department, password } = req.body;
+  const { name, email, department, password, min_duties, max_duties, max_consecutive, exempted, priority } = req.body;
 
   // Verify target is indeed a faculty member
   const targetUser = await FacultyRepository.findById(req.params.id);
@@ -45,7 +45,12 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_FACULTY', 'users', (req)
     name,
     email,
     department,
-    password
+    password,
+    min_duties,
+    max_duties,
+    max_consecutive,
+    exempted,
+    priority
   });
   res.json(updated);
 }));

@@ -34,6 +34,7 @@ import facultyLeavesRouter from './routes/facultyLeaves.js';
 import subjectConstraintsRouter from './routes/subjectConstraints.js';
 import settingsRouter from './routes/settings.js';
 import iamRouter from './routes/iam.js';
+import bugsRouter from './routes/bugs.js';
 import { initAutoBackupScheduler } from './services/autoBackup.js';
 import { initAlertingMonitor } from './services/alerting.js';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -98,7 +99,7 @@ app.use('/api', apiLimiter);
 initDb();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(requestLogger);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -169,6 +170,7 @@ v1Router.use('/faculty-leaves', facultyLeavesRouter);
 v1Router.use('/subject-constraints', subjectConstraintsRouter);
 v1Router.use('/settings', settingsRouter);
 v1Router.use('/iam', iamRouter);
+v1Router.use('/bugs', bugsRouter);
 
 app.use('/api/v1', v1Router);
 app.use('/api', v1Router); // Client compatibility alias

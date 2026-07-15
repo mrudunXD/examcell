@@ -168,6 +168,11 @@ class PgDatabase {
         must_change_password INTEGER DEFAULT 0,
         failed_login_attempts INTEGER DEFAULT 0,
         lockout_until TIMESTAMP,
+        min_duties INTEGER DEFAULT NULL,
+        max_duties INTEGER DEFAULT NULL,
+        max_consecutive INTEGER DEFAULT 2,
+        exempted INTEGER DEFAULT 0,
+        priority TEXT DEFAULT 'normal',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -464,11 +469,29 @@ class PgDatabase {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='broadcasts' AND column_name='expires_at') THEN
           ALTER TABLE broadcasts ADD COLUMN expires_at TIMESTAMP;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='broadcasts' AND column_name='image_url') THEN
+          ALTER TABLE broadcasts ADD COLUMN image_url TEXT;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='is_common') THEN
           ALTER TABLE subjects ADD COLUMN is_common INTEGER DEFAULT 0;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='branches') THEN
           ALTER TABLE subjects ADD COLUMN branches TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='min_duties') THEN
+          ALTER TABLE users ADD COLUMN min_duties INTEGER DEFAULT NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='max_duties') THEN
+          ALTER TABLE users ADD COLUMN max_duties INTEGER DEFAULT NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='max_consecutive') THEN
+          ALTER TABLE users ADD COLUMN max_consecutive INTEGER DEFAULT 2;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='exempted') THEN
+          ALTER TABLE users ADD COLUMN exempted INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='priority') THEN
+          ALTER TABLE users ADD COLUMN priority TEXT DEFAULT 'normal';
         END IF;
       END $$;
 
@@ -499,6 +522,33 @@ class PgDatabase {
         updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS bugs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        steps TEXT,
+        severity TEXT DEFAULT 'minor' CHECK(severity IN ('cosmetic','minor','major','critical')),
+        status TEXT DEFAULT 'open' CHECK(status IN ('open','in_progress','ai_suggested','fixed','closed')),
+        page_url TEXT,
+        reported_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        reporter_name TEXT,
+        reporter_role TEXT,
+        browser_info TEXT,
+        console_errors TEXT,
+        image_url TEXT,
+        notes TEXT,
+        ai_root_cause TEXT,
+        ai_explanation TEXT,
+        ai_confidence INTEGER,
+        ai_patches TEXT,
+        ai_applied_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_bugs_status ON bugs(status);
+      CREATE INDEX IF NOT EXISTS idx_bugs_severity ON bugs(severity);
     `);
   }
 }
@@ -630,9 +680,19 @@ async function seedInitialData() {
   await seedDefaultSettings();
 
   const existing = await db.prepare('SELECT COUNT(*) as cnt FROM users').get();
-  if (existing.cnt > 0) return;
+  if (existing.cnt > 0) {
+    // If the database is already seeded, check if the admin coordinator has the default password "admin123"
+    // and upgrade it to "@Admin123" to match the updated autofill.
+    const adminUser = await db.prepare("SELECT * FROM users WHERE email = 'admin@mitwpu.edu.in'").get();
+    if (adminUser && bcrypt.compareSync('admin123', adminUser.password_hash)) {
+      const upgradedHash = bcrypt.hashSync('@Admin123', 10);
+      await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(upgradedHash, adminUser.id);
+      console.log('✅ Upgraded default coordinator password to @Admin123');
+    }
+    return;
+  }
 
-  const coordHash = bcrypt.hashSync('admin123', 10);
+  const coordHash = bcrypt.hashSync('@Admin123', 10);
   const coordId = crypto.randomUUID();
 
   await db.prepare(`
@@ -640,7 +700,7 @@ async function seedInitialData() {
     VALUES (?, ?, ?, ?, ?, ?, 1)
   `).run(coordId, 'Admin Coordinator', 'admin@mitwpu.edu.in', coordHash, 'coordinator', 'Examination Cell');
 
-  console.log('✅ Seeded default coordinator: admin@mitwpu.edu.in / admin123');
+  console.log('✅ Seeded default coordinator: admin@mitwpu.edu.in / @Admin123');
 }
 
 async function seedDefaultSettings() {

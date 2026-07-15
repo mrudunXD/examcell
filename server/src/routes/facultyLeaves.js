@@ -30,10 +30,18 @@ router.post('/', auditLog('ADD_FACULTY_LEAVE', 'faculty_leaves', (req, data) => 
   }
 
   // Check unique leaf constraint
-  const existing = await db.prepare(`
+  let checkQuery = `
     SELECT 1 FROM faculty_leaves
-    WHERE faculty_id = ? AND date = ? AND (shift_id = ? OR (shift_id IS NULL AND ? IS NULL))
-  `).get(faculty_id, date, shift_id || null, shift_id || null);
+    WHERE faculty_id = ? AND date = ?
+  `;
+  const checkParams = [faculty_id, date];
+  if (shift_id) {
+    checkQuery += ' AND shift_id = ?';
+    checkParams.push(shift_id);
+  } else {
+    checkQuery += ' AND shift_id IS NULL';
+  }
+  const existing = await db.prepare(checkQuery).get(...checkParams);
 
   if (existing) {
     return res.status(400).json({ error: 'Faculty leave already exists for this date/shift' });

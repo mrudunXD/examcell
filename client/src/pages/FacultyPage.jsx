@@ -6,19 +6,46 @@ import { useAuthStore } from '../store/index.js';
 import CountUp from '../components/ReactBits/CountUp.jsx';
 import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
 
-const EMPTY = { name: '', email: '', department: '', password: '' };
+const EMPTY = { 
+  name: '', 
+  email: '', 
+  department: '', 
+  password: '', 
+  min_duties: '', 
+  max_duties: '', 
+  max_consecutive: 2, 
+  exempted: false, 
+  priority: 'normal' 
+};
 
 function FacultyModal({ faculty, onClose, onSave }) {
   const [form, setForm] = useState(faculty
-    ? { name: faculty.name, email: faculty.email, department: faculty.department || '', password: '' }
+    ? { 
+        name: faculty.name, 
+        email: faculty.email, 
+        department: faculty.department || '', 
+        password: '',
+        min_duties: faculty.min_duties !== null && faculty.min_duties !== undefined ? faculty.min_duties : '',
+        max_duties: faculty.max_duties !== null && faculty.max_duties !== undefined ? faculty.max_duties : '',
+        max_consecutive: faculty.max_consecutive !== undefined && faculty.max_consecutive !== null ? faculty.max_consecutive : 2,
+        exempted: faculty.exempted === 1 || faculty.exempted === true,
+        priority: faculty.priority || 'normal'
+      }
     : EMPTY
   );
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setSaving(true);
+    const payload = {
+      ...form,
+      min_duties: form.min_duties === '' ? null : parseInt(form.min_duties, 10),
+      max_duties: form.max_duties === '' ? null : parseInt(form.max_duties, 10),
+      max_consecutive: parseInt(form.max_consecutive, 10),
+      exempted: form.exempted ? 1 : 0
+    };
     try {
-      faculty?.id ? await api.put(`/faculty/${faculty.id}`, form) : await api.post('/faculty', form);
+      faculty?.id ? await api.put(`/faculty/${faculty.id}`, payload) : await api.post('/faculty', payload);
       toast.success(faculty?.id ? 'Faculty updated' : 'Faculty account created');
       onSave(); onClose();
     } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
@@ -27,8 +54,8 @@ function FacultyModal({ faculty, onClose, onSave }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <h2 className="modal-title">{faculty?.id ? 'Edit Faculty' : 'Add Faculty Account'}</h2>
+      <div className="modal" style={{ maxWidth: 540 }}>
+        <h2 className="modal-title">{faculty?.id ? 'Edit Faculty Settings' : 'Add Faculty Account'}</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="form-group">
             <label className="form-label">Full Name *</label>
@@ -48,10 +75,50 @@ function FacultyModal({ faculty, onClose, onSave }) {
             <label className="form-label">{faculty?.id ? 'New Password (leave blank to keep)' : 'Password *'}</label>
             <input className="input" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required={!faculty?.id} placeholder="••••••••" />
           </div>
+
+          <div style={{ padding: '12px 0', borderTop: '1px solid var(--border-faint)', marginTop: 8 }}>
+            <h4 style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: 12 }}>Custom Supervision Assignment Rules</h4>
+            
+            <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: 11 }}>Min Duties (Bounds)</label>
+                <input className="input" type="number" min="0" value={form.min_duties} onChange={e => setForm({ ...form, min_duties: e.target.value })} placeholder="Default (2)" />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: 11 }}>Max Duties (Bounds)</label>
+                <input className="input" type="number" min="0" value={form.max_duties} onChange={e => setForm({ ...form, max_duties: e.target.value })} placeholder="Default (6)" />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: 11 }}>Max Consecutive</label>
+                <select className="select" value={form.max_consecutive} onChange={e => setForm({ ...form, max_consecutive: e.target.value })}>
+                  <option value={1}>1 Duty</option>
+                  <option value={2}>2 Duties</option>
+                  <option value={3}>3 Duties</option>
+                  <option value={4}>4 Duties</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: 11 }}>Assignment Priority</label>
+                <select className="select" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+                  <option value="low">Low Priority</option>
+                  <option value="normal">Normal Priority</option>
+                  <option value="high">High Priority</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                <input type="checkbox" id="exempted" checked={form.exempted} onChange={e => setForm({ ...form, exempted: e.target.checked })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                <label htmlFor="exempted" className="form-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>Exempt from Duties</label>
+              </div>
+            </div>
+          </div>
+
           <div className="flex-row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (faculty?.id ? 'Update' : 'Create Account')}
+              {saving ? <div className="spinner spinner-invert" style={{ width: 14, height: 14 }} /> : (faculty?.id ? 'Update Settings' : 'Create Account')}
             </button>
           </div>
         </form>
@@ -582,6 +649,7 @@ export default function FacultyPage() {
                   <th>Email</th>
                   <th>Department</th>
                   <th>Conflict Restrictions</th>
+                  <th>Custom Rules</th>
                   <th>Status</th>
                   {isCoord && <th style={{ width: 60, paddingRight: 28, textAlign: 'right' }}>Actions</th>}
                 </tr>
@@ -621,6 +689,33 @@ export default function FacultyPage() {
                             ))}
                             {f.subjects.length > 3 && (
                               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>+{f.subjects.length - 3}</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex-row" style={{ flexWrap: 'wrap', gap: 4 }}>
+                        {f.exempted === 1 && <span className="badge badge-danger" style={{ fontSize: 9 }}>Exempted</span>}
+                        {f.exempted !== 1 && (
+                          <>
+                            {(f.min_duties !== null || f.max_duties !== null) && (
+                              <span className="badge badge-neutral" style={{ fontSize: 9, fontFamily: 'var(--font-mono)' }}>
+                                Load: {f.min_duties !== null ? f.min_duties : '0'}-{f.max_duties !== null ? f.max_duties : '∞'}
+                              </span>
+                            )}
+                            {f.max_consecutive !== undefined && f.max_consecutive !== null && (
+                              <span className="badge badge-neutral" style={{ fontSize: 9 }}>
+                                Max Consec: {f.max_consecutive}
+                              </span>
+                            )}
+                            {f.priority !== 'normal' && f.priority !== undefined && (
+                              <span className={`badge ${f.priority === 'high' ? 'badge-primary' : 'badge-amber'}`} style={{ fontSize: 9 }}>
+                                {f.priority === 'high' ? 'High' : 'Low'}
+                              </span>
+                            )}
+                            {f.min_duties === null && f.max_duties === null && (f.priority === 'normal' || !f.priority) && (
+                              <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Default limits</span>
                             )}
                           </>
                         )}

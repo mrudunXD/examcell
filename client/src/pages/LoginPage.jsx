@@ -372,7 +372,7 @@ export default function LoginPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setEmail('admin@mitwpu.edu.in'); setPassword('admin123'); }}
+                    onClick={() => { setEmail('admin@mitwpu.edu.in'); setPassword('@Admin123'); }}
                     style={{
                       fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
                       background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)',
@@ -384,7 +384,7 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  admin@mitwpu.edu.in<br />admin123
+                  admin@mitwpu.edu.in<br />@Admin123
                 </div>
               </div>
 

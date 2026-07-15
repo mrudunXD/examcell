@@ -70,13 +70,14 @@ router.get('/kiosk/:cycleId', asyncHandler(async (req, res) => {
     s.rooms = await roomStmt.all(s.id);
   }
 
-  // Get broadcasts (urgent/critical)
+  // Get broadcasts (not expired, and matching targeted classroom or global)
   const broadcasts = await db.prepare(`
     SELECT * FROM broadcasts 
-    WHERE priority IN ('urgent', 'critical')
+    WHERE (classroom_id IS NULL OR classroom_id = ?)
+    AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
     ORDER BY created_at DESC 
     LIMIT 5
-  `).all();
+  `).all(classroomId || null);
 
   res.json({ cycle, slots, broadcasts });
 }));

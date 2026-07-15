@@ -5,13 +5,14 @@ import {
   CalendarDays, Grid3x3, UserCog, AlertTriangle, Download,
   ClipboardList, LogOut, GraduationCap, Search as SearchIcon, Calendar,
   ClipboardCheck, Copy, Radio, BarChart3, X, ArrowRight, Menu, Activity, TrendingUp,
-  Sun, Moon, ChevronDown, ChevronRight, HelpCircle
+  Sun, Moon, ChevronDown, ChevronRight, HelpCircle, Bug
 } from 'lucide-react';
 import { useAuthStore, useAppStore, useSettingsStore } from '../store/index.js';
 import api from '../lib/api.js';
 import { ICONS, LABELS, getResultLink, getResultSub } from '../pages/SearchPage.jsx';
 import ShinyText from './ReactBits/ShinyText.jsx';
 import toast from 'react-hot-toast';
+import BugReporter from './BugReporter.jsx';
 
 const coordinatorNav = [
   { section: 'Overview' },
@@ -29,6 +30,7 @@ const coordinatorNav = [
   { to: '/audit',     icon: ClipboardList, label: 'Audit Log' },
   { to: '/health',    icon: Activity,      label: 'System Health' },
   { to: '/settings',  icon: UserCog,       label: 'Settings' },
+  { to: '/bugs',      icon: Bug,           label: 'Bug Tracker' },
 ];
 
 const facultyNav = [
@@ -235,6 +237,22 @@ export default function Layout() {
   const { user, logout, setUser } = useAuthStore();
   const { theme, toggleTheme } = useAppStore();
   const { settings, fetchSettings } = useSettingsStore();
+  const [openBugsCount, setOpenBugsCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.role !== 'coordinator') return;
+    const fetchCount = async () => {
+      try {
+        const { data } = await api.get('/bugs/count');
+        setOpenBugsCount(data.count || 0);
+      } catch (err) {
+        console.warn('Failed to fetch open bugs count:', err);
+      }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     fetchSettings();
@@ -608,6 +626,7 @@ export default function Layout() {
                   );
                 }
                 
+                const hasBadge = item.to === '/bugs' && openBugsCount > 0;
                 return (
                   <NavLink
                     key={item.to}
@@ -618,11 +637,29 @@ export default function Layout() {
                       justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                       padding: sidebarCollapsed ? '10px 0' : '10px 12px',
                       gap: sidebarCollapsed ? 0 : 12,
+                      position: 'relative'
                     }}
                     title={sidebarCollapsed ? item.label : ''}
                   >
                     <item.icon size={13} strokeWidth={1.5} style={{ opacity: 0.7 }} />
                     {!sidebarCollapsed && <span style={{ flex: 1 }}>{item.label}</span>}
+                    {hasBadge && (
+                      <span style={{
+                        background: '#ef4444',
+                        color: '#fff',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        padding: '1px 5px',
+                        borderRadius: '10px',
+                        marginLeft: sidebarCollapsed ? '0' : 'auto',
+                        position: sidebarCollapsed ? 'absolute' : 'static',
+                        top: sidebarCollapsed ? '2px' : 'auto',
+                        right: sidebarCollapsed ? '2px' : 'auto',
+                        transform: sidebarCollapsed ? 'scale(0.8)' : 'none'
+                      }}>
+                        {openBugsCount}
+                      </span>
+                    )}
                   </NavLink>
                 );
               });
@@ -823,6 +860,7 @@ export default function Layout() {
           </div>
         </div>
       )}
+      <BugReporter />
 
       {/* Mobile-specific styling injections */}
       <style>{`

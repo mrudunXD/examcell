@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { 
   Activity, 
@@ -31,6 +31,9 @@ export default function SystemHealthPage() {
   const [fileRestoreData, setFileRestoreData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [sendingTest, setSendingTest] = useState(false);
+  const [logFilter, setLogFilter] = useState('all'); // 'all' | 'error' | 'warn' | 'info'
+  const [autoScroll, setAutoScroll] = useState(true);
+  const logContainerRef = useRef(null);
 
   const handleTriggerTestLog = async () => {
     setSendingTest(true);
@@ -70,16 +73,57 @@ export default function SystemHealthPage() {
 
     socket.on('SERVER_LOG', (log) => {
       setLogs(prev => {
-        const next = [...prev, log];
+        const next = [...prev, { ...log, source: 'SERVER' }];
         if (next.length > 500) next.shift();
         return next;
       });
     });
 
+    // Also capture client-side errors and warnings
+    const origError = window.onerror;
+    const origUnhandled = window.onunhandledrejection;
+    window.onerror = (msg, src, line, col, err) => {
+      setLogs(prev => {
+        const next = [...prev, {
+          id: Math.random().toString(36).slice(2),
+          timestamp: new Date().toISOString(),
+          text: `[CLIENT ERROR] ${msg} (${src}:${line}:${col})`,
+          type: 'error',
+          source: 'CLIENT'
+        }];
+        if (next.length > 500) next.shift();
+        return next;
+      });
+      if (origError) origError(msg, src, line, col, err);
+    };
+    window.onunhandledrejection = (e) => {
+      setLogs(prev => {
+        const next = [...prev, {
+          id: Math.random().toString(36).slice(2),
+          timestamp: new Date().toISOString(),
+          text: `[CLIENT UNHANDLED] ${e.reason}`,
+          type: 'error',
+          source: 'CLIENT'
+        }];
+        if (next.length > 500) next.shift();
+        return next;
+      });
+      if (origUnhandled) origUnhandled(e);
+    };
+
     return () => {
       socket.disconnect();
+      window.onerror = origError;
+      window.onunhandledrejection = origUnhandled;
     };
   }, []);
+
+  // Auto-scroll log console on new logs
+  useEffect(() => {
+    if (autoScroll && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs, autoScroll]);
 
   const fetchHealthData = async () => {
     try {
@@ -605,85 +649,117 @@ export default function SystemHealthPage() {
         </div>
       </div>
 
-      {/* Node Server Console Output Terminal */}
+      {/* Combined App Log Console (like start script) */}
       <div style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)', padding: 24, borderRadius: 8, marginTop: 24, boxShadow: '4px 4px 0 0 var(--np-ink)' }}>
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1.5px solid var(--np-ink)', paddingBottom: 10, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Activity size={18} />
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0, fontSize: 18 }}>App Server Log Console</h3>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0, fontSize: 18 }}>Combined App Console</h3>
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: '#22c55e', color: '#fff', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>LIVE</span>
           </div>
-          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: '#22c55e', color: '#fff', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>LIVE STREAMING</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)' }}>{logs.length} lines</span>
+            {/* Filter buttons */}
+            {['all','error','warn','info'].map(f => (
+              <button key={f} onClick={() => setLogFilter(f)} style={{
+                padding: '3px 10px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                borderRadius: 4, border: '1.5px solid var(--border)', cursor: 'pointer',
+                background: logFilter === f ? (f === 'error' ? '#ef4444' : f === 'warn' ? '#eab308' : f === 'info' ? '#22c55e' : 'var(--np-ink)') : 'transparent',
+                color: logFilter === f ? '#fff' : 'var(--np-n500)',
+                textTransform: 'uppercase'
+              }}>{f}</button>
+            ))}
+            {/* Auto-scroll toggle */}
+            <button onClick={() => setAutoScroll(a => !a)} style={{
+              padding: '3px 10px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+              borderRadius: 4, border: '1.5px solid var(--border)', cursor: 'pointer',
+              background: autoScroll ? '#3b82f6' : 'transparent',
+              color: autoScroll ? '#fff' : 'var(--np-n500)',
+            }}>⬇ Auto</button>
+            {/* Clear */}
+            <button onClick={() => setLogs([])} style={{
+              padding: '3px 10px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+              borderRadius: 4, border: '1.5px solid #ef444466', cursor: 'pointer',
+              background: 'transparent', color: '#ef4444',
+            }}>✕ Clear</button>
+          </div>
         </div>
-        
+
         {/* Terminal Window */}
-        <div style={{
-          background: '#0c0a09',
-          borderRadius: 8,
-          border: '1px solid var(--border)',
-          overflow: 'hidden',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-        }}>
-          {/* Terminal Title Bar */}
-          <div style={{
-            background: '#1c1917',
-            padding: '10px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            borderBottom: '1px solid #292524'
-          }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308' }} />
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
+        <div style={{ background: '#0c0a09', borderRadius: 8, border: '1px solid #292524', overflow: 'hidden', fontFamily: 'var(--font-mono)', fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+          {/* Title Bar */}
+          <div style={{ background: '#1c1917', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #292524', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308' }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <span style={{ color: '#78716c', fontSize: 11, marginLeft: 4 }}>MIT WPU EXAM SYSTEM — COMBINED LOG STREAM</span>
             </div>
-            <span style={{ color: '#78716c', fontSize: 11, marginLeft: 8 }}>NODE APP SERVER CONSOLE LOGS</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: '#166534', color: '#4ade80', fontWeight: 700 }}>SERVER</span>
+              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: '#1e3a5f', color: '#60a5fa', fontWeight: 700 }}>CLIENT</span>
+            </div>
           </div>
-          
-          {/* Terminal Logs Output */}
-          <div 
-            style={{
-              padding: 16,
-              height: 320,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              color: '#34d399',
-              background: '#0c0a09',
-              textAlign: 'left'
+
+          {/* Log Output */}
+          <div
+            ref={logContainerRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+              if (!atBottom && autoScroll) setAutoScroll(false);
             }}
+            style={{ padding: 16, height: 420, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, background: '#0c0a09', textAlign: 'left' }}
             className="custom-scrollbar"
-            ref={(el) => {
-              if (el) el.scrollTop = el.scrollHeight;
-            }}
           >
-            {logs.length === 0 ? (
-              <span style={{ color: '#78716c', fontStyle: 'italic' }}>Listening for app server logs...</span>
-            ) : (
-              logs.map((log) => (
-                <div key={log.id} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #1c1917', paddingBottom: 2 }}>
-                  <span style={{ color: '#78716c', fontSize: 10, flexShrink: 0 }}>
-                    {new Date(log.timestamp).toLocaleTimeString()}
-                  </span>
-                  <span style={{
-                    color: log.type === 'error' ? '#f87171' : '#34d399',
-                    wordBreak: 'break-all',
-                    whiteSpace: 'pre-wrap'
-                  }}>
-                    {log.text}
-                  </span>
-                </div>
-              ))
-            )}
+            {(() => {
+              const filtered = logFilter === 'all' ? logs : logs.filter(l => l.type === logFilter);
+              if (filtered.length === 0) return (
+                <span style={{ color: '#78716c', fontStyle: 'italic' }}>
+                  {logs.length === 0 ? 'Waiting for logs...' : `No ${logFilter} logs to show.`}
+                </span>
+              );
+              return filtered.map((log) => {
+                const isError = log.type === 'error';
+                const isWarn = log.text?.toLowerCase().includes('warn') || log.type === 'warn';
+                const isClient = log.source === 'CLIENT';
+                const textColor = isError ? '#f87171' : isWarn ? '#fbbf24' : isClient ? '#60a5fa' : '#34d399';
+                const srcBg = isClient ? '#1e3a5f' : '#14532d';
+                const srcColor = isClient ? '#60a5fa' : '#4ade80';
+                return (
+                  <div key={log.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', borderBottom: '1px solid #1c1917', paddingBottom: 2, paddingTop: 1 }}>
+                    <span style={{ color: '#57534e', fontSize: 10, flexShrink: 0, minWidth: 64 }}>
+                      {new Date(log.timestamp).toLocaleTimeString('en-IN', { hour12: false })}
+                    </span>
+                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: srcBg, color: srcColor, fontWeight: 700, flexShrink: 0, alignSelf: 'center' }}>
+                      {log.source || 'SERVER'}
+                    </span>
+                    {isError && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: '#7f1d1d', color: '#fca5a5', fontWeight: 700, flexShrink: 0, alignSelf: 'center' }}>ERR</span>}
+                    {isWarn && !isError && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: '#713f12', color: '#fde68a', fontWeight: 700, flexShrink: 0, alignSelf: 'center' }}>WRN</span>}
+                    <span style={{ color: textColor, wordBreak: 'break-all', whiteSpace: 'pre-wrap', flex: 1 }}>
+                      {log.text}
+                    </span>
+                  </div>
+                );
+              });
+            })()}
           </div>
+        </div>
+
+        {/* Footer hint */}
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)', display: 'flex', gap: 16 }}>
+          <span>🟢 SERVER = Node.js process stdout/stderr</span>
+          <span>🔵 CLIENT = Browser-side unhandled errors</span>
+          <span>scroll up to pause auto-scroll</span>
         </div>
       </div>
     </div>
   );
 }
+
 
 
 

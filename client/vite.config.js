@@ -7,11 +7,16 @@ export default defineConfig({
   server: {
     port: 5173,
      allowedHosts: [
-      '19d0-2409-40c2-5049-16e9-fced-fe8-262a-ad6b.ngrok-free.app'
+      'clumsy-appendage-hubcap.ngrok-free.dev'
     ],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:5000',
+        ws: true,
         changeOrigin: true,
       }
     }

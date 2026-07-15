@@ -196,8 +196,9 @@ export default function DashboardPage() {
   const [targetRoomId, setTargetRoomId] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMsg, setBroadcastMsg] = useState('');
-  const [broadcastPriority, setBroadcastPriority] = useState('normal');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [durationMins, setDurationMins] = useState(15);
+  const [broadcastImage, setBroadcastImage] = useState(null);
 
   const navigate = useNavigate();
 
@@ -277,9 +278,15 @@ export default function DashboardPage() {
     if (!broadcastTitle.trim() || !broadcastMsg.trim()) { toast.error('Title and message are required.'); return; }
     setSendingBroadcast(true);
     try {
-      await api.post('/broadcasts', { title: broadcastTitle.trim(), message: broadcastMsg.trim(), priority: broadcastPriority, classroom_id: targetRoomId || null });
+      await api.post('/broadcasts', { 
+        title: broadcastTitle.trim(), 
+        message: broadcastMsg.trim(), 
+        classroom_id: targetRoomId || null,
+        duration_mins: parseInt(durationMins, 10) || null,
+        image_url: broadcastImage || null
+      });
       toast.success('Broadcast sent successfully');
-      setBroadcastTitle(''); setBroadcastMsg(''); setTargetRoomId(''); setBroadcastPriority('normal');
+      setBroadcastTitle(''); setBroadcastMsg(''); setTargetRoomId(''); setDurationMins(15); setBroadcastImage(null);
       fetchBroadcastsData();
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to send broadcast'); }
     finally { setSendingBroadcast(false); }
@@ -540,15 +547,19 @@ export default function DashboardPage() {
                           </select>
                         </div>
 
-                        {/* Severity + Title side by side */}
+                        {/* Duration + Title side by side */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                           <div>
-                            <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: 5 }}>Severity Priority</label>
-                            <select className="select" value={broadcastPriority} onChange={e => setBroadcastPriority(e.target.value)} style={{ width: '100%', fontSize: 13 }}>
-                              <option value="normal">● Normal</option>
-                              <option value="urgent">◆ Urgent</option>
-                              <option value="critical">▲ Critical</option>
-                            </select>
+                            <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: 5 }}>Display Duration (Minutes)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="120"
+                              className="input"
+                              value={durationMins}
+                              onChange={e => setDurationMins(e.target.value)}
+                              style={{ fontSize: 12 }}
+                            />
                           </div>
                           <div>
                             <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: 5 }}>Title</label>
@@ -577,6 +588,30 @@ export default function DashboardPage() {
                               {broadcastMsg.length} / 500
                             </span>
                           </div>
+                        </div>
+
+                        {/* Attach Image */}
+                        <div>
+                          <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: 5 }}>Attach Correction Image (Optional)</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => setBroadcastImage(reader.result);
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            style={{ fontSize: 12, width: '100%', color: 'var(--text-secondary)' }}
+                          />
+                          {broadcastImage && (
+                            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <img src={broadcastImage} alt="Preview" style={{ width: 35, height: 35, objectFit: 'contain', border: '1.5px solid var(--border)' }} />
+                              <button type="button" onClick={() => setBroadcastImage(null)} style={{ fontSize: 9, padding: '2px 8px', background: '#FF453A', color: 'white', border: 'none', cursor: 'pointer', borderRadius: 4 }}>Remove</button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Send Button */}

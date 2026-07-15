@@ -151,8 +151,9 @@ export default function LiveDashboardPage() {
   const [targetRoomId, setTargetRoomId] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMsg, setBroadcastMsg] = useState('');
-  const [broadcastPriority, setBroadcastPriority] = useState('normal');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [durationMins, setDurationMins] = useState(15);
+  const [broadcastImage, setBroadcastImage] = useState(null);
 
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
@@ -300,14 +301,16 @@ export default function LiveDashboardPage() {
       await api.post('/broadcasts', {
         title: broadcastTitle.trim(),
         message: broadcastMsg.trim(),
-        priority: broadcastPriority,
-        classroom_id: targetRoomId || null
+        classroom_id: targetRoomId || null,
+        duration_mins: parseInt(durationMins, 10) || null,
+        image_url: broadcastImage || null
       });
       toast.success('Broadcast sent successfully');
       setBroadcastTitle('');
       setBroadcastMsg('');
       setTargetRoomId('');
-      setBroadcastPriority('normal');
+      setDurationMins(15);
+      setBroadcastImage(null);
       fetchBroadcastsData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to send broadcast');
@@ -535,17 +538,16 @@ export default function LiveDashboardPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 4 }}>
-                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Priority</label>
-                <select
-                  className="select"
-                  value={broadcastPriority}
-                  onChange={e => setBroadcastPriority(e.target.value)}
+                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Display Duration (Minutes)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  className="input"
+                  value={durationMins}
+                  onChange={e => setDurationMins(e.target.value)}
                   style={{ fontSize: 11, padding: '4px 6px', border: '1.5px solid #111111', width: '100%', outline: 'none' }}
-                >
-                  <option value="normal">Normal Priority</option>
-                  <option value="urgent">Urgent Priority</option>
-                  <option value="critical">Critical Priority</option>
-                </select>
+                />
               </div>
 
               <div className="form-group" style={{ marginBottom: 4 }}>
@@ -569,6 +571,29 @@ export default function LiveDashboardPage() {
                   placeholder="Enter correction details..."
                   style={{ minHeight: 50, fontSize: 11, padding: '6px', border: '1.5px solid #111111', width: '100%', outline: 'none', resize: 'vertical' }}
                 />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 4 }}>
+                <label className="form-label" style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--np-n600)', marginBottom: 2 }}>Attach Correction Image (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={e => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setBroadcastImage(reader.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  style={{ fontSize: 11, width: '100%' }}
+                />
+                {broadcastImage && (
+                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <img src={broadcastImage} alt="Preview" style={{ width: 30, height: 30, objectFit: 'contain', border: '1px solid #111111' }} />
+                    <button type="button" onClick={() => setBroadcastImage(null)} style={{ fontSize: 8, padding: '2px 4px', background: '#FF453A', color: 'white', border: 'none', cursor: 'pointer' }}>Remove</button>
+                  </div>
+                )}
               </div>
 
               <button
@@ -601,7 +626,7 @@ export default function LiveDashboardPage() {
                   return (
                     <div key={b.id} style={{ fontSize: 11, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontFamily: 'var(--font-sans)', color: '#F5F5F7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                        <strong style={{ fontFamily: 'var(--font-sans)', color: '#111111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
                           {b.title}
                         </strong>
                         {isAcked ? (
@@ -614,7 +639,7 @@ export default function LiveDashboardPage() {
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: 9, color: 'var(--np-n500)', marginTop: 2, display: 'flex', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: 9, color: '#555555', marginTop: 2, display: 'flex', justifyContent: 'space-between' }}>
                         <span>Room: {targetRoom ? targetRoom.roomNo : 'Room ' + b.classroom_id}</span>
                         <span>{new Date(b.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>

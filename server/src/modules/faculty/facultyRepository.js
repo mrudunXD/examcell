@@ -5,25 +5,25 @@ import bcrypt from 'bcryptjs';
 export class FacultyRepository {
   static async findAll() {
     const db = getDb();
-    const faculty = await db.prepare("SELECT id, name, email, role, department, is_active, created_at FROM users WHERE role='faculty' ORDER BY name").all();
+    const faculty = await db.prepare("SELECT id, name, email, role, department, is_active, created_at, min_duties, max_duties, max_consecutive, exempted, priority FROM users WHERE role='faculty' ORDER BY name").all();
     const subjectStmt = db.prepare(`
       SELECT s.* FROM subjects s
       JOIN faculty_subjects fs ON fs.subject_id = s.id
       WHERE fs.faculty_id = ?
     `);
-    return faculty.map(f => ({ ...f, subjects: subjectStmt.all(f.id) }));
+    return await Promise.all(faculty.map(async f => ({ ...f, subjects: await subjectStmt.all(f.id) })));
   }
 
   static async findById(id) {
     const db = getDb();
-    const faculty = await db.prepare("SELECT id, name, email, role, department, is_active FROM users WHERE id=? AND role='faculty'").get(id);
+    const faculty = await db.prepare("SELECT id, name, email, role, department, is_active, min_duties, max_duties, max_consecutive, exempted, priority FROM users WHERE id=? AND role='faculty'").get(id);
     if (!faculty) return null;
     const subjectStmt = db.prepare(`
       SELECT s.* FROM subjects s
       JOIN faculty_subjects fs ON fs.subject_id = s.id
       WHERE fs.faculty_id = ?
     `);
-    faculty.subjects = subjectStmt.all(id);
+    faculty.subjects = await subjectStmt.all(id);
     return faculty;
   }
 
@@ -31,8 +31,8 @@ export class FacultyRepository {
     const db = getDb();
     const hash = bcrypt.hashSync(faculty.password, 10);
     const id = faculty.id || crypto.randomUUID();
-    await db.prepare('INSERT INTO users (id, name, email, password_hash, role, department) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(id, faculty.name.trim(), faculty.email.toLowerCase().trim(), hash, 'faculty', faculty.department?.trim() || '');
+    await db.prepare('INSERT INTO users (id, name, email, password_hash, role, department, min_duties, max_duties, max_consecutive, exempted, priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, faculty.name.trim(), faculty.email.toLowerCase().trim(), hash, 'faculty', faculty.department?.trim() || '', faculty.min_duties !== undefined ? faculty.min_duties : null, faculty.max_duties !== undefined ? faculty.max_duties : null, faculty.max_consecutive || 2, faculty.exempted ? 1 : 0, faculty.priority || 'normal');
     return await this.findById(id);
   }
 
@@ -40,11 +40,11 @@ export class FacultyRepository {
     const db = getDb();
     if (faculty.password) {
       const hash = bcrypt.hashSync(faculty.password, 10);
-      await db.prepare("UPDATE users SET name=?, email=?, department=?, password_hash=?, updated_at=datetime('now') WHERE id=? AND role='faculty'")
-        .run(faculty.name, faculty.email, faculty.department, hash, id);
+      await db.prepare("UPDATE users SET name=?, email=?, department=?, password_hash=?, min_duties=?, max_duties=?, max_consecutive=?, exempted=?, priority=?, updated_at=datetime('now') WHERE id=? AND role='faculty'")
+        .run(faculty.name, faculty.email, faculty.department, hash, faculty.min_duties !== undefined ? faculty.min_duties : null, faculty.max_duties !== undefined ? faculty.max_duties : null, faculty.max_consecutive || 2, faculty.exempted ? 1 : 0, faculty.priority || 'normal', id);
     } else {
-      await db.prepare("UPDATE users SET name=?, email=?, department=?, updated_at=datetime('now') WHERE id=? AND role='faculty'")
-        .run(faculty.name, faculty.email, faculty.department, id);
+      await db.prepare("UPDATE users SET name=?, email=?, department=?, min_duties=?, max_duties=?, max_consecutive=?, exempted=?, priority=?, updated_at=datetime('now') WHERE id=? AND role='faculty'")
+        .run(faculty.name, faculty.email, faculty.department, faculty.min_duties !== undefined ? faculty.min_duties : null, faculty.max_duties !== undefined ? faculty.max_duties : null, faculty.max_consecutive || 2, faculty.exempted ? 1 : 0, faculty.priority || 'normal', id);
     }
     return await this.findById(id);
   }

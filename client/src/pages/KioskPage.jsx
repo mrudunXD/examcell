@@ -489,6 +489,14 @@ export default function KioskPage() {
   const [broadcasts, setBroadcasts] = useState([]);
   const [broadcastIdx, setBroadcastIdx] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
+  const [closedBroadcasts, setClosedBroadcasts] = useState(new Set());
+  const lastAlertIdRef = useRef(null);
+  const [localNow, setLocalNow] = useState(getSyncDate());
+
+  useEffect(() => {
+    const id = setInterval(() => setLocalNow(getSyncDate()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Fullscreen State
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -536,13 +544,9 @@ export default function KioskPage() {
   const [currentCarouselPage, setCurrentCarouselPage] = useState(0);
   const [selectedAllocation, setSelectedAllocation] = useState(null); // { room_allocation_id, room_no, block }
   const [chimesEnabled, setChimesEnabled] = useState(true);
-
-  // Seating overlay data
   const [seatingData, setSeatingData] = useState(null);
   const [loadingSeating, setLoadingSeating] = useState(false);
-
   const [currentRoom, setCurrentRoom] = useState(null);
-  const [activeAlert, setActiveAlert] = useState(null);
   const socketRef = useRef(null);
 
   // WebSocket Connection State
@@ -598,7 +602,7 @@ export default function KioskPage() {
       
       setCycle(data.cycle);
       setSlots(data.slots || []);
-      setBroadcasts([]);
+      setBroadcasts(data.broadcasts || []);
       setIsOffline(false);
 
       // Extract classroom info
@@ -611,7 +615,7 @@ export default function KioskPage() {
       // Cache data
       localStorage.setItem(
         `kiosk_cache_${cycleId}_${classroomId || ''}`,
-        JSON.stringify({ cycle: data.cycle, slots: data.slots, broadcasts: [] })
+        JSON.stringify({ cycle: data.cycle, slots: data.slots, broadcasts: data.broadcasts || [] })
       );
     } catch (err) {
       console.warn("Connection lost. Reading cache.", err);
@@ -621,7 +625,7 @@ export default function KioskPage() {
         const parsed = JSON.parse(cached);
         setCycle(parsed.cycle);
         setSlots(parsed.slots || []);
-        setBroadcasts([]);
+        setBroadcasts(parsed.broadcasts || []);
       }
     }
   }, [cycleId, classroomId]);
@@ -682,8 +686,10 @@ export default function KioskPage() {
 
     // Listen for events
     socket.on('EMERGENCY_BROADCAST', (broadcast) => {
-      console.log('📣 EMERGENCY_BROADCAST received (Alert skipped on kiosk):', broadcast);
-      loadData();
+      console.log('📣 EMERGENCY_BROADCAST received:', broadcast);
+      if (!broadcast.classroom_id || String(broadcast.classroom_id) === String(classroomId)) {
+        loadData();
+      }
     });
 
     socket.on('SCHEDULE_REGENERATED', (data) => {
@@ -713,6 +719,7 @@ export default function KioskPage() {
   useEffect(() => {
     localStorage.setItem('kiosk_theme', theme);
   }, [theme]);
+
 
   // Notice rotator
   useEffect(() => {
@@ -795,6 +802,27 @@ export default function KioskPage() {
   const currentPageIndex = Math.min(currentCarouselPage, Math.max(0, activeSlotsPages.length - 1));
   const visibleSlots = activeSlotsPages[currentPageIndex] || [];
 
+  const activeAlert = broadcasts.find(b => {
+    if (closedBroadcasts.has(b.id)) return false;
+    if (b.expires_at && new Date(b.expires_at) <= localNow) return false;
+    return true;
+  });
+
+  useEffect(() => {
+    if (activeAlert && activeAlert.id !== lastAlertIdRef.current) {
+      lastAlertIdRef.current = activeAlert.id;
+      playChime('alert');
+      // Acknowledge only when the broadcast popup is actually displayed on this kiosk
+      if (socketRef.current && classroomId) {
+        socketRef.current.emit('kiosk_acknowledge', {
+          broadcastId: activeAlert.id,
+          classroomId: classroomId,
+          userId: null
+        });
+      }
+    }
+  }, [activeAlert, classroomId]);
+
   return (
     <div style={{
       height: '100vh',
@@ -832,84 +860,84 @@ export default function KioskPage() {
         boxSizing: 'border-box',
       }}>
         {/* Logo and details */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{ width: 8, height: 42, background: 'var(--np-red)' }} />
-          <div>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)', textTransform: 'uppercase', color: colors.text }}>
-              MIT World Peace University
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
-              <span style={{ fontSize: '11px', color: colors.textMuted, letterSpacing: '0.08em', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
-                EXAMINATION CELL · {cycle?.name || 'EXAM CYCLE'}
-              </span>
-              
-              {/* Online/Offline network state */}
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 8px',
-                background: isOffline ? 'rgba(204, 0, 0, 0.1)' : 'rgba(22, 101, 52, 0.1)',
-                border: `1.5px solid ${isOffline ? 'var(--np-red)' : '#166534'}`,
-                color: isOffline ? 'var(--np-red)' : '#166534',
-                fontSize: '10px',
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-mono)',
-                textTransform: 'uppercase',
-              }}>
-                {isOffline ? (
-                  <>
-                    <WifiOff size={10} />
-                    <span>Offline</span>
-                  </>
-                ) : (
-                  <>
-                    <Wifi size={10} />
-                    <span>Live</span>
-                  </>
-                )}
-              </div>
-
-              {/* Socket.io connection state */}
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 8px',
-                background: socketConnected ? 'rgba(22, 101, 52, 0.1)' : 'rgba(204, 0, 0, 0.1)',
-                border: `1.5px solid ${socketConnected ? '#166534' : 'var(--np-red)'}`,
-                color: socketConnected ? '#166534' : 'var(--np-red)',
-                fontSize: '10px',
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-mono)',
-                textTransform: 'uppercase',
-              }}>
-                <div style={{
-                  width: 6, height: 6,
-                  borderRadius: '50%',
-                  background: socketConnected ? '#166534' : 'var(--np-red)',
-                }} />
-                <span>{socketConnected ? 'Connected' : 'Disconnected'}</span>
-              </div>
-
-              {isOffline && (
-                <button
-                  onClick={loadData}
-                  style={{
-                    padding: '2px 6px',
-                    background: colors.cardBg,
-                    border: `1.5px solid ${colors.cardBorder}`,
-                    color: colors.text,
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    fontFamily: 'var(--font-mono)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Retry Sync
-                </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <img 
+            src="/wpu_logo.png" 
+            alt="MIT WPU Logo" 
+            style={{ 
+              height: '60px', 
+              objectFit: 'contain',
+              filter: isDark ? 'brightness(0) invert(1)' : 'none'
+            }} 
+          />
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Online/Offline network state */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 8px',
+              background: isOffline ? 'rgba(204, 0, 0, 0.1)' : 'rgba(22, 101, 52, 0.1)',
+              border: `1.5px solid ${isOffline ? 'var(--np-red)' : '#166534'}`,
+              color: isOffline ? 'var(--np-red)' : '#166534',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              fontFamily: 'var(--font-mono)',
+              textTransform: 'uppercase',
+            }}>
+              {isOffline ? (
+                <>
+                  <WifiOff size={10} />
+                  <span>Offline</span>
+                </>
+              ) : (
+                <>
+                  <Wifi size={10} />
+                  <span>Live</span>
+                </>
               )}
             </div>
+
+            {/* Socket.io connection state */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 8px',
+              background: socketConnected ? 'rgba(22, 101, 52, 0.1)' : 'rgba(204, 0, 0, 0.1)',
+              border: `1.5px solid ${socketConnected ? '#166534' : 'var(--np-red)'}`,
+              color: socketConnected ? '#166534' : 'var(--np-red)',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              fontFamily: 'var(--font-mono)',
+              textTransform: 'uppercase',
+            }}>
+              <div style={{
+                width: 6, height: 6,
+                borderRadius: '50%',
+                background: socketConnected ? '#166534' : 'var(--np-red)',
+              }} />
+              <span>{socketConnected ? 'Connected' : 'Disconnected'}</span>
+            </div>
+
+            {isOffline && (
+              <button
+                onClick={loadData}
+                style={{
+                  padding: '2px 6px',
+                  background: colors.cardBg,
+                  border: `1.5px solid ${colors.cardBorder}`,
+                  color: colors.text,
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                Retry Sync
+              </button>
+            )}
           </div>
         </div>
 
@@ -1236,42 +1264,186 @@ export default function KioskPage() {
           fontSize: '11px', 
           letterSpacing: '0.15em', 
           textTransform: 'uppercase',
-          color: broadcasts.length ? 'var(--np-red)' : colors.textMuted,
+          color: colors.textMuted,
           fontWeight: 'bold', 
           flexShrink: 0,
           padding: '4px 10px', 
-          background: broadcasts.length ? 'rgba(204,0,0,0.1)' : 'transparent',
-          border: `2px solid ${broadcasts.length ? 'var(--np-red)' : colors.cardBorder}`,
+          background: 'transparent',
+          border: `2px solid ${colors.cardBorder}`,
           fontFamily: 'var(--font-mono)',
         }}>
-          {broadcasts.length ? 'NOTICE' : 'INFO'}
+          INFO
         </div>
         
         {/* Fade notice slide */}
         <div 
-          key={broadcastIdx}
           style={{ 
             fontSize: '18px', 
             fontWeight: 'bold', 
-            color: broadcasts.length ? colors.text : colors.textMuted, 
+            color: colors.textMuted, 
             flex: 1, 
             overflow: 'hidden', 
             textOverflow: 'ellipsis', 
             whiteSpace: 'nowrap',
-            animation: 'slideNotice 0.3s ease-out',
             fontFamily: 'var(--font-body)',
             fontStyle: 'italic',
           }}
         >
-          {broadcasts.length
-            ? broadcasts[broadcastIdx]?.message
-            : 'Welcome to MIT World Peace University Examination Lobby'}
+          Welcome to MIT World Peace University Examination Lobby
         </div>
         
         <div style={{ fontSize: '11px', color: colors.textDim, flexShrink: 0, letterSpacing: '0.08em', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
           EXAM CELL
         </div>
       </div>
+
+      {/* Broadcast Alert Pop-up Modal */}
+      {activeAlert && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 150,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(17, 17, 17, 0.85)',
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+          <div style={{
+            background: colors.modalContentBg,
+            border: '6px solid var(--np-red)',
+            width: '70vw',
+            maxWidth: '900px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '24px 32px',
+              borderBottom: `2px solid ${colors.border}`,
+              background: 'rgba(239, 68, 68, 0.08)',
+            }}>
+              <div>
+                <span style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 'bold', 
+                  letterSpacing: '0.15em', 
+                  color: 'var(--np-red)', 
+                  textTransform: 'uppercase', 
+                  fontFamily: 'var(--font-mono)' 
+                }}>
+                  IMPORTANT ANNOUNCEMENT
+                </span>
+                <h2 style={{ 
+                  fontSize: '28px', 
+                  fontWeight: 'bold', 
+                  margin: '4px 0 0 0', 
+                  color: colors.text, 
+                  fontFamily: 'var(--font-serif)' 
+                }}>
+                  {activeAlert.title}
+                </h2>
+              </div>
+              
+              {/* Auto close counter */}
+              {activeAlert.expires_at && (
+                <div style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  color: 'var(--np-red)',
+                  fontWeight: 'bold',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  padding: '6px 12px',
+                  border: '1.5px solid var(--np-red)',
+                  borderRadius: '4px'
+                }}>
+                  Auto-closing in {Math.max(0, Math.ceil((new Date(activeAlert.expires_at) - localNow) / 1000))}s
+                </div>
+              )}
+            </div>
+
+            {/* Content */}
+            <div style={{ 
+              padding: '32px', 
+              overflowY: 'auto', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '20px',
+              alignItems: 'center'
+            }}>
+              <p style={{ 
+                fontSize: '22px', 
+                fontWeight: '500', 
+                lineHeight: '1.5', 
+                color: colors.text,
+                alignSelf: 'flex-start',
+                margin: 0
+              }}>
+                {activeAlert.message}
+              </p>
+
+              {activeAlert.image_url && (
+                <div style={{
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.2)',
+                  padding: '16px',
+                  border: `2px dashed ${colors.border}`,
+                  boxSizing: 'border-box'
+                }}>
+                  <img 
+                    src={activeAlert.image_url} 
+                    alt="Correction Visual" 
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '45vh', 
+                      objectFit: 'contain',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                    }} 
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              padding: '18px 32px',
+              borderTop: `1px solid ${colors.border}`,
+              background: colors.modalContentBg,
+            }}>
+              <button 
+                onClick={() => {
+                  setClosedBroadcasts(prev => {
+                    const next = new Set(prev);
+                    next.add(activeAlert.id);
+                    return next;
+                  });
+                }}
+                className="btn btn-primary"
+                style={{ 
+                  padding: '10px 24px', 
+                  fontSize: '13px', 
+                  fontWeight: 'bold',
+                  background: 'var(--np-red)',
+                  border: 'none',
+                  color: '#ffffff'
+                }}
+              >
+                Acknowledge & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seating Grid Modal overlay */}
       {selectedAllocation && (
@@ -1503,119 +1675,7 @@ export default function KioskPage() {
         </div>
       )}
 
-      {/* Target Emergency Alert Overlay */}
-      {activeAlert && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          zIndex: 99999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(0, 0, 0, 0.95)',
-          boxSizing: 'border-box',
-          padding: '40px',
-        }}>
-          <div style={{
-            background: '#F9F9F7',
-            border: '24px solid #CC0000',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxSizing: 'border-box',
-            padding: '40px',
-            animation: 'pulse-border 1.5s infinite alternate',
-            color: '#111111',
-            textAlign: 'center',
-          }}>
-            <span style={{ 
-              fontSize: '24px', 
-              fontWeight: 900, 
-              letterSpacing: '0.2em', 
-              color: '#CC0000', 
-              textTransform: 'uppercase', 
-              fontFamily: 'var(--font-mono)',
-              marginBottom: 20
-            }}>
-              🚨 EMERGENCY BROADCAST ALERT 🚨
-            </span>
 
-            <h1 style={{ 
-              fontSize: '42px', 
-              fontWeight: '900', 
-              lineHeight: 1.2, 
-              color: '#111111', 
-              fontFamily: 'var(--font-serif)',
-              margin: '20px 0',
-              textTransform: 'uppercase'
-            }}>
-              {activeAlert.title}
-            </h1>
-
-            <div style={{ 
-              fontSize: '48px', 
-              fontWeight: 'bold', 
-              lineHeight: 1.3,
-              fontFamily: 'var(--font-body)',
-              color: '#111111',
-              maxWidth: '85%',
-              margin: '30px auto',
-              wordBreak: 'break-word',
-              background: '#E5E5E0',
-              padding: '24px 36px',
-              border: '4px solid #111111',
-              boxShadow: '8px 8px 0 0 #111111',
-            }}>
-              {activeAlert.message}
-            </div>
-
-            <button 
-              onClick={async () => {
-                if (socketRef.current) {
-                  socketRef.current.emit('kiosk_acknowledge', {
-                    broadcastId: activeAlert.id,
-                    classroomId: classroomId,
-                    userId: null
-                  });
-                }
-                try {
-                  await api.post(`/broadcasts/${activeAlert.id}/acknowledge`, { classroom_id: classroomId });
-                } catch (err) {
-                  console.error('REST acknowledge failed:', err);
-                }
-                setActiveAlert(null);
-              }}
-              style={{
-                background: '#166534',
-                color: '#ffffff',
-                border: '4px solid #111111',
-                padding: '24px 48px',
-                fontSize: '28px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                textTransform: 'uppercase',
-                boxShadow: '6px 6px 0 0 #111111',
-                marginTop: '30px',
-                transition: 'transform 0.1s, box-shadow 0.1s',
-              }}
-              onMouseDown={e => {
-                e.currentTarget.style.transform = 'translate(2px, 2px)';
-                e.currentTarget.style.boxShadow = '2px 2px 0 0 #111111';
-              }}
-              onMouseUp={e => {
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '6px 6px 0 0 #111111';
-              }}
-            >
-              Confirm Acknowledgment
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Styles */}
       <style>{`

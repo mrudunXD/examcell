@@ -20,7 +20,7 @@ router.get('/', asyncHandler(async (req, res) => {
     FROM broadcasts b
     LEFT JOIN users u ON u.id = b.sent_by
     LEFT JOIN broadcast_reads br ON br.broadcast_id = b.id
-    WHERE b.expires_at IS NULL OR b.expires_at > datetime('now')
+    WHERE b.expires_at IS NULL OR b.expires_at > CURRENT_TIMESTAMP
     GROUP BY b.id
     ORDER BY b.created_at DESC
     LIMIT 50
@@ -39,9 +39,9 @@ function escapeHtml(str) {
 }
 
 // POST send a broadcast
-router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (req, data) => data?.id, (req, data) => `Sent broadcast: ${data?.title} (priority: ${data?.priority})`), asyncHandler(async (req, res) => {
+router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (req, data) => data?.id, (req, data) => `Sent broadcast: ${data?.title}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { title, message, priority = 'normal', classroom_id = null, expires_at = null } = req.body;
+  const { title, message, classroom_id = null, duration_mins = null, image_url = null } = req.body;
   if (!title || !message) return res.status(400).json({ error: 'title and message required' });
   // M5: Enforce length limits to prevent memory exhaustion
   if (title.length > 200) return res.status(400).json({ error: 'title must be 200 characters or fewer' });
@@ -51,8 +51,17 @@ router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (r
   const cleanMessage = escapeHtml(message.trim());
 
   const id = crypto.randomUUID();
-  await db.prepare('INSERT INTO broadcasts (id, title, message, sent_by, priority, classroom_id, expires_at) VALUES (?,?,?,?,?,?,?)')
-    .run(id, cleanTitle, cleanMessage, req.user.id, priority, classroom_id, expires_at || null);
+  if (duration_mins) {
+    await db.prepare(`
+      INSERT INTO broadcasts (id, title, message, sent_by, priority, classroom_id, expires_at, image_url)
+      VALUES (?,?,?,?,'urgent',?, CURRENT_TIMESTAMP + (? || ' minutes')::INTERVAL, ?)
+    `).run(id, cleanTitle, cleanMessage, req.user.id, classroom_id, duration_mins.toString(), image_url || null);
+  } else {
+    await db.prepare(`
+      INSERT INTO broadcasts (id, title, message, sent_by, priority, classroom_id, expires_at, image_url)
+      VALUES (?,?,?,?,'urgent',?, NULL, ?)
+    `).run(id, cleanTitle, cleanMessage, req.user.id, classroom_id, image_url || null);
+  }
 
   const broadcast = await db.prepare(`
     SELECT b.*, u.name as sent_by_name FROM broadcasts b
@@ -118,7 +127,7 @@ router.get('/unread-count', asyncHandler(async (req, res) => {
   const db = getDb();
   const count = (await db.prepare(`
     SELECT COUNT(*) as cnt FROM broadcasts b
-    WHERE (b.expires_at IS NULL OR b.expires_at > datetime('now'))
+    WHERE (b.expires_at IS NULL OR b.expires_at > CURRENT_TIMESTAMP)
     AND NOT EXISTS (SELECT 1 FROM broadcast_reads WHERE broadcast_id=b.id AND user_id=?)
   `).get(req.user.id))?.cnt || 0;
   res.json({ count });

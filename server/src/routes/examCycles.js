@@ -297,7 +297,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
   // Gather required database sets for solver
   const teaches = await db.prepare("SELECT faculty_id, subject_id FROM faculty_subjects").all();
   const classrooms = await db.prepare("SELECT * FROM classrooms WHERE is_active=1").all();
-  const faculty = await db.prepare("SELECT id, name, email, department FROM users WHERE role='faculty' AND is_active=1").all();
+  const faculty = await db.prepare("SELECT id, name, email, department, min_duties, max_duties, max_consecutive, exempted, priority FROM users WHERE role='faculty' AND is_active=1").all();
   const students = await db.prepare("SELECT id, name, prn, roll_no, branch, year, semester, section FROM students WHERE is_active=1").all();
   const leaves = await db.prepare("SELECT * FROM faculty_leaves").all();
   const subjectConstraints = await db.prepare("SELECT * FROM subject_constraints").all();
