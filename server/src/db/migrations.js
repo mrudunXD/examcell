@@ -231,7 +231,7 @@ const MIGRATIONS = [
         INSERT INTO system_settings (key, value, default_value, category, description)
         VALUES 
           ('ai.geminiApiKey', '', '', 'ai', 'Google Gemini Pro API key used for automatic bug diagnostics and code resolution'),
-          ('ai.geminiModel', 'gemini-2.5-pro', 'gemini-2.5-pro', 'ai', 'AI Model name to use for bug analysis (e.g. gemini-2.5-pro)')
+          ('ai.geminiModel', 'gemini-1.5-flash', 'gemini-1.5-flash', 'ai', 'AI Model name to use for bug analysis (e.g. gemini-1.5-flash)')
         ON CONFLICT (key) DO NOTHING
       `).run();
     },

@@ -126,7 +126,7 @@ export async function analyzeBug(bug, db) {
   const modelRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiModel'").get();
 
   const apiKey = keyRow?.value || process.env.GEMINI_API_KEY;
-  const model = modelRow?.value || process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+  const model = modelRow?.value || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   if (!apiKey) {
     console.warn('⚠️ Gemini API key is not configured — skipping AI bug analysis');
