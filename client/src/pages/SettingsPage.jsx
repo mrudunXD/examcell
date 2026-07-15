@@ -189,6 +189,7 @@ const TABS = [
   { id: 'data',          icon: Database,  label: 'Data & Backups' },
   { id: 'notifications', icon: Bell,      label: 'Notifications' },
   { id: 'security',      icon: Shield,    label: 'Security' },
+  { id: 'ai',            icon: Zap,       label: 'AI Resolver' },
   { id: 'about',         icon: Info,      label: 'About' },
 ];
 
@@ -1108,6 +1109,35 @@ export default function SettingsPage() {
                 <ToggleRow label="MFA for Admin Accounts" hint="Multi-factor auth required for coordinator logins." checked={bool('security.requireMfaForAdmin')} onChange={v => setK('security.requireMfaForAdmin', v)} disabled={!isSuper} />
                 <ToggleRow label="Full Audit Trail Logging" hint="Logs every write and delete action." checked={bool('security.auditAllActions')} onChange={v => setK('security.auditAllActions', v)} disabled={!isSuper} />
                 <ToggleRow label="Block Cross-Origin Requests" hint="Rejects API requests from unlisted domains." checked={bool('security.blockCrossOrigin')} onChange={v => setK('security.blockCrossOrigin', v)} disabled={!isSuper} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ AI RESOLVER ══ */}
+        {tab === 'ai' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <SecTitle icon={Zap} title="AI Auto-Resolver Configuration"
+              sub="Manage Google Gemini API settings for real-time bug diagnostics and code resolution" />
+
+            <div style={card}>
+              <div style={GH}>Gemini AI Key & Model</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <Field label="Gemini API Key" hint="Used to query Google Gemini Pro model for analyzing and fixing bugs. Get a free key at aistudio.google.com/apikey">
+                  <Inp 
+                    type="password"
+                    value={strV('ai.geminiApiKey')} 
+                    onChange={v => setK('ai.geminiApiKey', v)} 
+                    placeholder="Enter your Gemini API key (starts with AIzaSy)" 
+                  />
+                </Field>
+                <Field label="Gemini Model" hint="The AI model used to process logs and source code. Recommend using gemini-2.5-pro for complex coding logic.">
+                  <Inp 
+                    value={strV('ai.geminiModel')} 
+                    onChange={v => setK('ai.geminiModel', v)} 
+                    placeholder="gemini-2.5-pro" 
+                  />
+                </Field>
               </div>
             </div>
           </div>

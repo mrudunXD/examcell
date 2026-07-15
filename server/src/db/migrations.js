@@ -223,6 +223,21 @@ const MIGRATIONS = [
       await db.prepare('ALTER TABLE users DROP COLUMN IF EXISTS mfa_secret').run();
       await db.prepare('ALTER TABLE users DROP COLUMN IF EXISTS mfa_enabled').run();
     }
+  },
+  {
+    name: '007_ai_resolver_settings',
+    up: async (db) => {
+      await db.prepare(`
+        INSERT INTO system_settings (key, value, default_value, category, description)
+        VALUES 
+          ('ai.geminiApiKey', '', '', 'ai', 'Google Gemini Pro API key used for automatic bug diagnostics and code resolution'),
+          ('ai.geminiModel', 'gemini-2.5-pro', 'gemini-2.5-pro', 'ai', 'AI Model name to use for bug analysis (e.g. gemini-2.5-pro)')
+        ON CONFLICT (key) DO NOTHING
+      `).run();
+    },
+    down: async (db) => {
+      await db.prepare("DELETE FROM system_settings WHERE key IN ('ai.geminiApiKey', 'ai.geminiModel')").run();
+    }
   }
 ];
 

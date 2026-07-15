@@ -11,9 +11,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../../../..');
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+// Google Gemini API keys are loaded dynamically from system_settings at runtime
 
 // Maps page URL patterns → relevant source files (relative to project root)
 const PAGE_FILE_MAP = [
@@ -59,8 +57,9 @@ async function readSourceFiles(pageUrl) {
   return contents.join('');
 }
 
-async function callGemini(prompt) {
-  const response = await fetch(GEMINI_URL, {
+async function callGemini(prompt, apiKey, model) {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const response = await fetch(geminiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -123,12 +122,18 @@ async function applyPatches(patches) {
  * @param {object} db - Database instance
  */
 export async function analyzeBug(bug, db) {
-  if (!GEMINI_API_KEY) {
-    console.warn('⚠️ GEMINI_API_KEY not set — skipping AI bug analysis');
+  const keyRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiApiKey'").get();
+  const modelRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiModel'").get();
+
+  const apiKey = keyRow?.value || process.env.GEMINI_API_KEY;
+  const model = modelRow?.value || process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+
+  if (!apiKey) {
+    console.warn('⚠️ Gemini API key is not configured — skipping AI bug analysis');
     return;
   }
 
-  console.log(`🤖 AI analyzing bug: "${bug.title}" (${bug.id})`);
+  console.log(`🤖 AI analyzing bug: "${bug.title}" (${bug.id}) using model ${model}`);
 
   try {
     // 1. Load relevant source files
@@ -177,7 +182,7 @@ Respond ONLY with valid JSON, no markdown, no explanation outside the JSON:
 }`;
 
     // 3. Call Gemini
-    const rawResponse = await callGemini(prompt);
+    const rawResponse = await callGemini(prompt, apiKey, model);
     console.log(`🤖 Gemini response for bug ${bug.id}:`, rawResponse.slice(0, 200));
 
     const result = extractJson(rawResponse);
