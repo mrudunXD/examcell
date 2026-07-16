@@ -43,10 +43,10 @@ export default function SupervisorsPage() {
         api.get(`/seating/${slotId}`),
         api.get(`/supervisors/availability/${slotId}?min_gap=${config.minGapDays}`)
       ]);
-      setDuties(dr.data);
-      setSlotInfo(sr.data.slot);
-      setRoomsList(sr.data.rooms || []);
-      setFacultyAvailability(ar.data);
+      setDuties(dr.data || []);
+      setSlotInfo(sr.data?.slot || null);
+      setRoomsList(sr.data?.rooms || []);
+      setFacultyAvailability(ar.data || []);
     } catch (err) {
       toast.error('Failed to load supervisor data');
     } finally {
@@ -129,12 +129,17 @@ export default function SupervisorsPage() {
   const roomDuties = duties.filter(d => d.room_allocation_id !== null);
   const standbyDuties = duties.filter(d => d.room_allocation_id === null);
 
+  const totalDutiesCount = duties.length;
+  const acknowledgedCount = duties.filter(d => d.acknowledged).length;
+  const ackRate = totalDutiesCount > 0 ? Math.round((acknowledgedCount / totalDutiesCount) * 100) : 100;
+
   const groupedRoomDuties = {};
   for (const d of roomDuties) {
-    if (!groupedRoomDuties[d.room_no]) {
-      groupedRoomDuties[d.room_no] = { room_no: d.room_no, block: d.block, duties: [] };
+    const roomNo = d.room_no || 'Unknown';
+    if (!groupedRoomDuties[roomNo]) {
+      groupedRoomDuties[roomNo] = { room_no: roomNo, block: d.block || 'Unknown Block', duties: [] };
     }
-    groupedRoomDuties[d.room_no].duties.push(d);
+    groupedRoomDuties[roomNo].duties.push(d);
   }
 
   // Availability badge style helper
@@ -206,6 +211,42 @@ export default function SupervisorsPage() {
           >
             <Play size={14} /> {generating ? 'Scheduling...' : 'Auto-Assign'}
           </button>
+        </div>
+      </div>
+
+      {/* KPI Summary Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '8px' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1.5px solid var(--border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--np-n500)', textTransform: 'uppercase' }}>Duties Allocated</span>
+            <Users size={16} color="#0A84FF" />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: 900, fontFamily: 'var(--font-mono)' }}>{totalDutiesCount}</div>
+            <div style={{ fontSize: '10px', color: 'var(--np-n500)', marginTop: '2px' }}>Staff assigned to slot rooms</div>
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--bg-surface)', border: '1.5px solid var(--border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--np-n500)', textTransform: 'uppercase' }}>Confirmed Duties</span>
+            <CheckCircle size={16} color="#30D158" />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: 900, fontFamily: 'var(--font-mono)', color: '#30D158' }}>{acknowledgedCount}</div>
+            <div style={{ fontSize: '10px', color: 'var(--np-n500)', marginTop: '2px' }}>Acknowledged assignments</div>
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--bg-surface)', border: '1.5px solid var(--border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--np-n500)', textTransform: 'uppercase' }}>Confirmation Rate</span>
+            <Award size={16} color="#FFD60A" />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: 900, fontFamily: 'var(--font-mono)', color: '#FFD60A' }}>{ackRate}%</div>
+            <div style={{ fontSize: '10px', color: 'var(--np-n500)', marginTop: '2px' }}>Shift confirmation progress</div>
+          </div>
         </div>
       </div>
 
@@ -449,7 +490,7 @@ export default function SupervisorsPage() {
                 >
                   <option value="">Standby (No Room)</option>
                   {roomsList.map(r => (
-                    <option key={r.id} value={r.id}>Room {r.room_no} ({r.block})</option>
+                    <option key={r.room.id} value={r.room.id}>Room {r.room.room_no} ({r.room.block})</option>
                   ))}
                 </select>
               </div>
