@@ -143,7 +143,7 @@ router.get('/availability/:slotId', requireCoordinator, asyncHandler(async (req,
   // 3. Fetch approved leaves on slot date
   const leaves = await db.prepare(`
     SELECT faculty_id FROM faculty_leaves 
-    WHERE ? BETWEEN start_date AND end_date AND status = 'approved'
+    WHERE date = ?
   `).all(slot.date);
   const leavesSet = new Set(leaves.map(l => l.faculty_id));
 
@@ -245,7 +245,7 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVIS
   const subjectStmt = await db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
   
   // Filter out faculty on approved leave for this date
-  const leaves = await db.prepare("SELECT faculty_id FROM faculty_leaves WHERE ? BETWEEN start_date AND end_date AND status='approved'").all(slot.date);
+  const leaves = await db.prepare("SELECT faculty_id FROM faculty_leaves WHERE date = ?").all(slot.date);
   const leavesSet = new Set(leaves.map(l => l.faculty_id));
 
   const allFaculty = faculty
@@ -342,7 +342,7 @@ router.post('/assign', requireCoordinator, auditLog('MANUAL_ASSIGN_SUPERVISOR', 
 
     // Leave check
     const leave = await db.prepare(`
-      SELECT 1 FROM faculty_leaves WHERE faculty_id = ? AND ? BETWEEN start_date AND end_date AND status = 'approved'
+      SELECT 1 FROM faculty_leaves WHERE faculty_id = ? AND date = ?
     `).get(faculty_id, slot.date);
     if (leave) return res.status(400).json({ error: `${faculty.name} has approved leave on this date.` });
   }
