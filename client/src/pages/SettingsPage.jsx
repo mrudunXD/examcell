@@ -1121,23 +1121,56 @@ export default function SettingsPage() {
               sub="Manage Google Gemini API settings for real-time bug diagnostics and code resolution" />
 
             <div style={card}>
-              <div style={GH}>Gemini AI Key & Model</div>
+              <div style={GH}>AI Auto-Resolver Provider Settings</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <Field label="Gemini API Key" hint="Used to query Google Gemini Pro model for analyzing and fixing bugs. Get a free key at aistudio.google.com/apikey">
-                  <Inp 
-                    type="password"
-                    value={strV('ai.geminiApiKey')} 
-                    onChange={v => setK('ai.geminiApiKey', v)} 
-                    placeholder="Enter your Gemini API key (starts with AIzaSy)" 
+                <Field label="AI Provider" hint="Select the service to use for diagnostics and auto-resolution.">
+                  <Sel 
+                    value={strV('ai.provider')} 
+                    onChange={v => setK('ai.provider', v)} 
+                    options={[
+                      { value: 'openrouter', label: 'OpenRouter (Llama 3 / Gemini / Claude)' },
+                      { value: 'gemini', label: 'Google AI Studio (Gemini Direct API)' }
+                    ]} 
                   />
                 </Field>
-                <Field label="Gemini Model" hint="The AI model used to process logs and source code. Recommend using gemini-2.5-pro for complex coding logic.">
-                  <Inp 
-                    value={strV('ai.geminiModel')} 
-                    onChange={v => setK('ai.geminiModel', v)} 
-                    placeholder="gemini-2.5-pro" 
-                  />
-                </Field>
+
+                {strV('ai.provider') === 'openrouter' ? (
+                  <>
+                    <Field label="OpenRouter API Key" hint="API key from openrouter.ai. Starts with sk-or-v1-...">
+                      <Inp 
+                        type="password"
+                        value={strV('ai.openrouterApiKey')} 
+                        onChange={v => setK('ai.openrouterApiKey', v)} 
+                        placeholder="sk-or-v1-..." 
+                      />
+                    </Field>
+                    <Field label="OpenRouter Model" hint="The AI model used to analyze the code. Recommended: google/gemini-2.5-flash (free tier) or meta-llama/llama-3-8b-instruct:free">
+                      <Inp 
+                        value={strV('ai.openrouterModel')} 
+                        onChange={v => setK('ai.openrouterModel', v)} 
+                        placeholder="google/gemini-2.5-flash" 
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <Field label="Gemini API Key" hint="Google AI Studio Gemini API key. Starts with AIzaSy...">
+                      <Inp 
+                        type="password"
+                        value={strV('ai.geminiApiKey')} 
+                        onChange={v => setK('ai.geminiApiKey', v)} 
+                        placeholder="AIzaSy..." 
+                      />
+                    </Field>
+                    <Field label="Gemini Model" hint="Google Gemini model key. E.g., gemini-2.5-flash.">
+                      <Inp 
+                        value={strV('ai.geminiModel')} 
+                        onChange={v => setK('ai.geminiModel', v)} 
+                        placeholder="gemini-2.5-flash" 
+                      />
+                    </Field>
+                  </>
+                )}
               </div>
             </div>
           </div>

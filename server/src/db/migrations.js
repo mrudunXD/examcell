@@ -230,13 +230,16 @@ const MIGRATIONS = [
       await db.prepare(`
         INSERT INTO system_settings (key, value, default_value, category, description)
         VALUES 
+          ('ai.provider', 'openrouter', 'openrouter', 'ai', 'Active AI provider to use for bug tracking (gemini or openrouter)'),
+          ('ai.openrouterApiKey', '', '', 'ai', 'OpenRouter API key used for automatic bug diagnostics and code resolution'),
+          ('ai.openrouterModel', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash', 'ai', 'OpenRouter Model name (e.g. google/gemini-2.5-flash, or meta-llama/llama-3-8b-instruct:free)'),
           ('ai.geminiApiKey', '', '', 'ai', 'Google Gemini Pro API key used for automatic bug diagnostics and code resolution'),
-          ('ai.geminiModel', 'gemini-1.5-flash', 'gemini-1.5-flash', 'ai', 'AI Model name to use for bug analysis (e.g. gemini-1.5-flash)')
+          ('ai.geminiModel', 'gemini-2.5-flash', 'gemini-2.5-flash', 'ai', 'AI Model name to use for bug analysis (e.g. gemini-2.5-flash)')
         ON CONFLICT (key) DO NOTHING
       `).run();
     },
     down: async (db) => {
-      await db.prepare("DELETE FROM system_settings WHERE key IN ('ai.geminiApiKey', 'ai.geminiModel')").run();
+      await db.prepare("DELETE FROM system_settings WHERE key IN ('ai.provider', 'ai.openrouterApiKey', 'ai.openrouterModel', 'ai.geminiApiKey', 'ai.geminiModel')").run();
     }
   }
 ];

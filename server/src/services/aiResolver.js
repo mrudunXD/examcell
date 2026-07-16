@@ -80,6 +80,33 @@ async function callGemini(prompt, apiKey, model) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
+async function callOpenRouter(prompt, apiKey, model) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'http://localhost:5173',
+      'X-Title': 'MIT WPU Exam Management System'
+    },
+    body: JSON.stringify({
+      model: model || 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenRouter API error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
 function extractJson(text) {
   // Strip markdown code fences if present
   const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
@@ -122,18 +149,29 @@ async function applyPatches(patches) {
  * @param {object} db - Database instance
  */
 export async function analyzeBug(bug, db) {
-  const keyRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiApiKey'").get();
-  const modelRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiModel'").get();
+  const providerRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.provider'").get();
+  const provider = providerRow?.value || 'openrouter';
 
-  const apiKey = keyRow?.value || process.env.GEMINI_API_KEY;
-  const model = modelRow?.value || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  let apiKey, model;
+
+  if (provider === 'openrouter') {
+    const keyRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.openrouterApiKey'").get();
+    const modelRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.openrouterModel'").get();
+    apiKey = keyRow?.value || process.env.OPENROUTER_API_KEY;
+    model = modelRow?.value || process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
+  } else {
+    const keyRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiApiKey'").get();
+    const modelRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'ai.geminiModel'").get();
+    apiKey = keyRow?.value || process.env.GEMINI_API_KEY;
+    model = modelRow?.value || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  }
 
   if (!apiKey) {
-    console.warn('⚠️ Gemini API key is not configured — skipping AI bug analysis');
+    console.warn(`⚠️ AI API Key is not configured for provider ${provider} — skipping AI bug analysis`);
     return;
   }
 
-  console.log(`🤖 AI analyzing bug: "${bug.title}" (${bug.id}) using model ${model}`);
+  console.log(`🤖 AI analyzing bug: "${bug.title}" (${bug.id}) using provider ${provider} with model ${model}`);
 
   try {
     // 1. Load relevant source files
@@ -181,9 +219,14 @@ Respond ONLY with valid JSON, no markdown, no explanation outside the JSON:
   ]
 }`;
 
-    // 3. Call Gemini
-    const rawResponse = await callGemini(prompt, apiKey, model);
-    console.log(`🤖 Gemini response for bug ${bug.id}:`, rawResponse.slice(0, 200));
+    // 3. Call model based on provider
+    let rawResponse;
+    if (provider === 'openrouter') {
+      rawResponse = await callOpenRouter(prompt, apiKey, model);
+    } else {
+      rawResponse = await callGemini(prompt, apiKey, model);
+    }
+    console.log(`🤖 ${provider} response for bug ${bug.id}:`, rawResponse.slice(0, 200));
 
     const result = extractJson(rawResponse);
     const { rootCause, explanation, confidence, patches = [] } = result;
