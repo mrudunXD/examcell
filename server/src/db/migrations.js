@@ -241,6 +241,26 @@ const MIGRATIONS = [
     down: async (db) => {
       await db.prepare("DELETE FROM system_settings WHERE key IN ('ai.provider', 'ai.openrouterApiKey', 'ai.openrouterModel', 'ai.geminiApiKey', 'ai.geminiModel')").run();
     }
+  },
+  {
+    name: '008_robust_supervision_duties',
+    up: async (db) => {
+      await db.prepare('ALTER TABLE supervisor_duties ADD COLUMN IF NOT EXISTS slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE').run();
+      await db.prepare(`
+        UPDATE supervisor_duties 
+        SET slot_id = (SELECT slot_id FROM room_allocations WHERE id = room_allocation_id)
+        WHERE slot_id IS NULL AND room_allocation_id IS NOT NULL
+      `).run();
+      await db.prepare('ALTER TABLE supervisor_duties ALTER COLUMN room_allocation_id DROP NOT NULL').run();
+      await db.prepare('ALTER TABLE supervisor_duties DROP CONSTRAINT IF EXISTS supervisor_duties_role_check').run();
+      await db.prepare("ALTER TABLE supervisor_duties ADD CONSTRAINT supervisor_duties_role_check CHECK (role IN ('primary', 'co', 'standby'))").run();
+    },
+    down: async (db) => {
+      await db.prepare('ALTER TABLE supervisor_duties DROP CONSTRAINT IF EXISTS supervisor_duties_role_check').run();
+      await db.prepare("ALTER TABLE supervisor_duties ADD CONSTRAINT supervisor_duties_role_check CHECK (role IN ('primary', 'co'))").run();
+      await db.prepare('ALTER TABLE supervisor_duties ALTER COLUMN room_allocation_id SET NOT NULL').run();
+      await db.prepare('ALTER TABLE supervisor_duties DROP COLUMN IF EXISTS slot_id').run();
+    }
   }
 ];
 

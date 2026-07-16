@@ -911,8 +911,8 @@ router.post('/:id/versions', requireCoordinator, asyncHandler(async (req, res) =
       const raPlaceholders = roomAllocations.map(() => '?').join(',');
       const raIds = roomAllocations.map(ra => ra.id);
       seatAssignments = await db.prepare(`SELECT * FROM seat_assignments WHERE room_allocation_id IN (${raPlaceholders})`).all(...raIds);
-      supervisorDuties = await db.prepare(`SELECT * FROM supervisor_duties WHERE room_allocation_id IN (${raPlaceholders})`).all(...raIds);
     }
+    supervisorDuties = await db.prepare(`SELECT * FROM supervisor_duties WHERE slot_id IN (${placeholders})`).all(...slotIds);
   }
 
   const payload = {
@@ -992,10 +992,10 @@ router.post('/:id/versions/:versionId/restore', requireCoordinator, asyncHandler
     // 6. Restore supervisor duties
     if (snapshot.supervisor_duties && snapshot.supervisor_duties.length > 0) {
       const invStmt = await db.prepare(
-        'INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role, acknowledged, acknowledged_at) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, slot_id, role, acknowledged, acknowledged_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       );
       for (const sd of snapshot.supervisor_duties) {
-        await invStmt.run(sd.id, sd.faculty_id, sd.room_allocation_id, sd.role, sd.acknowledged || 0, sd.acknowledged_at || null);
+        await invStmt.run(sd.id, sd.faculty_id, sd.room_allocation_id, sd.slot_id || null, sd.role, sd.acknowledged || 0, sd.acknowledged_at || null);
       }
     }
   })();

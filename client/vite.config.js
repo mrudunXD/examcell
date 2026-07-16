@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
      allowedHosts: [
-      'tbjhb-152-58-32-233.free.pinggy.net'
+      'clumsy-appendage-hubcap.ngrok-free.dev'
     ],
     proxy: {
       '/api': {
