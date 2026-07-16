@@ -360,7 +360,7 @@ router.post('/assign', requireCoordinator, auditLog('MANUAL_ASSIGN_SUPERVISOR', 
       INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, slot_id, role)
       VALUES (?, ?, ?, ?, ?)
     `).run(id, faculty_id, room_allocation_id || null, slot_id, role);
-  });
+  })();
 
   res.json({ success: true, message: 'Supervisor assigned successfully.' });
 }));
