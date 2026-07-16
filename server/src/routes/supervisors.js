@@ -248,12 +248,16 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVIS
   const leaves = await db.prepare("SELECT faculty_id FROM faculty_leaves WHERE date = ?").all(slot.date);
   const leavesSet = new Set(leaves.map(l => l.faculty_id));
 
-  const allFaculty = faculty
-    .filter(f => !leavesSet.has(f.id))
-    .map(f => ({
-      ...f,
-      subject_ids: subjectStmt.all(f.id).map(r => r.subject_id)
-    }));
+  const allFaculty = [];
+  for (const f of faculty) {
+    if (!leavesSet.has(f.id)) {
+      const subjs = await subjectStmt.all(f.id);
+      allFaculty.push({
+        ...f,
+        subject_ids: subjs.map(r => r.subject_id)
+      });
+    }
+  }
 
   // Build workload for cycle
   const globalWorkload = {};
