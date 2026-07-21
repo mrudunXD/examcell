@@ -489,6 +489,14 @@ export default function ExamCyclesPage() {
     try {
       const { data } = await api.get('/exam-cycles');
       setCycles(data);
+      if (data && data.length > 0) {
+        const sorted = [...data].sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+        if (sorted[0]) {
+          const latestId = sorted[0].id;
+          setExpanded({ [latestId]: true });
+          loadSlots(latestId);
+        }
+      }
     } catch {
       toast.error('Failed to load cycles');
     } finally {
@@ -839,7 +847,7 @@ export default function ExamCyclesPage() {
                       {isExpanded && (
                         <tr>
                           <td colSpan={isCoord ? 8 : 7} style={{ background: 'rgba(0,0,0,0.2)', padding: '16px 28px 24px 72px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Exam Slots Registry ({slots.length})</span>
                               {isCoord && (
                                 <div style={{ display: 'flex', gap: 8 }}>
@@ -861,33 +869,64 @@ export default function ExamCyclesPage() {
                             {slots.length === 0 ? (
                               <p style={{ fontStyle: 'italic', color: 'var(--text-tertiary)', fontSize: 12, padding: '8px 0' }}>No slots scheduled for this cycle.</p>
                             ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {/* Backlog slots first */}
-                                {backlog.length > 0 && (
-                                  <div>
-                                    <div style={{ fontSize: 9, color: '#FF453A', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, borderBottom: '1px solid rgba(255,69,58,0.15)', paddingBottom: 4 }}>
-                                      Backlog Exams ({backlog.length})
-                                    </div>
-                                    <SlotList slots={backlog} cycleId={cycle.id} isCoord={isCoord}
-                                      onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
-                                      onDel={(slotId) => delSlot(cycle.id, slotId)}
-                                      onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} />
-                                  </div>
-                                )}
-                                {/* Regular slots */}
-                                {regular.length > 0 && (
-                                  <div style={{ marginTop: backlog.length > 0 ? 12 : 0 }}>
-                                    {backlog.length > 0 && (
-                                      <div style={{ fontSize: 9, color: '#10b981', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, borderBottom: '1px solid rgba(16,185,129,0.15)', paddingBottom: 4 }}>
-                                        Regular Exams ({regular.length})
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                {(() => {
+                                  // Sort slots date-wise, and then by time
+                                  const sortedSlots = [...slots].sort((a, b) => {
+                                    const dateCompare = a.date.localeCompare(b.date);
+                                    if (dateCompare !== 0) return dateCompare;
+                                    return a.start_time.localeCompare(b.start_time);
+                                  });
+
+                                  // Group by date
+                                  const groups = {};
+                                  for (const slot of sortedSlots) {
+                                    const dateKey = slot.date;
+                                    if (!groups[dateKey]) groups[dateKey] = [];
+                                    groups[dateKey].push(slot);
+                                  }
+
+                                  const formatLongDate = (dateStr) => {
+                                    if (!dateStr) return '';
+                                    const d = new Date(dateStr + 'T00:00:00');
+                                    if (isNaN(d.getTime())) return dateStr;
+                                    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                                  };
+
+                                  return Object.keys(groups).sort().map(dateKey => (
+                                    <div key={dateKey} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {/* Big date title */}
+                                      <div style={{ 
+                                        fontSize: 12, 
+                                        fontWeight: 800, 
+                                        color: 'var(--accent-purple)', 
+                                        textTransform: 'uppercase', 
+                                        letterSpacing: '0.08em',
+                                        background: 'rgba(124, 58, 237, 0.08)',
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        borderLeft: '3px solid var(--accent-purple)',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        width: 'fit-content',
+                                        fontFamily: 'var(--font-mono)'
+                                      }}>
+                                        <Calendar size={13} />
+                                        {formatLongDate(dateKey)}
                                       </div>
-                                    )}
-                                    <SlotList slots={regular} cycleId={cycle.id} isCoord={isCoord}
-                                      onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
-                                      onDel={(slotId) => delSlot(cycle.id, slotId)}
-                                      onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} />
-                                  </div>
-                                )}
+                                      
+                                      <SlotList 
+                                        slots={groups[dateKey]} 
+                                        cycleId={cycle.id} 
+                                        isCoord={isCoord}
+                                        onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
+                                        onDel={(slotId) => delSlot(cycle.id, slotId)}
+                                        onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} 
+                                      />
+                                    </div>
+                                  ));
+                                })()}
                               </div>
                             )}
                           </td>
