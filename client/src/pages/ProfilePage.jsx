@@ -263,10 +263,7 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 1 * 1024 * 1024) {
-      toast.error('Profile picture must be under 1MB');
-      return;
-    }
+
 
     const t = toast.loading('Uploading profile picture...');
     const reader = new FileReader();

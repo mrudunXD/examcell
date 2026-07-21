@@ -437,12 +437,19 @@ export default function SettingsPage() {
                 <Field label="Address">
                   <Inp value={strV('general.address')} onChange={v => setK('general.address', v)} placeholder="Pune, Maharashtra" />
                 </Field>
-                <Field label="Logo Path / URL">
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                 <Field label="Logo Path / URL">
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', width: '100%' }}>
                     {strV('general.logo') && (
                       <img src={strV('general.logo')} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }} alt="Logo Preview" />
                     )}
-                    <Inp value={strV('general.logo')} onChange={v => setK('general.logo', v)} placeholder="/logo.png" style={{ flex: 1 }} />
+                    {strV('general.logo')?.startsWith('data:image/') ? (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', height: 36, background: 'var(--bg-elevated)', border: '1.5px solid var(--border)', borderRadius: 6 }}>
+                        <span style={{ fontSize: 11, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)' }}>[Uploaded Image (Base64)]</span>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setK('general.logo', '')} style={{ padding: '2px 8px', fontSize: 10, margin: 0, height: 24, minWidth: 0 }}>Clear</button>
+                      </div>
+                    ) : (
+                      <Inp value={strV('general.logo')} onChange={v => setK('general.logo', v)} placeholder="/logo.png" style={{ flex: 1 }} />
+                    )}
                     <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', height: 36, display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '0 12px', fontSize: 12 }}>
                       <Upload size={13} />
                       Upload Logo
@@ -453,10 +460,6 @@ export default function SettingsPage() {
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast.error('Logo image must be smaller than 2MB');
-                              return;
-                            }
                             const reader = new FileReader();
                             reader.onload = (event) => {
                               setK('general.logo', event.target.result);
@@ -470,11 +473,18 @@ export default function SettingsPage() {
                   </div>
                 </Field>
                 <Field label="Sidebar Header Banner">
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', width: '100%' }}>
                     {strV('general.sidebarBanner') && (
                       <img src={strV('general.sidebarBanner')} style={{ height: 36, width: 90, borderRadius: 6, objectFit: 'contain', background: 'var(--bg-base)', border: '1px solid var(--border)' }} alt="Banner Preview" />
                     )}
-                    <Inp value={strV('general.sidebarBanner')} onChange={v => setK('general.sidebarBanner', v)} placeholder="URL or Base64 Image string" style={{ flex: 1 }} />
+                    {strV('general.sidebarBanner')?.startsWith('data:image/') ? (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', height: 36, background: 'var(--bg-elevated)', border: '1.5px solid var(--border)', borderRadius: 6 }}>
+                        <span style={{ fontSize: 11, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)' }}>[Uploaded Banner (Base64)]</span>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setK('general.sidebarBanner', '')} style={{ padding: '2px 8px', fontSize: 10, margin: 0, height: 24, minWidth: 0 }}>Clear</button>
+                      </div>
+                    ) : (
+                      <Inp value={strV('general.sidebarBanner')} onChange={v => setK('general.sidebarBanner', v)} placeholder="URL or Base64 Image string" style={{ flex: 1 }} />
+                    )}
                     <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', height: 36, display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '0 12px', fontSize: 12 }}>
                       <Upload size={13} />
                       Upload Banner
@@ -485,10 +495,6 @@ export default function SettingsPage() {
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast.error('Banner image must be smaller than 2MB');
-                              return;
-                            }
                             const reader = new FileReader();
                             reader.onload = (event) => {
                               setK('general.sidebarBanner', event.target.result);
@@ -508,11 +514,18 @@ export default function SettingsPage() {
               <div style={GH}>Application Background</div>
               <div style={g2}>
                 <Field label="Background Image">
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', width: '100%' }}>
                     {strV('general.backgroundImage') && (
                       <img src={strV('general.backgroundImage')} style={{ height: 36, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border)' }} alt="Background Preview" />
                     )}
-                    <Inp value={strV('general.backgroundImage')} onChange={v => setK('general.backgroundImage', v)} placeholder="URL or Base64 Image string" style={{ flex: 1 }} />
+                    {strV('general.backgroundImage')?.startsWith('data:image/') ? (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', height: 36, background: 'var(--bg-elevated)', border: '1.5px solid var(--border)', borderRadius: 6 }}>
+                        <span style={{ fontSize: 11, color: 'var(--np-n500)', fontFamily: 'var(--font-mono)' }}>[Uploaded Background (Base64)]</span>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setK('general.backgroundImage', '')} style={{ padding: '2px 8px', fontSize: 10, margin: 0, height: 24, minWidth: 0 }}>Clear</button>
+                      </div>
+                    ) : (
+                      <Inp value={strV('general.backgroundImage')} onChange={v => setK('general.backgroundImage', v)} placeholder="URL or Base64 Image string" style={{ flex: 1 }} />
+                    )}
                     <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', height: 36, display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '0 12px', fontSize: 12 }}>
                       <Upload size={13} />
                       Upload Image
@@ -523,10 +536,6 @@ export default function SettingsPage() {
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
-                            if (file.size > 3 * 1024 * 1024) {
-                              toast.error('Background image must be smaller than 3MB');
-                              return;
-                            }
                             const reader = new FileReader();
                             reader.onload = (event) => {
                               setK('general.backgroundImage', event.target.result);
