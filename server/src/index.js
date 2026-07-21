@@ -101,8 +101,8 @@ initDb();
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(requestLogger);
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // NOTE: /exports static directory removed (C6) — PDFs are streamed directly, never served statically.
 
