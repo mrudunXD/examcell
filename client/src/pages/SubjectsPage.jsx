@@ -602,7 +602,20 @@ export default function SubjectsPage() {
                     <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-purple)' }}>{s.code}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>{s.abbreviation || '—'}</td>
                     <td style={{ fontWeight: 600 }}>{s.name}</td>
-                    <td>{s.branch}</td>
+                    <td>
+                      {s.is_common && s.branches ? (
+                        (() => {
+                          try {
+                            const arr = typeof s.branches === 'string' ? JSON.parse(s.branches) : s.branches;
+                            return Array.isArray(arr) ? arr.join(', ') : s.branch;
+                          } catch {
+                            return s.branch;
+                          }
+                        })()
+                      ) : (
+                        s.branch
+                      )}
+                    </td>
                     <td><span className={`badge badge-${s.year.toLowerCase()}`}>{s.year}</span></td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>Sem {s.semester}</td>
                     <td>
