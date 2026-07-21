@@ -24,30 +24,88 @@ function semParity(sem) { return sem % 2 === 1 ? 'odd' : 'even'; }
 
 // Student list query helper for branch/section separation
 async function getStudentsForSubject(db, subject) {
-  if (subject.branch === 'CSE') {
-    const codeUpper = subject.code.toUpperCase();
-    if (codeUpper.startsWith('AID')) {
-      // Section AIDS only
-      return await db.prepare(`
-        SELECT id FROM students WHERE is_active=1 AND year=? AND branch='CSE' AND semester=? AND section='AIDS'
-      `).all(subject.year, subject.semester);
-    } else if (codeUpper.startsWith('CSE') && !codeUpper.includes('AID')) {
-      // Standard sections only (not AIDS)
-      return await db.prepare(`
-        SELECT id FROM students WHERE is_active=1 AND year=? AND branch='CSE' AND semester=? AND section != 'AIDS'
-      `).all(subject.year, subject.semester);
-    } else {
-      // Common/all sections
-      return await db.prepare(`
-        SELECT id FROM students WHERE is_active=1 AND year=? AND branch='CSE' AND semester=?
-      `).all(subject.year, subject.semester);
+  let targetBranches = [];
+  if (subject.is_common && subject.branches) {
+    try {
+      targetBranches = typeof subject.branches === 'string' ? JSON.parse(subject.branches) : subject.branches;
+    } catch {
+      targetBranches = [subject.branch || 'CSE'];
     }
   } else {
-    // Standard branch grouping
-    return await db.prepare(`
-      SELECT id FROM students WHERE is_active=1 AND year=? AND branch=? AND semester=?
-    `).all(subject.year, subject.branch, subject.semester);
+    // If not marked as common in the database, parse subject.branch dynamically in case it contains commas or is "All"
+    const branchStr = (subject.branch || 'CSE').toUpperCase();
+    if (branchStr === 'ALL' || branchStr === 'COMMON FOR ALL' || branchStr === 'COMMON') {
+      return await db.prepare(`
+        SELECT id FROM students WHERE is_active=1 AND year=? AND semester=?
+      `).all(subject.year, subject.semester);
+    } else {
+      // Split by commas, slashes, or other separators
+      targetBranches = branchStr.split(/[,/]/).map(b => b.trim());
+    }
   }
+
+  // Normalize branches to match database values: CE, CSE, ECE, ME, MRA
+  const normalizedBranches = new Set();
+  let includeAids = false;
+  let includeCseNonAids = false;
+
+  for (const b of targetBranches) {
+    const bUpper = b.toUpperCase();
+    if (bUpper === 'CSE') {
+      normalizedBranches.add('CSE');
+      includeCseNonAids = true;
+    } else if (bUpper.includes('AIDS') || bUpper === 'CSE-(AIDS)' || bUpper === 'CSE (AIDS)') {
+      normalizedBranches.add('CSE');
+      includeAids = true;
+    } else if (bUpper.startsWith('ME') || bUpper.startsWith('MEC') || bUpper === 'ROBO' || bUpper.includes('ROBOTICS') || bUpper.includes('ROBITICS') || bUpper === 'MRA') {
+      if (bUpper === 'ME') {
+        normalizedBranches.add('ME');
+      } else if (bUpper === 'MRA' || bUpper.includes('ROBOTICS') || bUpper.includes('ROBITICS') || bUpper === 'ROBO') {
+        normalizedBranches.add('MRA');
+      } else {
+        // e.g. ME / MRA
+        normalizedBranches.add('ME');
+        normalizedBranches.add('MRA');
+      }
+    } else if (bUpper.startsWith('CE') || bUpper === 'CIVIL') {
+      normalizedBranches.add('CE');
+    } else if (bUpper === 'ECE') {
+      normalizedBranches.add('ECE');
+    } else {
+      normalizedBranches.add(b);
+    }
+  }
+
+  if (normalizedBranches.size === 0) {
+    normalizedBranches.add('CSE');
+  }
+
+  const branchList = Array.from(normalizedBranches);
+  const placeholders = branchList.map(() => '?').join(',');
+
+  const query = `
+    SELECT id, branch, section FROM students
+    WHERE is_active=1 AND year=? AND semester=? AND branch IN (${placeholders})
+  `;
+  const params = [subject.year, subject.semester, ...branchList];
+  const students = await db.prepare(query).all(...params);
+
+  // Filter CSE sections if needed
+  return students.filter(s => {
+    if (s.branch === 'CSE') {
+      const codeUpper = (subject.code || '').toUpperCase();
+      const isCodeAids = codeUpper.startsWith('AID') || codeUpper.includes('AID');
+      const isCodeCseNonAids = codeUpper.startsWith('CSE') && !codeUpper.includes('AID');
+
+      if ((includeAids || isCodeAids) && !(includeCseNonAids || isCodeCseNonAids)) {
+        return s.section === 'AIDS';
+      }
+      if ((includeCseNonAids || isCodeCseNonAids) && !(includeAids || isCodeAids)) {
+        return s.section !== 'AIDS';
+      }
+    }
+    return true;
+  });
 }
 
 // Date helpers
