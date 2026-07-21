@@ -189,32 +189,6 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-
-          {/* System info */}
-          <div style={{
-            marginTop: 40,
-            padding: '14px 16px',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-          }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-              System Status
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {[
-                ['Version', 'v1.0 · June 2026'],
-                ['Status', 'Operational'],
-                ['Scheme', 'MSBTE K Scheme'],
-                ['Access', 'Internal Only'],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k}</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Right panel — login form */}

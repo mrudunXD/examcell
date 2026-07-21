@@ -1576,26 +1576,32 @@ export default function KioskPage() {
                         gap: '12px',
                         padding: '4px',
                       }}>
-                        {seats.map(({ r, c, seat }) => (
-                          <div 
-                            key={`${r}-${c}`} 
-                            style={{
-                              position: 'relative',
-                              padding: '20px 12px',
-                              background: seat 
-                                ? (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)') 
-                                : 'transparent',
-                              border: seat
-                                ? `2.5px solid ${colors.cardBorder}`
-                                : `1px dashed ${colors.border}`,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: '96px',
-                              boxSizing: 'border-box',
-                            }}
-                          >
+                        {seats.map(({ r, c, seat }) => {
+                          const benchIndex = (r - 1) * Math.floor(cols / 2) + Math.floor((c - 1) / 2);
+                          const actualBenches = Math.floor(classroom?.capacity / 2);
+                          if (benchIndex >= actualBenches) {
+                            return <div key={`${r}-${c}`} style={{ minHeight: '96px', visibility: 'hidden' }} />;
+                          }
+                          return (
+                            <div 
+                              key={`${r}-${c}`} 
+                              style={{
+                                position: 'relative',
+                                padding: '20px 12px',
+                                background: seat 
+                                  ? (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)') 
+                                  : 'transparent',
+                                border: seat
+                                  ? `2.5px solid ${colors.cardBorder}`
+                                  : `1px dashed ${colors.border}`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minHeight: '96px',
+                                boxSizing: 'border-box',
+                              }}
+                            >
                             <span style={{ 
                               position: 'absolute', 
                               top: 6, 
@@ -1644,7 +1650,8 @@ export default function KioskPage() {
                               </span>
                             )}
                           </div>
-                        ))}
+                        );
+                      })}
                       </div>
                     );
                   })()}

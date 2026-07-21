@@ -72,8 +72,9 @@ export function generateSeating(students, rooms) {
 
     if (isMultiBranch) {
       const benchesPerRow = Math.max(1, Math.floor(bench_cols / 2)) || bench_cols;
+      const actualBenches = Math.floor(capacity / 2);
 
-      for (let bench = 0; bench < bench_rows * benchesPerRow && localIdx < roomStudents.length; bench++) {
+      for (let bench = 0; bench < actualBenches && localIdx < roomStudents.length; bench++) {
         const row        = Math.floor(bench / benchesPerRow) + 1;
         const benchInRow = (bench % benchesPerRow) + 1;
 

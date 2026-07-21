@@ -1481,6 +1481,13 @@ export default function FacultyDutyPage() {
                           student.roll_no.toLowerCase().includes(searchPRN.toLowerCase()) ||
                           student.student_name.toLowerCase().includes(searchPRN.toLowerCase())
                         );
+
+                        const benchIndex = (r - 1) * Math.floor(cols / 2) + Math.floor((c - 1) / 2);
+                        const actualBenches = Math.floor(assistantData.roomAllocation.capacity / 2);
+                        if (benchIndex >= actualBenches) {
+                          rowSeats.push(<div key={`${r}-${c}`} style={{ minHeight: 74, visibility: 'hidden' }} />);
+                          continue;
+                        }
                         
                         rowSeats.push(
                           <div 

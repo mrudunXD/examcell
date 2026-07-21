@@ -501,20 +501,27 @@ export default function DashboardPage() {
                     {/* Active Incidents */}
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: liveData?.openIncidents?.length ? '#ef4444' : 'var(--text-secondary)', marginBottom: 10 }}>
-                        Active Incidents Today ({liveData?.openIncidents?.length || 0})
+                        Active Incidents ({liveData?.openIncidents?.length || 0})
                       </div>
                       {liveData?.openIncidents?.length ? liveData.openIncidents.map(inc => (
                         <div key={inc.id} style={{ padding: '10px 14px', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.02)', borderRadius: 8, cursor: 'pointer', marginBottom: 8 }} onClick={() => setResolvingIncident(inc)}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <AlertTriangle size={13} color="#ef4444" />
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#ef4444', fontWeight: 700 }}>{inc.type} · Room {inc.room_no}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#ef4444', fontWeight: 700 }}>{inc.type} · Room {inc.room_no} · {inc.exam_date}</span>
                           </div>
                           <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)' }}>{inc.description}</div>
                         </div>
                       )) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#16a34a', padding: '10px 14px', border: '1px solid #bbf7d0', background: '#f0fdf4', borderRadius: 8 }}>
-                          <CheckCircle size={14} strokeWidth={1.5} />
-                          <span style={{ fontSize: 12, fontWeight: 500 }}>All clear, no active incidents</span>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          color: '#30D158',
+                          padding: '10px 14px',
+                          border: '1px solid rgba(48, 209, 88, 0.2)',
+                          background: 'rgba(48, 209, 88, 0.05)',
+                          borderRadius: 8
+                        }}>
+                          <CheckCircle size={14} strokeWidth={1.5} color="#30D158" />
+                          <span style={{ fontSize: 12, fontWeight: 500, color: '#30D158' }}>All clear, no active incidents</span>
                         </div>
                       )}
                     </div>

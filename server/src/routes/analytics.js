@@ -164,17 +164,17 @@ router.get('/live/:cycleId', asyncHandler(async (req, res) => {
     LIMIT 3
   `).all(req.params.cycleId, today);
 
-  // Open incidents today
+  // Open incidents in the cycle
   const openIncidents = await db.prepare(`
-    SELECT i.*, u.name as reported_by_name, c.room_no
+    SELECT i.*, u.name as reported_by_name, c.room_no, es.date as exam_date
     FROM incidents i
     LEFT JOIN users u ON u.id = i.reported_by
     LEFT JOIN room_allocations ra ON ra.id = i.room_allocation_id
     LEFT JOIN classrooms c ON c.id = ra.classroom_id
     LEFT JOIN exam_slots es ON es.id = i.slot_id
-    WHERE es.cycle_id = ? AND es.date = ? AND i.status = 'open'
+    WHERE es.cycle_id = ? AND i.status = 'open'
     ORDER BY i.created_at DESC
-  `).all(req.params.cycleId, today);
+  `).all(req.params.cycleId);
 
   res.json({ cycle, today, now, todaySlots, upcomingSlots, openIncidents });
 }));

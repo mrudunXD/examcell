@@ -444,6 +444,13 @@ export default function SeatingPage() {
                           const row = rowIdx + 1;
                           const col = colIdx + 1;
                           const isDraggedOver = dragOverCell?.row === row && dragOverCell?.col === col;
+                          
+                          // Check if this bench exists (each bench holds 2 seats: left is odd col, right is even col)
+                          const benchIndex = (row - 1) * Math.floor(cols / 2) + Math.floor((col - 1) / 2);
+                          const actualBenches = Math.floor(currentRoom.room.capacity / 2);
+                          if (benchIndex >= actualBenches) {
+                            return <div key={colIdx} className="bench-seat empty" style={{ visibility: 'hidden' }} />;
+                          }
                           return (
                             <BenchSeat
                               key={colIdx}

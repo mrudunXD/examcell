@@ -209,6 +209,12 @@ export async function generateSeatingPDF({ slot, classroom, assignments }) {
        .text(`R${row}`, 30, y + 13, { width: LABEL_W, align: 'right', lineBreak: false });
 
     for (let col = 1; col <= classroom.bench_cols; col++) {
+      const benchIndex = (row - 1) * Math.floor(classroom.bench_cols / 2) + Math.floor((col - 1) / 2);
+      const actualBenches = Math.floor(classroom.capacity / 2);
+      if (benchIndex >= actualBenches) {
+        continue;
+      }
+
       const seat = grid[row]?.[col];
       const sx = 30 + LABEL_W + 4 + (col - 1) * (CELL_W + 2);
 
