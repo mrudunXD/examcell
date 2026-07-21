@@ -445,15 +445,15 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
           // Insert invigilators
           const slotInvigilators = result.invigilators.filter(iv => iv.date === s.date && iv.start_time === s.start_time);
           const invStmt = await db.prepare(`
-            INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role, acknowledged)
-            VALUES (?, ?, ?, ?, 0)
+            INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, slot_id, role, acknowledged)
+            VALUES (?, ?, ?, ?, ?, 0)
           `);
           for (const iv of slotInvigilators) {
             const raId = raMap[iv.classroom_id];
             if (raId) {
               const existingDuties = await db.prepare('SELECT COUNT(*) as cnt FROM supervisor_duties WHERE room_allocation_id=?').get(raId);
               const role = (existingDuties && existingDuties.cnt > 0) ? 'co' : 'primary';
-              await invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, role);
+              await invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, slotId, role);
             }
           }
           
@@ -614,7 +614,7 @@ async function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false)
     GROUP BY sd.faculty_id
   `).all(slotId);
   for (const row of allDutyCounts) {
-    if (globalWorkload[row.faculty_id] !== undefined) globalWorkload[row.faculty_id] = row.cnt;
+    if (globalWorkload[row.faculty_id] !== undefined) globalWorkload[row.faculty_id] = Number(row.cnt);
   }
 
   const slotWithRooms = [{ ...slot, rooms: updatedRooms }];
@@ -627,8 +627,8 @@ async function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false)
     }
     await db.prepare("DELETE FROM conflicts WHERE slot_id=? AND type IN ('NO_SUPERVISOR_AVAILABLE','NO_CO_SUPERVISOR_AVAILABLE')").run(slotId);
 
-    const stmt = await db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, role) VALUES (?, ?, ?, ?)');
-    for (const d of duties) await stmt.run(d.id, d.faculty_id, d.room_allocation_id, d.role);
+    const stmt = await db.prepare('INSERT INTO supervisor_duties (id, faculty_id, room_allocation_id, slot_id, role) VALUES (?, ?, ?, ?, ?)');
+    for (const d of duties) await stmt.run(d.id, d.faculty_id, d.room_allocation_id, slotId, d.role);
 
     const cStmt = await db.prepare('INSERT INTO conflicts (id, slot_id, cycle_id, type, description, suggested_resolution) VALUES (?, ?, ?, ?, ?, ?)');
     for (const c of supervisorConflicts) await cStmt.run(crypto.randomUUID(), slotId, slot.cycle_id, c.type, c.description, c.suggested_resolution || null);

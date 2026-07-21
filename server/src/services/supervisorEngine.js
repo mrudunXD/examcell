@@ -26,7 +26,7 @@ export function assignSupervisors(slots, allFaculty, globalWorkload = {}, existi
   // Clone global workload
   const workload = {};
   for (const f of allFaculty) {
-    workload[f.id] = globalWorkload[f.id] ?? 0;
+    workload[f.id] = Number(globalWorkload[f.id] ?? 0);
   }
 
   // Time-conflict tracker: facultyId -> Set<"date_startTime">

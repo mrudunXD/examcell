@@ -270,7 +270,7 @@ router.post('/generate/:slotId', requireCoordinator, auditLog('GENERATE_SUPERVIS
     GROUP BY sd.faculty_id
   `).all(slot.cycle_id, slot.id);
   for (const row of allDutyCounts) {
-    if (globalWorkload[row.faculty_id] !== undefined) globalWorkload[row.faculty_id] = row.cnt;
+    if (globalWorkload[row.faculty_id] !== undefined) globalWorkload[row.faculty_id] = Number(row.cnt);
   }
 
   const slotWithRooms = [{ ...slot, rooms }];
