@@ -526,10 +526,10 @@ export default function ExamCyclesPage() {
     if (!confirm('Delete this exam cycle and all its data?')) return;
     try {
       await api.delete(`/exam-cycles/${id}`);
-      toast.success('Deleted');
+      toast.success('Exam cycle deleted');
       fetchCycles();
-    } catch {
-      toast.error('Failed to delete');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete exam cycle');
     }
   };
 

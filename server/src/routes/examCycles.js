@@ -187,11 +187,9 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_CYCLE', 'exam_cycles', (
 router.delete('/:id', requireCoordinator, auditLog('DELETE_CYCLE', 'exam_cycles', (req) => req.params.id, (req) => `Deleted cycle ID: ${req.params.id}`), asyncHandler(async (req, res) => {
   const cycle = await SchedulingRepository.findCycleById(req.params.id);
   if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
-  if (cycle.status !== 'draft') {
-    return res.status(400).json({ error: `Cannot delete a ${cycle.status} cycle. Archive it instead.` });
-  }
+  
   await SchedulingRepository.deleteCycle(req.params.id);
-  res.json({ success: true });
+  res.json({ success: true, message: 'Exam cycle deleted successfully.' });
 }));
 
 // POST /:id/activate — make this cycle "active", demote others to "draft"

@@ -52,7 +52,34 @@ export class SchedulingRepository {
 
   static async deleteCycle(id) {
     const db = getDb();
-    return await db.prepare('DELETE FROM exam_cycles WHERE id = ?').run(id);
+    await db.transaction(async () => {
+      // 1. Delete solver_runs & telemetry
+      await db.prepare('DELETE FROM solver_runs WHERE cycle_id = ?').run(id);
+      await db.prepare('DELETE FROM solver_telemetry WHERE cycle_id = ?').run(id);
+
+      // 2. Delete conflicts
+      await db.prepare('DELETE FROM conflicts WHERE cycle_id = ?').run(id);
+
+      // 3. Find all slot IDs for this cycle and delete slot child dependencies
+      const slots = await db.prepare('SELECT id FROM exam_slots WHERE cycle_id = ?').all(id);
+      for (const slot of slots) {
+        const ras = await db.prepare('SELECT id FROM room_allocations WHERE slot_id = ?').all(slot.id);
+        for (const ra of ras) {
+          await db.prepare('DELETE FROM seat_assignments WHERE room_allocation_id = ?').run(ra.id);
+          await db.prepare('DELETE FROM supervisor_duties WHERE room_allocation_id = ?').run(ra.id);
+        }
+        await db.prepare('DELETE FROM room_allocations WHERE slot_id = ?').run(slot.id);
+        await db.prepare('DELETE FROM slot_students WHERE slot_id = ?').run(slot.id);
+        await db.prepare('DELETE FROM attendance WHERE slot_id = ?').run(slot.id);
+        await db.prepare('DELETE FROM incidents WHERE slot_id = ?').run(slot.id);
+      }
+
+      // 4. Delete exam slots
+      await db.prepare('DELETE FROM exam_slots WHERE cycle_id = ?').run(id);
+
+      // 5. Delete cycle itself
+      await db.prepare('DELETE FROM exam_cycles WHERE id = ?').run(id);
+    })();
   }
 
   static async promoteCycleToActive(id) {
