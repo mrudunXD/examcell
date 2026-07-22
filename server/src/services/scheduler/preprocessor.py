@@ -129,7 +129,12 @@ def run_preprocessor(input_data):
             slot_id += 1
 
     # Segment subjects exceeding classroom capacity
-    max_cap = max(r["capacity"] for r in classrooms) if classrooms else 1
+    # Use min classroom capacity so every virtual subject part fits into ANY classroom
+    min_cap = min(r["capacity"] for r in classrooms) if classrooms else 30
+    if min_cap <= 0:
+        min_cap = 30
+    target_cap = min(min_cap, 40)
+
     virtual_subjects = []
     subject_parts_map = {}
 
@@ -138,7 +143,7 @@ def run_preprocessor(input_data):
         if num_stud == 0:
             continue
         
-        if num_stud <= max_cap:
+        if num_stud <= target_cap:
             v_sub = {
                 "id": s["id"],
                 "orig_id": s["id"],
@@ -158,7 +163,7 @@ def run_preprocessor(input_data):
             rem = num_stud
             part_idx = 1
             while rem > 0:
-                part_size = min(rem, max_cap)
+                part_size = min(rem, target_cap)
                 v_id = f"{s['id']}_part{part_idx}"
                 v_sub = {
                     "id": v_id,

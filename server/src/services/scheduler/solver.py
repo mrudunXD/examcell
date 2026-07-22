@@ -358,6 +358,10 @@ def solve():
     status2 = solver2.Solve(model2)
 
     # Build success output structure (merging virtual parts back into their original subjects)
+    if status2 not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+        run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms, slots, dates, is_cca, faculty_leaves, subject_constraints, faculty)
+        return
+
     output_slots_map = {}
     for s in context["subjects"]:
         parts = subject_parts_map.get(s["id"], [])
@@ -417,7 +421,7 @@ def solve():
         "constraints_count": len(model1.Proto().constraints)
     }))
 
-def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms, slots, dates, is_cca, faculty_leaves, subject_constraints):
+def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms, slots, dates, is_cca, faculty_leaves, subject_constraints, faculty=None):
     model = cp_model.CpModel()
 
     # Variables
@@ -478,14 +482,17 @@ def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms
                 model.Add(sum(reps) <= 1 + len(g_subjs) * slack)
                 slack_branch_overlap.append((slack, g, t["date"], t["start_time"]))
 
-    # 4. Max 2 exams/day (Hard)
+    # 4. Max 2 exams/day (Relaxed if needed)
     max_exams_per_day = 2 if is_cca else 1
+    slack_max_day = []
     for g, g_subjs in group_subjects.items():
         for d_idx in range(len(dates)):
             day_slots = [t for t in slots if t["date_idx"] == d_idx]
             reps = [x[subj_parts[sid][0]["id"], t["id"]] for sid in g_subjs if sid in subj_parts for t in day_slots]
             if reps:
-                model.Add(sum(reps) <= max_exams_per_day)
+                slack = model.NewBoolVar(f"slack_day_{g}_{d_idx}")
+                model.Add(sum(reps) <= max_exams_per_day + len(reps) * slack)
+                slack_max_day.append((slack, g, dates[d_idx]))
 
     # 4b. Minimum 1 hour gap between exams on the same day for CCA cycles
     if is_cca:
@@ -518,25 +525,16 @@ def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms
                                     model.Add(sum(reps_t1) + sum(reps_t2) <= 1)
 
     # 5. Backlog Separation (Relaxed)
-    backlog_subjects = [v for v in virtual_subjects if v.get("exam_type") == "backlog"]
-    regular_subjects = [v for v in virtual_subjects if v.get("exam_type") == "regular"]
-    if backlog_subjects and regular_subjects:
-        backlog_date_vars = {}
-        regular_date_vars = {}
-        for bs in backlog_subjects:
-            d = model.NewIntVar(0, len(dates), f"date_bs_{bs['id']}")
-            model.Add(d == sum(t["date_idx"] * x[bs["id"], t["id"]] for t in slots))
-            backlog_date_vars[bs["id"]] = d
-        for rs in regular_subjects:
-            d = model.NewIntVar(0, len(dates), f"date_rs_{rs['id']}")
-            model.Add(d == sum(t["date_idx"] * x[rs["id"], t["id"]] for t in slots))
-            regular_date_vars[rs["id"]] = d
-        for bs in backlog_subjects:
-            for rs in regular_subjects:
-                is_violation = model.NewBoolVar(f"slack_backlog_{bs['id']}_{rs['id']}")
-                model.Add(backlog_date_vars[bs["id"]] < regular_date_vars[rs["id"]]).OnlyEnforceIf(is_violation.Not())
-                model.Add(backlog_date_vars[bs["id"]] >= regular_date_vars[rs["id"]]).OnlyEnforceIf(is_violation)
-                slack_backlog.append((is_violation, bs["code"], rs["code"]))
+    for bs in virtual_subjects:
+        if bs.get("exam_type") == "backlog":
+            for rs in virtual_subjects:
+                if rs.get("exam_type") == "regular" and rs["branch"] == bs["branch"] and rs["year"] == bs["year"]:
+                    for t_b in slots:
+                        for t_r in slots:
+                            if t_b["date_idx"] >= t_r["date_idx"]:
+                                slack = model.NewBoolVar(f"slack_backlog_{bs['id']}_{rs['id']}_{t_b['id']}_{t_r['id']}")
+                                model.Add(x[bs["id"], t_b["id"]] + x[rs["id"], t_r["id"]] <= 1 + slack)
+                                slack_backlog.append((slack, bs["code"], rs["code"]))
 
     # 6. Online Room Compatibility (Hard)
     for v in virtual_subjects:
@@ -561,14 +559,18 @@ def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms
     model.Minimize(
         sum(1000 * slack[0] for slack in slack_branch_overlap) +
         sum(1000 * slack[0] for slack in slack_room_overflow) +
-        sum(1000 * slack[0] for slack in slack_backlog)
+        sum(1000 * slack[0] for slack in slack_backlog) +
+        sum(1000 * slack[0] for slack in slack_max_day)
     )
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 10
+    solver.parameters.max_time_in_seconds = 30
     status = solver.Solve(model)
 
     conflicts = []
+    output_slots_map = {}
+    output_invigilators = []
+
     if status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         for slack, g, date, start_time in slack_branch_overlap:
             if solver.Value(slack) == 1:
@@ -594,19 +596,76 @@ def run_relaxed_solver(virtual_subjects, group_subjects, teaches_map, classrooms
                     "suggested_resolution": "Extend the start date of the exam cycle or clear backlog dates."
                 })
 
-    if not conflicts:
+        # Reconstruct output slots
+        for s_id, parts in subj_parts.items():
+            if not parts:
+                continue
+            assigned_slot = None
+            for t in slots:
+                if solver.Value(x[parts[0]["id"], t["id"]]) == 1:
+                    assigned_slot = t
+                    break
+            if not assigned_slot:
+                continue
+
+            assigned_rooms = []
+            for v in parts:
+                for r in classrooms:
+                    if solver.Value(y[v["id"], r["id"]]) == 1:
+                        assigned_rooms.append({
+                            "classroom_id": r["id"],
+                            "room_no": r["room_no"],
+                            "students_count": v["student_count"]
+                        })
+
+            first_v = parts[0]
+            output_slots_map[s_id] = {
+                "subject_id": s_id,
+                "subject_code": first_v["code"],
+                "date": assigned_slot["date"],
+                "start_time": assigned_slot["start_time"],
+                "duration_mins": assigned_slot["duration_mins"],
+                "exam_type": first_v.get("exam_type", "regular"),
+                "exam_mode": first_v.get("exam_mode", "offline"),
+                "rooms": assigned_rooms
+            }
+
+        # Simple invigilator assignment for relaxed slots
+        fac_idx = 0
+        for slot_info in output_slots_map.values():
+            for rm in slot_info["rooms"]:
+                if faculty:
+                    fac = faculty[fac_idx % len(faculty)]
+                    fac_idx += 1
+                    output_invigilators.append({
+                        "faculty_id": fac["id"],
+                        "classroom_id": rm["classroom_id"],
+                        "date": slot_info["date"],
+                        "shift": "1",
+                        "start_time": slot_info["start_time"]
+                    })
+
+        print(json.dumps({
+            "status": "SUCCESS",
+            "slots": list(output_slots_map.values()),
+            "invigilators": output_invigilators,
+            "conflicts": conflicts,
+            "constraints_count": len(model.Proto().constraints) if 'model' in locals() else 0,
+            "objective_value": 0
+        }))
+    else:
         conflicts.append({
             "type": "SCHEDULING_IMPOSSIBLE",
             "description": "No valid schedule satisfies the institutional constraints.",
             "suggested_resolution": "Please check dates ranges, student enrollments, or classroom counts."
         })
 
-    print(json.dumps({
-        "status": "FAIL",
-        "conflicts": conflicts,
-        "constraints_count": len(model.Proto().constraints) if 'model' in locals() else 0,
-        "objective_value": 0
-    }))
+        print(json.dumps({
+            "status": "FAIL",
+            "conflicts": conflicts,
+            "constraints_count": len(model.Proto().constraints) if 'model' in locals() else 0,
+            "objective_value": 0
+        }))
 
 if __name__ == "__main__":
     solve()
