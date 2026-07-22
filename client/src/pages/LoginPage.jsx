@@ -134,19 +134,9 @@ export default function LoginPage() {
         }}>
           {/* Logo */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 8,
-                background: 'rgba(59,130,246,0.1)',
-                border: '1px solid rgba(59,130,246,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <GraduationCap size={18} strokeWidth={1.5} color="var(--accent-blue)" />
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>ExamCell</div>
-                <div style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>MIT WPU</div>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
+              <img src="/logo.png" alt="ExamCell Logo" style={{ height: 38, width: 'auto', objectFit: 'contain' }} />
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', borderLeft: '1px solid var(--border)', paddingLeft: 10 }}>MIT WPU</div>
             </div>
 
             <h1 style={{

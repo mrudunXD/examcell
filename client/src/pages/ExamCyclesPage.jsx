@@ -889,6 +889,16 @@ export default function ExamCyclesPage() {
                                   const YEAR_ORDER = { FY: 1, SY: 2, TY: 3, LY: 4 };
                                   const YEAR_LABELS = { FY: 'FY — First Year', SY: 'SY — Second Year', TY: 'TY — Third Year', LY: 'LY — Fourth Year' };
 
+                                  const getBranchLabel = (slot) => {
+                                    if (slot.is_common && slot.branches) {
+                                      try {
+                                        const arr = typeof slot.branches === 'string' ? JSON.parse(slot.branches) : slot.branches;
+                                        if (Array.isArray(arr)) return arr.join(', ');
+                                      } catch {}
+                                    }
+                                    return slot.branch || 'CSE';
+                                  };
+
                                   const formatLongDate = (dateStr) => {
                                     if (!dateStr) return '';
                                     const d = new Date(dateStr + 'T00:00:00');
@@ -898,15 +908,24 @@ export default function ExamCyclesPage() {
 
                                   return Object.keys(groups).sort().map(dateKey => {
                                     const dateSlots = groups[dateKey];
-                                    // Sub-group by year (FY, SY, TY, LY)
-                                    const yearGroups = {};
+                                    
+                                    // Sub-group by Year AND Branch
+                                    const subGroups = {};
                                     for (const slot of dateSlots) {
                                       const yKey = slot.year || 'FY';
-                                      if (!yearGroups[yKey]) yearGroups[yKey] = [];
-                                      yearGroups[yKey].push(slot);
+                                      const bKey = getBranchLabel(slot);
+                                      const compoundKey = `${yKey}__${bKey}`;
+                                      if (!subGroups[compoundKey]) subGroups[compoundKey] = { year: yKey, branch: bKey, slots: [] };
+                                      subGroups[compoundKey].slots.push(slot);
                                     }
 
-                                    const sortedYearKeys = Object.keys(yearGroups).sort((a, b) => (YEAR_ORDER[a] || 99) - (YEAR_ORDER[b] || 99));
+                                    const sortedCompoundKeys = Object.keys(subGroups).sort((a, b) => {
+                                      const yA = subGroups[a].year;
+                                      const yB = subGroups[b].year;
+                                      const yComp = (YEAR_ORDER[yA] || 99) - (YEAR_ORDER[yB] || 99);
+                                      if (yComp !== 0) return yComp;
+                                      return subGroups[a].branch.localeCompare(subGroups[b].branch);
+                                    });
 
                                     return (
                                       <div key={dateKey} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -928,31 +947,41 @@ export default function ExamCyclesPage() {
                                         </div>
                                         
                                         {/* Sub-grouped by Year & Branch */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingLeft: 4 }}>
-                                          {sortedYearKeys.map(yKey => {
-                                            const ySlots = [...yearGroups[yKey]].sort((a, b) => {
-                                              const branchCompare = (a.branch || '').localeCompare(b.branch || '');
-                                              if (branchCompare !== 0) return branchCompare;
-                                              return (a.start_time || '').localeCompare(b.start_time || '');
-                                            });
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 4 }}>
+                                          {sortedCompoundKeys.map(cKey => {
+                                            const groupInfo = subGroups[cKey];
+                                            const sortedGroupSlots = [...groupInfo.slots].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
 
                                             return (
-                                              <div key={yKey} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                              <div key={cKey} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                 <div style={{
-                                                  fontSize: 11,
+                                                  fontSize: 12,
                                                   fontWeight: 700,
-                                                  color: 'var(--accent-cyan)',
-                                                  letterSpacing: '0.04em',
+                                                  color: 'var(--text-primary)',
+                                                  letterSpacing: '0.02em',
                                                   display: 'flex',
                                                   alignItems: 'center',
-                                                  gap: 6
+                                                  gap: 8
                                                 }}>
                                                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-cyan)' }} />
-                                                  {YEAR_LABELS[yKey] || `${yKey} — Year`}
+                                                  <span>{YEAR_LABELS[groupInfo.year] || `${groupInfo.year} — Year`}</span>
+                                                  <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                                                  <span style={{
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    fontFamily: 'var(--font-mono)',
+                                                    padding: '2px 8px',
+                                                    borderRadius: 6,
+                                                    background: 'rgba(124, 58, 237, 0.12)',
+                                                    color: 'var(--accent-purple)',
+                                                    border: '1px solid rgba(124, 58, 237, 0.25)'
+                                                  }}>
+                                                    {groupInfo.branch}
+                                                  </span>
                                                 </div>
 
                                                 <SlotList 
-                                                  slots={ySlots} 
+                                                  slots={sortedGroupSlots} 
                                                   cycleId={cycle.id} 
                                                   isCoord={isCoord}
                                                   onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}

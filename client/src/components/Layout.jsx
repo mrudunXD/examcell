@@ -575,19 +575,16 @@ export default function Layout() {
                 <img src={sidebarBanner} alt="Sidebar Banner" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             ) : (
-              <div className="saas-workspace-select" style={{ flex: sidebarCollapsed ? 'none' : 1 }} onClick={() => setSearchOpen(true)}>
-                <div className="saas-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
+              <div className="saas-workspace-select" style={{ flex: sidebarCollapsed ? 'none' : 1, padding: '4px 8px' }} onClick={() => setSearchOpen(true)}>
+                <div style={{ height: sidebarCollapsed ? 26 : 30, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                   {logoSetting ? (
-                    <img src={logoSetting} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={logoSetting} alt="Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
                   ) : (
-                    'EC'
+                    <img src="/logo.png" alt="Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
                   )}
                 </div>
                 {!sidebarCollapsed && (
-                  <>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 8 }}>ExamCell</span>
-                    <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 4 }} />
-                  </>
+                  <ChevronDown size={12} color="var(--text-tertiary)" style={{ marginLeft: 'auto' }} />
                 )}
               </div>
             )}
