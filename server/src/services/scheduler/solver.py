@@ -284,9 +284,9 @@ def solve():
                 model2.Add(num_inv == 0)
             else:
                 if is_mixed_r_t[r["id"], t["id"]]:
-                    model2.Add(num_inv >= 2)
+                    model2.Add(num_inv == 2)
                 else:
-                    model2.Add(num_inv >= 1)
+                    model2.Add(num_inv == 1)
 
     # Supervisor Load Balancing Penalties & Custom Constraints
     penalties2 = []

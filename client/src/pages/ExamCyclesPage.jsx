@@ -886,6 +886,9 @@ export default function ExamCyclesPage() {
                                     groups[dateKey].push(slot);
                                   }
 
+                                  const YEAR_ORDER = { FY: 1, SY: 2, TY: 3, LY: 4 };
+                                  const YEAR_LABELS = { FY: 'FY — First Year', SY: 'SY — Second Year', TY: 'TY — Third Year', LY: 'LY — Fourth Year' };
+
                                   const formatLongDate = (dateStr) => {
                                     if (!dateStr) return '';
                                     const d = new Date(dateStr + 'T00:00:00');
@@ -893,39 +896,76 @@ export default function ExamCyclesPage() {
                                     return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
                                   };
 
-                                  return Object.keys(groups).sort().map(dateKey => (
-                                    <div key={dateKey} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                      {/* Big date title */}
-                                      <div style={{ 
-                                        fontSize: 12, 
-                                        fontWeight: 800, 
-                                        color: 'var(--accent-purple)', 
-                                        textTransform: 'uppercase', 
-                                        letterSpacing: '0.08em',
-                                        background: 'rgba(124, 58, 237, 0.08)',
-                                        padding: '6px 12px',
-                                        borderRadius: '6px',
-                                        borderLeft: '3px solid var(--accent-purple)',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        width: 'fit-content',
-                                        fontFamily: 'var(--font-mono)'
-                                      }}>
-                                        <Calendar size={13} />
-                                        {formatLongDate(dateKey)}
+                                  return Object.keys(groups).sort().map(dateKey => {
+                                    const dateSlots = groups[dateKey];
+                                    // Sub-group by year (FY, SY, TY, LY)
+                                    const yearGroups = {};
+                                    for (const slot of dateSlots) {
+                                      const yKey = slot.year || 'FY';
+                                      if (!yearGroups[yKey]) yearGroups[yKey] = [];
+                                      yearGroups[yKey].push(slot);
+                                    }
+
+                                    const sortedYearKeys = Object.keys(yearGroups).sort((a, b) => (YEAR_ORDER[a] || 99) - (YEAR_ORDER[b] || 99));
+
+                                    return (
+                                      <div key={dateKey} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                        {/* Big clean date title without purple tint */}
+                                        <div style={{ 
+                                          fontSize: 16, 
+                                          fontWeight: 800, 
+                                          color: 'var(--text-primary)', 
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 8,
+                                          padding: '8px 0 6px 0',
+                                          borderBottom: '1px solid var(--border)',
+                                          width: '100%',
+                                          fontFamily: 'var(--font-sans)'
+                                        }}>
+                                          <Calendar size={18} style={{ color: 'var(--accent-primary)' }} />
+                                          <span>{formatLongDate(dateKey)}</span>
+                                        </div>
+                                        
+                                        {/* Sub-grouped by Year & Branch */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingLeft: 4 }}>
+                                          {sortedYearKeys.map(yKey => {
+                                            const ySlots = [...yearGroups[yKey]].sort((a, b) => {
+                                              const branchCompare = (a.branch || '').localeCompare(b.branch || '');
+                                              if (branchCompare !== 0) return branchCompare;
+                                              return (a.start_time || '').localeCompare(b.start_time || '');
+                                            });
+
+                                            return (
+                                              <div key={yKey} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                <div style={{
+                                                  fontSize: 11,
+                                                  fontWeight: 700,
+                                                  color: 'var(--accent-cyan)',
+                                                  letterSpacing: '0.04em',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  gap: 6
+                                                }}>
+                                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-cyan)' }} />
+                                                  {YEAR_LABELS[yKey] || `${yKey} — Year`}
+                                                </div>
+
+                                                <SlotList 
+                                                  slots={ySlots} 
+                                                  cycleId={cycle.id} 
+                                                  isCoord={isCoord}
+                                                  onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
+                                                  onDel={(slotId) => delSlot(cycle.id, slotId)}
+                                                  onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} 
+                                                />
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
-                                      
-                                      <SlotList 
-                                        slots={groups[dateKey]} 
-                                        cycleId={cycle.id} 
-                                        isCoord={isCoord}
-                                        onEdit={(slot) => { setSlotCycleId(cycle.id); setEditing(slot); setModal('slot'); }}
-                                        onDel={(slotId) => delSlot(cycle.id, slotId)}
-                                        onExplain={(slotId) => { setSlotCycleId(cycle.id); setExplainSlotId(slotId); }} 
-                                      />
-                                    </div>
-                                  ));
+                                    );
+                                  });
                                 })()}
                               </div>
                             )}

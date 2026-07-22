@@ -510,6 +510,7 @@ router.post('/:id/auto-schedule', requireCoordinator, auditLog('AUTO_SCHEDULE_CY
             const raId = raMap[iv.classroom_id];
             if (raId) {
               const existingDuties = await db.prepare('SELECT COUNT(*) as cnt FROM supervisor_duties WHERE room_allocation_id=?').get(raId);
+              if (existingDuties && existingDuties.cnt >= 2) continue;
               const role = (existingDuties && existingDuties.cnt > 0) ? 'co' : 'primary';
               await invStmt.run(crypto.randomUUID(), iv.faculty_id, raId, slotId, role);
             }
