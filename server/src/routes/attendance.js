@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { getDb } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -74,11 +75,34 @@ router.get('/:slotId/summary', verifyAttendanceAccess, asyncHandler(async (req, 
     WHERE ra.slot_id = ?
   `).get(req.params.slotId))?.cnt || 0;
 
-  const present  = (await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='present'").get(req.params.slotId))?.cnt || 0;
-  const absent   = (await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='absent'").get(req.params.slotId))?.cnt || 0;
-  const late     = (await db.prepare("SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=? AND status='late'").get(req.params.slotId))?.cnt || 0;
-  const marked   = (await db.prepare('SELECT COUNT(*) as cnt FROM attendance WHERE slot_id=?').get(req.params.slotId))?.cnt || 0;
-  res.json({ total, present, absent, late, marked, unmarked: total - marked });
+  const present = (await db.prepare(`
+    SELECT COUNT(DISTINCT a.student_id) as cnt
+    FROM attendance a
+    JOIN seat_assignments sa ON sa.student_id = a.student_id
+    JOIN room_allocations ra ON ra.id = sa.room_allocation_id AND ra.slot_id = a.slot_id
+    WHERE a.slot_id = ? AND a.status = 'present'
+  `).get(req.params.slotId))?.cnt || 0;
+
+  const absent = (await db.prepare(`
+    SELECT COUNT(DISTINCT a.student_id) as cnt
+    FROM attendance a
+    JOIN seat_assignments sa ON sa.student_id = a.student_id
+    JOIN room_allocations ra ON ra.id = sa.room_allocation_id AND ra.slot_id = a.slot_id
+    WHERE a.slot_id = ? AND a.status = 'absent'
+  `).get(req.params.slotId))?.cnt || 0;
+
+  const late = (await db.prepare(`
+    SELECT COUNT(DISTINCT a.student_id) as cnt
+    FROM attendance a
+    JOIN seat_assignments sa ON sa.student_id = a.student_id
+    JOIN room_allocations ra ON ra.id = sa.room_allocation_id AND ra.slot_id = a.slot_id
+    WHERE a.slot_id = ? AND a.status = 'late'
+  `).get(req.params.slotId))?.cnt || 0;
+
+  const marked = present + absent + late;
+  const unmarked = Math.max(0, total - marked);
+
+  res.json({ total, present, absent, late, marked, unmarked });
 }));
 
 // POST bulk upsert attendance — prepare stmt OUTSIDE transaction

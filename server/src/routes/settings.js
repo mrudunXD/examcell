@@ -7,17 +7,18 @@ import { getDb } from '../db/database.js';
 const router = Router();
 router.use(authenticate);
 
-// Middleware to enforce Super Admin role (admin@mitwpu.edu.in)
+// Middleware to enforce Super Admin role
 function requireSuperAdmin(req, res, next) {
-  if (req.user?.role === 'coordinator' && req.user?.email === 'admin@mitwpu.edu.in') {
+  const isSuper = req.user?.roles?.includes('Super Admin') || (req.user?.role === 'coordinator' && req.user?.email === 'admin@mitwpu.edu.in');
+  if (isSuper) {
     next();
   } else {
     res.status(403).json({ error: 'Super Admin access required for this action' });
   }
 }
 
-// GET /api/settings - retrieve all settings and categories
-router.get('/', asyncHandler(async (req, res) => {
+// GET /api/settings - retrieve all settings and categories (coordinator only)
+router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
   const allSettings = await SettingsRepository.findAll();
   res.json(allSettings);
 }));

@@ -81,6 +81,8 @@ router.post('/', requireCoordinator, auditLog('CREATE_SUBJECT', 'subjects', (req
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_SUBJECT', 'subjects', (req) => req.params.id, (req, data) => `Updated subject ${data?.name} (${data?.code})`), asyncHandler(async (req, res) => {
   const { code, name, branch, year, semester, abbreviation, course_type, is_common, branches } = req.body;
+  if (!code || !name || !branch || !year || !semester)
+    return res.status(400).json({ error: 'code, name, branch, year, semester required' });
   const finalBranch = inferBranchFromCode(code, branch);
   await SubjectRepository.update(req.params.id, {
     code,

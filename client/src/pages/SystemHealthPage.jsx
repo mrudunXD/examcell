@@ -203,6 +203,22 @@ export default function SystemHealthPage() {
     }
   };
 
+  const handleDownloadBackup = async (filename) => {
+    try {
+      const response = await api.get(`/backups/download/${filename}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error('Failed to download backup file');
+    }
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -515,14 +531,14 @@ export default function SystemHealthPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <a 
-                      href={`/api/backups/download/${b.filename}?token=${localStorage.getItem('token')}`} 
+                    <button 
+                      onClick={() => handleDownloadBackup(b.filename)} 
                       className="btn btn-ghost btn-sm" 
                       style={{ padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Download Backup"
                     >
                       <Download size={14} />
-                    </a>
+                    </button>
                     <button 
                       className="btn btn-ghost btn-sm" 
                       onClick={() => handleRestoreBackup(b.filename)} 

@@ -8,11 +8,15 @@ const activeKiosks = new Map();
 const activeSessions = new Set();
 
 export function initSocket(server) {
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
   ioInstance = new Server(server, {
     cors: {
-      origin: (origin, callback) => {
-        // Allow all origins to support ngrok tunnel connections
-        callback(null, true);
+      origin: allowedOrigin === '*' ? true : (origin, callback) => {
+        if (!origin || origin === allowedOrigin) {
+          callback(null, true);
+        } else {
+          callback(new Error('WebSocket origin not allowed'));
+        }
       },
       methods: ['GET', 'POST'],
       credentials: true
@@ -112,8 +116,10 @@ export function initSocket(server) {
     });
 
     socket.on('kiosk_acknowledge', async (data) => {
-      const { broadcastId, classroomId, userId } = data;
-      console.log(`📺 Kiosk Acknowledged: Broadcast ${broadcastId} in Room ${classroomId} by user ${userId}`);
+      const { broadcastId, classroomId } = data;
+      // Use server-side authenticated userId — never trust client-supplied identity
+      const authenticatedUserId = socket.user?.userId || null;
+      console.log(`📺 Kiosk Acknowledged: Broadcast ${broadcastId} in Room ${classroomId} by user ${authenticatedUserId}`);
       try {
         const { getDb } = await import('../db/database.js');
         const db = getDb();
@@ -121,7 +127,7 @@ export function initSocket(server) {
           INSERT INTO broadcast_acknowledgments (broadcast_id, classroom_id, acknowledged_by)
           VALUES (?, ?, ?)
           ON CONFLICT (broadcast_id, classroom_id) DO NOTHING
-        `).run(broadcastId, classroomId, userId || null);
+        `).run(broadcastId, classroomId, authenticatedUserId);
 
         ioInstance.emit('BROADCAST_ACKNOWLEDGED', { broadcastId, classroomId, acknowledgedAt: new Date().toISOString() });
       } catch (err) {
@@ -246,11 +252,4 @@ export function broadcastTargetedUpdate(classroomId, event, payload) {
   }
 }
 
-export function triggerKioskDisconnectStorm() {
-  if (!ioInstance) return;
-  console.log('⚠️ Triggering WebSocket kiosk disconnect storm...');
-  const sockets = ioInstance.sockets.sockets;
-  for (const socket of sockets.values()) {
-    socket.disconnect(true);
-  }
-}
+// triggerKioskDisconnectStorm removed — was a chaos test artifact, not for production use

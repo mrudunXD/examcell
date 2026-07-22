@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -122,6 +123,20 @@ router.put('/change-seat', requireCoordinator, auditLog('CHANGE_SEAT', 'seating'
 
   if (version === undefined) {
     return res.status(400).json({ error: 'version is required for optimistic concurrency control.' });
+  }
+
+  const roomInfo = await db.prepare(`
+    SELECT c.bench_rows, c.bench_cols FROM room_allocations ra
+    JOIN classrooms c ON c.id = ra.classroom_id
+    WHERE ra.id = ?
+  `).get(assignment.room_allocation_id);
+
+  if (roomInfo) {
+    const row = parseInt(bench_row, 10);
+    const col = parseInt(bench_col, 10);
+    if (isNaN(row) || isNaN(col) || row < 1 || col < 1 || row > roomInfo.bench_rows || col > roomInfo.bench_cols) {
+      return res.status(400).json({ error: `Seat position (row ${row}, col ${col}) is out of room bounds (max ${roomInfo.bench_rows}x${roomInfo.bench_cols}).` });
+    }
   }
 
   const result = await db.prepare("UPDATE seat_assignments SET bench_row=?, bench_col=?, version = version + 1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND version=?").run(bench_row, bench_col, assignment_id, parseInt(version));

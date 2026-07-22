@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { getDb } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
-import { PERMISSIONS } from '../config/permissions.js';
+import { PERMISSIONS, mapLegacyRole } from '../config/permissions.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { auditLog } from '../middleware/auditLog.js';
 import { parseUserAgent } from '../middleware/auth.js';
@@ -258,10 +258,13 @@ router.get('/admin/dashboard', requirePermission(PERMISSIONS.MANAGE_USERS), asyn
     ORDER BY al.created_at DESC LIMIT 10
   `).all();
 
-  // Recent security warnings (failed login limits / locks)
+  // Recent security events (locked/suspended accounts)
   const securityAlerts = await db.prepare(`
-    SELECT * FROM system_alerts WHERE type IN ('auth_failure', 'brute_force', 'lockout') 
-    ORDER BY created_at DESC LIMIT 10
+    SELECT al.created_at, al.action, al.details, u.name, u.email
+    FROM audit_log al
+    LEFT JOIN users u ON u.id = al.user_id
+    WHERE al.action IN ('ACCOUNT_LOCKED', 'FAILED_LOGIN', 'ADMIN_CHANGE_USER_STATUS')
+    ORDER BY al.created_at DESC LIMIT 10
   `).all();
 
   res.json({
@@ -287,14 +290,15 @@ router.get('/admin/users', requirePermission(PERMISSIONS.MANAGE_USERS), asyncHan
     ORDER BY created_at DESC
   `).all();
 
-  // Load roles for each user
-  const rolesStmt = db.prepare('SELECT role FROM user_roles WHERE user_id = ?');
+  // Batch load all roles in a single query (avoids N+1 problem)
+  const allRoles = await db.prepare('SELECT user_id, role FROM user_roles').all();
+  const rolesByUser = {};
+  for (const r of allRoles) {
+    if (!rolesByUser[r.user_id]) rolesByUser[r.user_id] = [];
+    rolesByUser[r.user_id].push(r.role);
+  }
   for (const u of users) {
-    const rolesDb = rolesStmt.all(u.id);
-    u.roles = rolesDb.map(r => r.role);
-    if (u.roles.length === 0) {
-      u.roles = mapLegacyRole(u.role);
-    }
+    u.roles = rolesByUser[u.id] || mapLegacyRole(u.role);
   }
 
   res.json(users);

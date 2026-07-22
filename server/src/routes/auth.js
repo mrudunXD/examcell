@@ -204,8 +204,8 @@ router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
   }
 
   // Enforce password complexity
-  if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, and a number.' });
+  if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long and contain uppercase, lowercase, numeric, and special characters.' });
   }
   const user = await UserRepository.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });

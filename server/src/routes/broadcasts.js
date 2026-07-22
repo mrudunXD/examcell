@@ -41,11 +41,20 @@ function escapeHtml(str) {
 // POST send a broadcast
 router.post('/', requireCoordinator, auditLog('SEND_BROADCAST', 'broadcasts', (req, data) => data?.id, (req, data) => `Sent broadcast: ${data?.title}`), asyncHandler(async (req, res) => {
   const db = getDb();
-  const { title, message, classroom_id = null, duration_mins = null, image_url = null } = req.body;
+  const { title, message, classroom_id = null, image_url = null } = req.body;
+  let { duration_mins = null } = req.body;
   if (!title || !message) return res.status(400).json({ error: 'title and message required' });
   // M5: Enforce length limits to prevent memory exhaustion
   if (title.length > 200) return res.status(400).json({ error: 'title must be 200 characters or fewer' });
   if (message.length > 2000) return res.status(400).json({ error: 'message must be 2000 characters or fewer' });
+
+  // Validate duration_mins is a positive integer (avoid malformed INTERVAL on DB)
+  if (duration_mins !== null) {
+    duration_mins = parseInt(duration_mins, 10);
+    if (isNaN(duration_mins) || duration_mins <= 0) {
+      return res.status(400).json({ error: 'duration_mins must be a positive integer' });
+    }
+  }
 
   const cleanTitle = escapeHtml(title.trim());
   const cleanMessage = escapeHtml(message.trim());

@@ -407,6 +407,45 @@ class PgDatabase {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT,
+        device TEXT,
+        browser TEXT,
+        os TEXT,
+        ip_address TEXT,
+        login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_revoked INTEGER DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS user_roles (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role TEXT NOT NULL,
+        PRIMARY KEY (user_id, role)
+      );
+
+      CREATE TABLE IF NOT EXISTS user_permissions (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        permission TEXT NOT NULL,
+        PRIMARY KEY (user_id, permission)
+      );
+
+      CREATE TABLE IF NOT EXISTS password_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS solver_runs (
+        id TEXT PRIMARY KEY,
+        cycle_id TEXT REFERENCES exam_cycles(id) ON DELETE CASCADE,
+        input_payload TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
       CREATE INDEX IF NOT EXISTS idx_students_year ON students(year);
       CREATE INDEX IF NOT EXISTS idx_exam_slots_cycle ON exam_slots(cycle_id);
@@ -417,6 +456,7 @@ class PgDatabase {
       CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
       CREATE INDEX IF NOT EXISTS idx_incidents_slot ON incidents(slot_id);
       CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at);
+      CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
     `);
 
     // Run dynamic migrations to add columns if they don't exist
@@ -493,7 +533,44 @@ class PgDatabase {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='priority') THEN
           ALTER TABLE users ADD COLUMN priority TEXT DEFAULT 'normal';
         END IF;
+        -- Missing user fields for auth and sessions
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='mfa_enabled') THEN
+          ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='mfa_secret') THEN
+          ALTER TABLE users ADD COLUMN mfa_secret TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_login') THEN
+          ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_password_change') THEN
+          ALTER TABLE users ADD COLUMN last_password_change TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='employee_id') THEN
+          ALTER TABLE users ADD COLUMN employee_id TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='username') THEN
+          ALTER TABLE users ADD COLUMN username TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN
+          ALTER TABLE users ADD COLUMN phone TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='profile_picture') THEN
+          ALTER TABLE users ADD COLUMN profile_picture TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='designation') THEN
+          ALTER TABLE users ADD COLUMN designation TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='status') THEN
+          ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active';
+        END IF;
+        -- Missing slot_id on supervisor_duties
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='supervisor_duties' AND column_name='slot_id') THEN
+          ALTER TABLE supervisor_duties ADD COLUMN slot_id TEXT REFERENCES exam_slots(id) ON DELETE CASCADE;
+        END IF;
       END $$;
+
+      CREATE INDEX IF NOT EXISTS idx_supervisor_duties_slot ON supervisor_duties(slot_id);
 
       CREATE TABLE IF NOT EXISTS broadcast_acknowledgments (
         broadcast_id TEXT REFERENCES broadcasts(id) ON DELETE CASCADE,

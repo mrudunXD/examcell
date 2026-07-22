@@ -82,7 +82,7 @@ const apiLimiter = rateLimit({
       const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '::1';
       db.prepare(`
         INSERT INTO audit_log (id, user_id, action, entity, details)
-        VALUES (?, 'system', 'RATE_LIMIT_BLOCK', 'network', ?)
+        VALUES (?, NULL, 'RATE_LIMIT_BLOCK', 'network', ?)
       `).run(
         crypto.randomUUID(),
         `IP ${ip} blocked at ${req.originalUrl || req.url}`
@@ -99,10 +99,20 @@ app.use('/api', apiLimiter);
 initDb();
 
 // Middleware
-app.use(cors({ origin: true, credentials: true }));
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || origin === allowedOrigin || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true
+}));
 app.use(requestLogger);
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ limit: '500kb', extended: true }));
 
 // NOTE: /exports static directory removed (C6) — PDFs are streamed directly, never served statically.
 

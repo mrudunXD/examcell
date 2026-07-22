@@ -38,6 +38,21 @@ export const useAuthStore = create((set) => ({
     localStorage.setItem('user', JSON.stringify(user));
     set({ user });
   },
+
+  checkAuth: async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        set({ user: data.user });
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('user');
+        set({ user: null });
+      }
+    }
+  },
 }));
 
 export const useAppStore = create((set, get) => ({

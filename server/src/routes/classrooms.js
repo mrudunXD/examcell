@@ -15,14 +15,22 @@ router.get('/', requireCoordinator, asyncHandler(async (req, res) => {
 router.post('/', requireCoordinator, auditLog('CREATE_CLASSROOM', 'classrooms', (req, data) => data?.id, (req, data) => `Created classroom Room ${data?.room_no} (block: ${data?.block}, capacity: ${data?.capacity})`), asyncHandler(async (req, res) => {
   const { room_no, block, capacity, bench_rows, bench_cols, is_online } = req.body;
   if (!room_no || !block || !capacity || !bench_rows || !bench_cols) return res.status(400).json({ error: 'All fields required' });
+  if (room_no.trim().length > 20) return res.status(400).json({ error: 'room_no must be 20 characters or fewer' });
+  if (block.trim().length > 10) return res.status(400).json({ error: 'block must be 10 characters or fewer' });
+  const parsedCapacity = parseInt(capacity, 10);
+  const parsedRows = parseInt(bench_rows, 10);
+  const parsedCols = parseInt(bench_cols, 10);
+  if (isNaN(parsedCapacity) || parsedCapacity < 1 || parsedCapacity > 500) return res.status(400).json({ error: 'capacity must be a positive integer (1–500)' });
+  if (isNaN(parsedRows) || parsedRows < 1 || parsedRows > 50) return res.status(400).json({ error: 'bench_rows must be between 1 and 50' });
+  if (isNaN(parsedCols) || parsedCols < 1 || parsedCols > 20) return res.status(400).json({ error: 'bench_cols must be between 1 and 20' });
   const id = crypto.randomUUID();
   await ClassroomRepository.create({
     id,
     room_no: room_no.trim(),
     block: block.trim(),
-    capacity: parseInt(capacity, 10),
-    bench_rows: parseInt(bench_rows, 10),
-    bench_cols: parseInt(bench_cols, 10),
+    capacity: parsedCapacity,
+    bench_rows: parsedRows,
+    bench_cols: parsedCols,
     is_online: is_online ? 1 : 0
   });
   res.status(201).json(await ClassroomRepository.findById(id));
@@ -30,14 +38,23 @@ router.post('/', requireCoordinator, auditLog('CREATE_CLASSROOM', 'classrooms', 
 
 router.put('/:id', requireCoordinator, auditLog('UPDATE_CLASSROOM', 'classrooms', (req) => req.params.id, (req, data) => `Updated classroom Room ${data?.room_no}`), asyncHandler(async (req, res) => {
   const { room_no, block, capacity, bench_rows, bench_cols, is_online, version } = req.body;
+  if (!room_no || !block || !capacity || !bench_rows || !bench_cols) return res.status(400).json({ error: 'All fields required' });
+  if (room_no.trim().length > 20) return res.status(400).json({ error: 'room_no must be 20 characters or fewer' });
+  if (block.trim().length > 10) return res.status(400).json({ error: 'block must be 10 characters or fewer' });
+  const parsedCapacity = parseInt(capacity, 10);
+  const parsedRows = parseInt(bench_rows, 10);
+  const parsedCols = parseInt(bench_cols, 10);
+  if (isNaN(parsedCapacity) || parsedCapacity < 1 || parsedCapacity > 500) return res.status(400).json({ error: 'capacity must be a positive integer (1–500)' });
+  if (isNaN(parsedRows) || parsedRows < 1 || parsedRows > 50) return res.status(400).json({ error: 'bench_rows must be between 1 and 50' });
+  if (isNaN(parsedCols) || parsedCols < 1 || parsedCols > 20) return res.status(400).json({ error: 'bench_cols must be between 1 and 20' });
   
   if (version !== undefined) {
     const result = await ClassroomRepository.updateWithVersion(req.params.id, {
-      room_no,
-      block,
-      capacity: parseInt(capacity, 10),
-      bench_rows: parseInt(bench_rows, 10),
-      bench_cols: parseInt(bench_cols, 10),
+      room_no: room_no.trim(),
+      block: block.trim(),
+      capacity: parsedCapacity,
+      bench_rows: parsedRows,
+      bench_cols: parsedCols,
       is_online: is_online ? 1 : 0
     }, parseInt(version, 10));
     if (result.changes === 0) {
@@ -45,11 +62,11 @@ router.put('/:id', requireCoordinator, auditLog('UPDATE_CLASSROOM', 'classrooms'
     }
   } else {
     await ClassroomRepository.update(req.params.id, {
-      room_no,
-      block,
-      capacity: parseInt(capacity, 10),
-      bench_rows: parseInt(bench_rows, 10),
-      bench_cols: parseInt(bench_cols, 10),
+      room_no: room_no.trim(),
+      block: block.trim(),
+      capacity: parsedCapacity,
+      bench_rows: parsedRows,
+      bench_cols: parsedCols,
       is_online: is_online ? 1 : 0
     });
   }

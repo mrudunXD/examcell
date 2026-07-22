@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { getDb } from '../db/database.js';
 import { authenticate, requireCoordinator } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -265,7 +266,13 @@ const runSolver = (inputData) => {
     let stdout = '';
     let stderr = '';
     let buffer = '';
-    
+
+    const timeoutMs = 90000;
+    const timer = setTimeout(() => {
+      try { solverProcess.kill('SIGKILL'); } catch (e) {}
+      reject(new Error(`Solver process timed out after ${timeoutMs / 1000} seconds.`));
+    }, timeoutMs);
+
     solverProcess.stdout.on('data', async (data) => {
       const text = data.toString();
       stdout += text;
@@ -295,6 +302,7 @@ const runSolver = (inputData) => {
     });
     
     solverProcess.on('close', (code) => {
+      clearTimeout(timer);
       if (code !== 0) {
         reject(new Error(`Solver process failed with code ${code}. Stderr: ${stderr}`));
         return;
@@ -586,12 +594,16 @@ router.get('/:cycleId/slots', requireCoordinator, asyncHandler(async (req, res) 
   `);
   const studentCountStmt = await db.prepare('SELECT COUNT(*) AS cnt FROM slot_students WHERE slot_id=?');
 
-  const formattedSlots = await Promise.all(slots.map(async slot => ({
-    ...slot,
-    rooms: await roomsStmt.all(slot.id),
-    student_count: (await studentCountStmt.get(slot.id))?.cnt || 0,
-    room_count: (await roomsStmt.all(slot.id)).length,
-  })));
+  const formattedSlots = await Promise.all(slots.map(async slot => {
+    const slotRooms = await roomsStmt.all(slot.id);
+    const studentCount = (await studentCountStmt.get(slot.id))?.cnt || 0;
+    return {
+      ...slot,
+      rooms: slotRooms,
+      student_count: studentCount,
+      room_count: slotRooms.length,
+    };
+  }));
 
   res.json(formattedSlots);
 }));
@@ -658,10 +670,14 @@ async function autoAssignSeatingAndSupervisors(slotId, db, forceSeating = false)
 
   const faculty = await db.prepare("SELECT id, name, department FROM users WHERE role='faculty' AND is_active=1").all();
   const subjectStmt = await db.prepare('SELECT subject_id FROM faculty_subjects WHERE faculty_id=?');
-  const allFaculty = faculty.map(f => ({
-    ...f,
-    subject_ids: subjectStmt.all(f.id).map(r => r.subject_id)
-  }));
+  const allFaculty = [];
+  for (const f of faculty) {
+    const subjs = await subjectStmt.all(f.id);
+    allFaculty.push({
+      ...f,
+      subject_ids: subjs.map(r => r.subject_id)
+    });
+  }
 
   const globalWorkload = {};
   for (const f of faculty) globalWorkload[f.id] = 0;
