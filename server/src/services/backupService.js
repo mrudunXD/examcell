@@ -39,6 +39,24 @@ const TABLES = [
   'system_alerts'
 ];
 
+function getPgBinCmd(binName) {
+  if (process.platform === 'win32') {
+    const pgBase = 'C:\\Program Files\\PostgreSQL';
+    if (fs.existsSync(pgBase)) {
+      try {
+        const dirs = fs.readdirSync(pgBase);
+        for (const dir of dirs.sort().reverse()) {
+          const candidate = path.join(pgBase, dir, 'bin', `${binName}.exe`);
+          if (fs.existsSync(candidate)) {
+            return `"${candidate}"`;
+          }
+        }
+      } catch (e) {}
+    }
+  }
+  return binName;
+}
+
 export async function createBackup() {
   const timestamp = new Date().toISOString();
   const filenameDump = `backup_${Date.now()}.dump`;
@@ -50,18 +68,24 @@ export async function createBackup() {
   const database = process.env.PGDATABASE || 'exam_management';
   const password = process.env.PGPASSWORD;
 
+  const pgDumpCmd = getPgBinCmd('pg_dump');
+
   try {
     console.log(`🚀 Attempting pg_dump backup to ${filenameDump}...`);
     const env = { ...process.env, PGPASSWORD: password };
     // -F c: custom compressed format, -b: include large objects, -v: verbose
-    await execPromise(`pg_dump -h ${host} -p ${port} -U ${user} -F c -b -f "${filepathDump}" ${database}`, { env });
+    await execPromise(`${pgDumpCmd} -h ${host} -p ${port} -U ${user} -F c -b -f "${filepathDump}" ${database}`, { env });
     
     // Set 0600 permissions
     fs.chmodSync(filepathDump, 0o600);
     console.log(`✓ pg_dump backup created successfully.`);
     return { filename: filenameDump, filepath: filepathDump, timestamp, format: 'dump' };
   } catch (err) {
-    console.warn(`⚠️ pg_dump failed (${err.message}). Falling back to JSON backup...`);
+    if (err.message?.includes('not recognized') || err.code === 'ENOENT') {
+      console.log(`ℹ️ pg_dump binary not found in PATH or standard directories. Using JSON backup...`);
+    } else {
+      console.warn(`⚠️ pg_dump failed (${err.message}). Falling back to JSON backup...`);
+    }
     // Delete failed dump file if it was partially created
     if (fs.existsSync(filepathDump)) {
       try { fs.unlinkSync(filepathDump); } catch (e) {}
@@ -121,11 +145,12 @@ export async function restoreBackup(backupData, filename = null) {
     const user = process.env.PGUSER || 'postgres';
     const database = process.env.PGDATABASE || 'exam_management';
     const password = process.env.PGPASSWORD;
+    const pgRestoreCmd = getPgBinCmd('pg_restore');
 
     console.log(`🚀 Restoring database from pg_dump archive ${filename}...`);
     const env = { ...process.env, PGPASSWORD: password };
     // -c: clean (drop database objects before recreating), -d: database
-    await execPromise(`pg_restore -h ${host} -p ${port} -U ${user} -c -d ${database} "${filepath}"`, { env });
+    await execPromise(`${pgRestoreCmd} -h ${host} -p ${port} -U ${user} -c -d ${database} "${filepath}"`, { env });
     console.log(`✓ pg_restore complete.`);
     return { success: true, format: 'dump' };
   }
