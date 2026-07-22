@@ -41,7 +41,8 @@ export default function CalendarPage() {
 
   useEffect(() => {
     api.get('/exam-cycles').then(async (cr) => {
-      const targetId = cycleId || activeCycleId || cr.data[0]?.id;
+      const activeObj = cr.data.find(x => x.status === 'active');
+      const targetId = cycleId || (activeCycleId && cr.data.find(x => x.id === activeCycleId)?.status === 'active' ? activeCycleId : (activeObj?.id || cr.data[0]?.id));
       if (!targetId) {
         setLoading(false);
         return;

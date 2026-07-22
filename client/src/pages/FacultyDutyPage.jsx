@@ -578,7 +578,11 @@ export default function FacultyDutyPage() {
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
       setCycles(r.data);
-      if (!selectedCycle && r.data.length > 0) setSelectedCycle(r.data[0].id);
+      const active = r.data.find(c => c.status === 'active') || r.data[0];
+      const currentObj = r.data.find(c => c.id === selectedCycle);
+      if (!selectedCycle || (active && active.status === 'active' && currentObj?.status !== 'active')) {
+        if (active) setSelectedCycle(active.id);
+      }
     });
     fetchBroadcasts();
     fetchIncidents();

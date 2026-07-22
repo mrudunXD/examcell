@@ -230,9 +230,11 @@ export default function DashboardPage() {
   useEffect(() => {
     api.get('/exam-cycles').then(r => {
       setCycles(r.data);
+      const active = r.data.find(c => c.status === 'active') || r.data[0];
       const ids = r.data.map(c => c.id);
-      if (!activeCycleId || !ids.includes(activeCycleId)) {
-        if (r.data.length > 0) setActiveCycle(r.data[0].id);
+      const currentObj = r.data.find(c => c.id === activeCycleId);
+      if (!activeCycleId || !ids.includes(activeCycleId) || (active && active.status === 'active' && currentObj?.status !== 'active')) {
+        if (active) setActiveCycle(active.id);
         else setActiveCycle(null);
       }
     }).catch(() => {});
