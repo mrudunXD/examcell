@@ -9,7 +9,8 @@ import SpotlightCard from '../components/ReactBits/SpotlightCard.jsx';
 const YEARS = ['FY', 'SY', 'TY', 'LY'];
 const EMPTY = { code: '', name: '', branch: '', year: 'FY', semester: 1, abbreviation: '', course_type: '' };
 
-function SubjectModal({ subject, onClose, onSave }) {
+function SubjectModal({ subject, onClose, onSave, branches = [] }) {
+  const availableBranches = branches.length ? branches : ['CE', 'CSE', 'ECE', 'ME', 'MRA'];
   const [form, setForm] = useState(subject
     ? { code: subject.code, name: subject.name, branch: subject.branch, year: subject.year, semester: subject.semester, abbreviation: subject.abbreviation || '', course_type: subject.course_type || '' }
     : EMPTY
@@ -17,7 +18,7 @@ function SubjectModal({ subject, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [isCommon, setIsCommon] = useState(subject?.is_common === 1);
   const [selectedBranches, setSelectedBranches] = useState(
-    subject?.is_common && subject?.branches ? JSON.parse(subject.branches) : []
+    subject?.is_common && subject?.branches ? (typeof subject.branches === 'string' ? JSON.parse(subject.branches) : subject.branches) : []
   );
 
   const handleSubmit = async (e) => {
@@ -97,7 +98,7 @@ function SubjectModal({ subject, onClose, onSave }) {
             <div className="form-group">
               <label className="form-label">Applicable Branches</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {branches.map(b => (
+                {availableBranches.map(b => (
                   <button
                     key={b}
                     type="button"
