@@ -734,6 +734,28 @@ export default function Layout() {
               </div>
             </div>
             
+            {/* Centered ExamCell Logo */}
+            <div style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              pointerEvents: 'none'
+            }}>
+              <img 
+                src="/logo.png" 
+                alt="ExamCell Logo" 
+                style={{ 
+                  height: 28, 
+                  width: 'auto', 
+                  objectFit: 'contain'
+                }} 
+              />
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.03em' }}>
                 {today}

@@ -15,7 +15,8 @@ import {
   VolumeX,
   RefreshCw,
   Maximize,
-  Minimize
+  Minimize,
+  Megaphone
 } from 'lucide-react';
 import api from '../lib/api.js';
 import { formatDate, formatTime } from '../lib/format.js';
@@ -490,6 +491,7 @@ export default function KioskPage() {
   const [broadcastIdx, setBroadcastIdx] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   const [closedBroadcasts, setClosedBroadcasts] = useState(new Set());
+  const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
   const lastAlertIdRef = useRef(null);
   const [localNow, setLocalNow] = useState(getSyncDate());
 
@@ -859,19 +861,9 @@ export default function KioskPage() {
         height: '96px',
         boxSizing: 'border-box',
       }}>
-        {/* Logo and details */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <img 
-            src="/wpu_logo.png" 
-            alt="MIT WPU Logo" 
-            style={{ 
-              height: '60px', 
-              objectFit: 'contain',
-              filter: isDark ? 'brightness(0) invert(1)' : 'none'
-            }} 
-          />
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Left section: Network Status & Announcements Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* Online/Offline network state */}
             <div style={{
               display: 'inline-flex',
@@ -886,17 +878,8 @@ export default function KioskPage() {
               fontFamily: 'var(--font-mono)',
               textTransform: 'uppercase',
             }}>
-              {isOffline ? (
-                <>
-                  <WifiOff size={10} />
-                  <span>Offline</span>
-                </>
-              ) : (
-                <>
-                  <Wifi size={10} />
-                  <span>Live</span>
-                </>
-              )}
+              {isOffline ? <WifiOff size={10} /> : <Wifi size={10} />}
+              <span>{isOffline ? 'Offline' : 'Live'}</span>
             </div>
 
             {/* Socket.io connection state */}
@@ -913,32 +896,52 @@ export default function KioskPage() {
               fontFamily: 'var(--font-mono)',
               textTransform: 'uppercase',
             }}>
-              <div style={{
-                width: 6, height: 6,
-                borderRadius: '50%',
-                background: socketConnected ? '#166534' : 'var(--np-red)',
-              }} />
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: socketConnected ? '#166534' : 'var(--np-red)' }} />
               <span>{socketConnected ? 'Connected' : 'Disconnected'}</span>
             </div>
-
-            {isOffline && (
-              <button
-                onClick={loadData}
-                style={{
-                  padding: '2px 6px',
-                  background: colors.cardBg,
-                  border: `1.5px solid ${colors.cardBorder}`,
-                  color: colors.text,
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
-                }}
-              >
-                Retry Sync
-              </button>
-            )}
           </div>
+
+          {/* Announcements Trigger Button */}
+          <button
+            onClick={() => setShowAnnouncementsModal(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              background: 'rgba(124, 58, 237, 0.12)',
+              border: '1.5px solid rgba(124, 58, 237, 0.3)',
+              borderRadius: 6,
+              color: colors.text,
+              fontSize: '11px',
+              fontWeight: 'bold',
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer'
+            }}
+          >
+            <Megaphone size={13} style={{ color: 'var(--accent-purple)' }} />
+            <span>Announcements ({broadcasts.length})</span>
+          </button>
+        </div>
+
+        {/* Center section: MIT WPU Logo Centered */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <img 
+            src="/wpu_logo.png" 
+            alt="MIT WPU Logo" 
+            style={{ 
+              height: '56px', 
+              objectFit: 'contain',
+              filter: isDark ? 'brightness(0) invert(1)' : 'none'
+            }} 
+          />
         </div>
 
         {/* Clock & Mode switcher */}
@@ -1542,24 +1545,18 @@ export default function KioskPage() {
                     ▲ FRONT / BLACKBOARD ▲
                   </div>
 
-                  {/* Visual grid */}
+                  {/* Visual Bench grid */}
                   {(() => {
                     const { classroom, assignments } = seatingData;
                     const rows = classroom?.bench_rows || 6;
                     const cols = classroom?.bench_cols || 4;
+                    const benchesPerRow = Math.max(1, Math.floor(cols / 2));
+                    const actualBenches = Math.floor((classroom?.capacity || 40) / 2);
 
                     const gridMap = {};
                     assignments.forEach(a => {
                       gridMap[`${a.bench_row}-${a.bench_col}`] = a;
                     });
-
-                    const seats = [];
-                    for (let r = 1; r <= rows; r++) {
-                      for (let c = 1; c <= cols; c++) {
-                        const seat = gridMap[`${r}-${c}`];
-                        seats.push({ r, c, seat });
-                      }
-                    }
 
                     if (assignments.length === 0) {
                       return (
@@ -1569,89 +1566,119 @@ export default function KioskPage() {
                       );
                     }
 
+                    const benchList = [];
+                    for (let r = 1; r <= rows; r++) {
+                      for (let b = 1; b <= benchesPerRow; b++) {
+                        const benchIndex = (r - 1) * benchesPerRow + (b - 1);
+                        if (benchIndex >= actualBenches) continue;
+                        
+                        const leftCol = b * 2 - 1;
+                        const rightCol = b * 2;
+                        const seat1 = gridMap[`${r}-${leftCol}`];
+                        const seat2 = gridMap[`${r}-${rightCol}`];
+
+                        benchList.push({ r, b, leftCol, rightCol, seat1, seat2 });
+                      }
+                    }
+
                     return (
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                        gap: '12px',
+                        gridTemplateColumns: `repeat(${benchesPerRow}, 1fr)`,
+                        gap: '8px',
                         padding: '4px',
+                        maxHeight: 'calc(100vh - 220px)',
+                        overflow: 'hidden',
                       }}>
-                        {seats.map(({ r, c, seat }) => {
-                          const benchIndex = (r - 1) * Math.floor(cols / 2) + Math.floor((c - 1) / 2);
-                          const actualBenches = Math.floor(classroom?.capacity / 2);
-                          if (benchIndex >= actualBenches) {
-                            return <div key={`${r}-${c}`} style={{ minHeight: '96px', visibility: 'hidden' }} />;
-                          }
-                          return (
-                            <div 
-                              key={`${r}-${c}`} 
-                              style={{
-                                position: 'relative',
-                                padding: '20px 12px',
-                                background: seat 
-                                  ? (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)') 
-                                  : 'transparent',
-                                border: seat
-                                  ? `2.5px solid ${colors.cardBorder}`
-                                  : `1px dashed ${colors.border}`,
+                        {benchList.map(({ r, b, seat1, seat2 }) => (
+                          <div 
+                            key={`R${r}-B${b}`} 
+                            style={{
+                              background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
+                              border: `2px solid ${colors.cardBorder}`,
+                              borderRadius: 8,
+                              padding: '6px 8px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                              boxSizing: 'border-box',
+                            }}
+                          >
+                            {/* Bench Label Header */}
+                            <div style={{
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              color: colors.textMuted,
+                              fontFamily: 'var(--font-mono)',
+                              display: 'flex',
+                              justify: 'space-between',
+                              alignItems: 'center',
+                              borderBottom: `1px dashed ${colors.border}`,
+                              paddingBottom: 3,
+                            }}>
+                              <span>BENCH R{r}-B{b}</span>
+                            </div>
+
+                            {/* 2 Seats Container */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                              {/* SEAT 1 (LEFT) */}
+                              <div style={{
+                                padding: '6px 4px',
+                                borderRadius: 5,
+                                background: seat1 ? (isDark ? 'rgba(59,130,246,0.14)' : 'rgba(59,130,246,0.06)') : 'transparent',
+                                border: seat1 ? '1.5px solid rgba(59,130,246,0.35)' : `1px dashed ${colors.border}`,
+                                textAlign: 'center',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                minHeight: '96px',
-                                boxSizing: 'border-box',
-                              }}
-                            >
-                            <span style={{ 
-                              position: 'absolute', 
-                              top: 6, 
-                              left: 8, 
-                              fontSize: '9px', 
-                              fontWeight: 'bold', 
-                              color: colors.textMuted,
-                              fontFamily: 'var(--font-mono)'
-                            }}>
-                              R{r}-C{c}
-                            </span>
-                            
-                            {seat ? (
-                              <>
-                                <span style={{ 
-                                  fontSize: '22px', 
-                                  fontWeight: 'bold', 
-                                  color: colors.text, 
-                                  letterSpacing: '0.05em',
-                                  fontFamily: 'var(--font-mono)'
-                                }}>
-                                  {seat.prn}
-                                </span>
-                                <span style={{ 
-                                  fontSize: '11px', 
-                                  color: colors.textMuted, 
-                                  marginTop: 4,
-                                  fontWeight: 'bold',
-                                  textTransform: 'uppercase',
-                                  background: isDark ? '#262626' : '#E5E5E0',
-                                  padding: '2px 8px',
-                                  border: `1px solid ${colors.cardBorder}`,
-                                  fontFamily: 'var(--font-mono)',
-                                }}>
-                                  {seat.branch} {seat.year}
-                                </span>
-                              </>
-                            ) : (
-                              <span style={{ 
-                                fontSize: '11px', 
-                                color: colors.textDim, 
-                                fontStyle: 'italic',
-                                fontFamily: 'var(--font-body)'
+                                minHeight: '44px',
                               }}>
-                                Empty
-                              </span>
-                            )}
+                                <div style={{ fontSize: '8px', fontWeight: 'bold', color: colors.textMuted, fontFamily: 'var(--font-mono)' }}>SEAT 1</div>
+                                {seat1 ? (
+                                  <>
+                                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: colors.text, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+                                      {seat1.prn}
+                                    </div>
+                                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--accent-cyan)', marginTop: 1 }}>
+                                      {seat1.branch} {seat1.year}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div style={{ fontSize: '9px', color: colors.textDim, fontStyle: 'italic' }}>Vacant</div>
+                                )}
+                              </div>
+
+                              {/* SEAT 2 (RIGHT) */}
+                              <div style={{
+                                padding: '6px 4px',
+                                borderRadius: 5,
+                                background: seat2 ? (isDark ? 'rgba(168,85,247,0.14)' : 'rgba(168,85,247,0.06)') : 'transparent',
+                                border: seat2 ? '1.5px solid rgba(168,85,247,0.35)' : `1px dashed ${colors.border}`,
+                                textAlign: 'center',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minHeight: '44px',
+                              }}>
+                                <div style={{ fontSize: '8px', fontWeight: 'bold', color: colors.textMuted, fontFamily: 'var(--font-mono)' }}>SEAT 2</div>
+                                {seat2 ? (
+                                  <>
+                                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: colors.text, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+                                      {seat2.prn}
+                                    </div>
+                                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--accent-purple)', marginTop: 1 }}>
+                                      {seat2.branch} {seat2.year}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div style={{ fontSize: '9px', color: colors.textDim, fontStyle: 'italic' }}>Vacant</div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        );
-                      })}
+                        ))}
                       </div>
                     );
                   })()}
@@ -1681,8 +1708,109 @@ export default function KioskPage() {
           </div>
         </div>
       )}
+      {/* Session Announcements Modal */}
+      {showAnnouncementsModal && (
+        <div 
+          onClick={() => setShowAnnouncementsModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: colors.cardBg,
+              border: `2px solid ${colors.cardBorder}`,
+              borderRadius: 12,
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: `1px solid ${colors.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Megaphone size={20} style={{ color: 'var(--accent-purple)' }} />
+                <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: colors.text }}>
+                  Session Announcements
+                </span>
+              </div>
+              <button
+                onClick={() => setShowAnnouncementsModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: colors.textMuted,
+                  cursor: 'pointer',
+                  padding: 4
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {broadcasts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: colors.textMuted, fontStyle: 'italic' }}>
+                  No announcements recorded for this exam session.
+                </div>
+              ) : (
+                broadcasts.map((b) => (
+                  <div key={b.id} style={{
+                    padding: '14px 18px',
+                    borderRadius: 8,
+                    background: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                    border: `1.5px solid ${colors.cardBorder}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: colors.text }}>{b.title}</span>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        padding: '2px 8px',
+                        borderRadius: 4,
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: 'var(--accent-red)',
+                        textTransform: 'uppercase'
+                      }}>
+                        {b.priority || 'URGENT'}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '13px', color: colors.textMuted, margin: 0, lineHeight: 1.5 }}>
+                      {b.message}
+                    </p>
+                    <div style={{ fontSize: '10px', color: colors.textDim, fontFamily: 'var(--font-mono)', marginTop: 4 }}>
+                      Sent by {b.sent_by_name || 'Exam Coordinator'} · {formatTime(b.created_at || new Date())}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Styles */}
       <style>{`

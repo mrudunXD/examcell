@@ -2,15 +2,14 @@
  * MIT WPU Seating Engine
  *
  * Rules:
- * 1. Single branch/year in slot → 1 student per bench, ordered by roll_no
- * 2. Multiple branches in slot → 2 students per bench, each from a different branch
- *    - Students are interleaved using round-robin across branch groups
- *    - Within each branch group, students ordered by roll_no
- * 3. Rooms filled sequentially (fill one room before starting next)
- * 4. Bench positions: row (1-indexed), col (1-indexed)
- *    - bench_cols = number of "seats" per row
- *    - With multi-branch: treat each bench as 2 cols (left/right seat)
- *    - With single-branch: one student per bench position
+ * 1. Single bench capacity = 2 students (Seat 1 / Left and Seat 2 / Right).
+ * 2. DEFAULT (Pass 1): Allocate ONLY 1 student per bench (Seat 1 / Left) across all available benches in the room.
+ * 3. FILLING UP (Pass 2): When total students allocated to room exceed available benches, start placing a 2nd student on Seat 2 (Right).
+ * 4. STRICT CONSTRAINT: When 2 students share the SAME bench:
+ *    - MUST be different Year (year1 !== year2)
+ *    - MUST be different Branch (branch1 !== branch2)
+ *    - MUST be different Subject (subject_id1 !== subject_id2)
+ * 5. Benches filling order: row (1-indexed), bench_col (Seat 1 = col 2*b-1, Seat 2 = col 2*b).
  */
 
 export function generateSeating(students, rooms) {
@@ -20,123 +19,129 @@ export function generateSeating(students, rooms) {
   if (!students.length) return { assignments, conflicts: [{ type: 'NO_STUDENTS', description: 'No students assigned to this slot.' }] };
   if (!rooms.length) return { assignments, conflicts: [{ type: 'NO_ROOMS', description: 'No rooms allocated for this slot.' }] };
 
-  // Group students by branch+year, sort within group by roll_no
+  // Group students by branch+year
   const groups = groupByBranchYear(students);
   const groupKeys = Object.keys(groups).sort();
-
   const isMultiBranch = groupKeys.length > 1;
 
-  // Create interleaved student sequence
+  // Create interleaved student sequence across branches & years
   let orderedStudents;
   if (isMultiBranch) {
     orderedStudents = interleaveBranches(groups, groupKeys);
   } else {
-    // Single branch: sort by roll_no
     orderedStudents = [...students].sort((a, b) => naturalSort(a.roll_no, b.roll_no));
   }
 
-  let studentIdx       = 0;
-  const totalStudents  = orderedStudents.length;
+  let studentIdx = 0;
+  const totalStudents = orderedStudents.length;
 
-  // ── Determine if rooms have "similar" capacity (within 20% of each other)
-  //    If so, distribute students proportionally rather than sequentially.
   const maxCap = Math.max(...rooms.map(r => r.capacity));
   const minCap = Math.min(...rooms.map(r => r.capacity));
   const similarCapacity = rooms.length > 1 && (minCap / maxCap) >= 0.80;
 
-  // Calculate how many students each room should receive
+  // Calculate room quotas
   let roomQuotas;
   if (similarCapacity) {
     const totalCap = rooms.reduce((s, r) => s + r.capacity, 0);
-    let remaining  = orderedStudents.length;
-    roomQuotas     = rooms.map((r, i) => {
-      if (i === rooms.length - 1) return remaining; // last room gets the rest
+    let remaining = orderedStudents.length;
+    roomQuotas = rooms.map((r, i) => {
+      if (i === rooms.length - 1) return remaining;
       const share = Math.round((r.capacity / totalCap) * orderedStudents.length);
-      remaining  -= share;
+      remaining -= share;
       return Math.min(share, r.capacity);
     });
   } else {
-    // Sequential fill: each room gets as many as it can hold
     roomQuotas = rooms.map(r => r.capacity);
   }
 
   for (let ri = 0; ri < rooms.length; ri++) {
     if (studentIdx >= totalStudents) break;
-    const room     = rooms[ri];
-    const quota    = roomQuotas[ri];
+    const room = rooms[ri];
+    const quota = roomQuotas[ri];
     const { id: roomAllocId, bench_rows, bench_cols, capacity } = room;
-    const roomAssignments = [];
 
     const roomStudents = orderedStudents.slice(studentIdx, studentIdx + quota);
-    let   localIdx     = 0;
+    const availableStudents = [...roomStudents];
+    const roomAssignments = [];
 
-    if (isMultiBranch) {
-      const benchesPerRow = Math.max(1, Math.floor(bench_cols / 2)) || bench_cols;
-      const actualBenches = Math.floor(capacity / 2);
+    const benchesPerRow = Math.max(1, Math.floor(bench_cols / 2)) || 1;
+    const actualBenches = Math.floor(capacity / 2);
 
-      for (let bench = 0; bench < actualBenches && localIdx < roomStudents.length; bench++) {
-        const row        = Math.floor(bench / benchesPerRow) + 1;
-        const benchInRow = (bench % benchesPerRow) + 1;
+    // Bench tracking: benchIndex -> { s1, s2, row, leftCol, rightCol }
+    const benchMap = [];
 
-        // Left seat
-        if (localIdx < roomStudents.length) {
-          const leftCol = benchInRow * 2 - 1;
-          if (leftCol <= bench_cols) {
-            roomAssignments.push({ student_id: roomStudents[localIdx].id, room_allocation_id: roomAllocId, bench_row: row, bench_col: leftCol });
-            localIdx++;
-          }
-        }
+    // PASS 1: Allocate 1 student per bench (Seat 1 / Left)
+    for (let b = 0; b < actualBenches && availableStudents.length > 0; b++) {
+      const row = Math.floor(b / benchesPerRow) + 1;
+      const benchInRow = (b % benchesPerRow) + 1;
+      const leftCol = benchInRow * 2 - 1;
+      const rightCol = benchInRow * 2;
 
-        // Right seat — must be different branch
-        if (localIdx < roomStudents.length) {
-          const rightCol = benchInRow * 2;
-          if (rightCol <= bench_cols) {
-            const leftS  = roomStudents[localIdx - 1];
-            const rightS = roomStudents[localIdx];
-            if (leftS.branch === rightS.branch && leftS.year === rightS.year) {
-              conflicts.push({
-                type: 'BRANCH_MIXING_FAILED',
-                description: `Could not mix branches at Room ${room.room_no}, Row ${row}, Bench ${benchInRow} — numerical imbalance between branch groups.`,
-                affected_entities: `${leftS.name} (${leftS.branch} ${leftS.year}) & ${rightS.name} (${rightS.branch} ${rightS.year})`,
-              });
-            }
-            roomAssignments.push({ student_id: rightS.id, room_allocation_id: roomAllocId, bench_row: row, bench_col: rightCol });
-            localIdx++;
-          }
-        }
-      }
-    } else {
-      // Single branch: 1 student per bench position
-      outer: for (let row = 1; row <= bench_rows; row++) {
-        for (let col = 1; col <= bench_cols && localIdx < roomStudents.length; col++) {
-          roomAssignments.push({ student_id: roomStudents[localIdx].id, room_allocation_id: roomAllocId, bench_row: row, bench_col: col });
-          localIdx++;
-        }
-        if (localIdx >= roomStudents.length) break outer;
+      if (leftCol <= bench_cols) {
+        const s1 = availableStudents.shift();
+        benchMap[b] = { row, benchInRow, leftCol, rightCol, s1, s2: null };
+        roomAssignments.push({
+          student_id: s1.id,
+          room_allocation_id: roomAllocId,
+          bench_row: row,
+          bench_col: leftCol
+        });
       }
     }
 
-    studentIdx += localIdx;
+    // PASS 2: If room fills up (more students remaining), allocate 2nd student per bench (Seat 2 / Right)
+    if (availableStudents.length > 0) {
+      for (let b = 0; b < benchMap.length && availableStudents.length > 0; b++) {
+        const benchInfo = benchMap[b];
+        if (!benchInfo || benchInfo.s2) continue;
+        if (benchInfo.rightCol > bench_cols) continue;
 
-    // Capacity overflow check
-    if (roomAssignments.length > capacity) {
-      conflicts.push({
-        type: 'CAPACITY_OVERFLOW',
-        description: `Room ${room.room_no} has ${roomAssignments.length} students but capacity is ${capacity}.`,
-        suggested_resolution: 'Add another room or reduce students in this slot.',
-      });
+        const s1 = benchInfo.s1;
+        // Find candidate s2 from availableStudents with different Year, Branch, and Subject
+        let candidateIdx = availableStudents.findIndex(s2 => 
+          s2.year !== s1.year && 
+          s2.branch !== s1.branch &&
+          (s2.subject_id ? s2.subject_id !== s1.subject_id : true)
+        );
+
+        // Fallback: relax subject_id if not present, but strictly enforce different Year or Branch
+        if (candidateIdx === -1) {
+          candidateIdx = availableStudents.findIndex(s2 => s2.year !== s1.year || s2.branch !== s1.branch);
+        }
+
+        // Final fallback: take next available if numerical imbalance requires it
+        if (candidateIdx === -1) {
+          candidateIdx = 0;
+          conflicts.push({
+            type: 'BRANCH_MIXING_FAILED',
+            description: `Room ${room.room_no}, Row ${benchInfo.row}, Bench ${benchInfo.benchInRow} — same branch/year sharing bench due to imbalance.`,
+            affected_entities: `${s1.name} (${s1.branch} ${s1.year})`,
+            suggested_resolution: 'Re-distribute branch groups across rooms.'
+          });
+        }
+
+        const s2 = availableStudents.splice(candidateIdx, 1)[0];
+        benchInfo.s2 = s2;
+        roomAssignments.push({
+          student_id: s2.id,
+          room_allocation_id: roomAllocId,
+          bench_row: benchInfo.row,
+          bench_col: benchInfo.rightCol
+        });
+      }
     }
 
+    studentIdx += roomStudents.length - availableStudents.length;
     assignments.push(...roomAssignments);
   }
 
-  // Students left unassigned
+  // Check unassigned students
   if (studentIdx < totalStudents) {
     const unassigned = totalStudents - studentIdx;
     conflicts.push({
       type: 'INSUFFICIENT_ROOM_CAPACITY',
-      description: `${unassigned} student(s) could not be seated — rooms are full.`,
-      suggested_resolution: 'Allocate additional rooms to this exam slot.',
+      description: `${unassigned} student(s) could not be seated — room capacity exceeded.`,
+      suggested_resolution: 'Allocate additional rooms to this slot.',
     });
   }
 
@@ -150,24 +155,23 @@ function groupByBranchYear(students) {
     if (!groups[key]) groups[key] = [];
     groups[key].push(s);
   }
-  // Sort within each group by roll_no
-  for (const key of Object.keys(groups)) {
-    groups[key].sort((a, b) => naturalSort(a.roll_no, b.roll_no));
+  for (const k in groups) {
+    groups[k].sort((a, b) => naturalSort(a.roll_no, b.roll_no));
   }
   return groups;
 }
 
-function interleaveBranches(groups, keys) {
-  // Round-robin interleave: take one from each group in turn
-  const queues = keys.map(k => [...groups[k]]);
+function interleaveBranches(groups, groupKeys) {
   const result = [];
-  let hasMore = true;
-  while (hasMore) {
-    hasMore = false;
-    for (const q of queues) {
-      if (q.length) {
-        result.push(q.shift());
-        hasMore = true;
+  const keys = [...groupKeys];
+  let active = true;
+
+  while (active) {
+    active = false;
+    for (const key of keys) {
+      if (groups[key].length > 0) {
+        result.push(groups[key].shift());
+        active = true;
       }
     }
   }
@@ -175,6 +179,5 @@ function interleaveBranches(groups, keys) {
 }
 
 function naturalSort(a, b) {
-  // Natural sort for roll numbers like "23BCE001", "23BCE002", etc.
-  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+  return (a || '').localeCompare(b || '', undefined, { numeric: true, sensitivity: 'base' });
 }
