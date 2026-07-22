@@ -1463,8 +1463,9 @@ export default function KioskPage() {
           <div style={{
             background: colors.modalContentBg,
             border: `4px solid ${colors.border}`,
-            width: '80vw',
-            maxHeight: '84vh',
+            width: '94vw',
+            maxWidth: '1450px',
+            maxHeight: '92vh',
             boxShadow: colors.shadow,
             display: 'flex',
             flexDirection: 'column',
@@ -1584,11 +1585,11 @@ export default function KioskPage() {
                     return (
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: `repeat(${benchesPerRow}, 1fr)`,
-                        gap: '8px',
-                        padding: '4px',
-                        maxHeight: 'calc(100vh - 220px)',
-                        overflow: 'hidden',
+                        gridTemplateColumns: `repeat(${benchesPerRow}, minmax(0, 1fr))`,
+                        gap: '10px 12px',
+                        padding: '6px 4px',
+                        width: '100%',
+                        boxSizing: 'border-box',
                       }}>
                         {benchList.map(({ r, b, seat1, seat2 }) => (
                           <div 

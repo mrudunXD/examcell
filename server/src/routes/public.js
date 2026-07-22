@@ -97,15 +97,7 @@ router.get('/seating/:roomAllocationId', asyncHandler(async (req, res) => {
     ORDER BY sa.bench_row, sa.bench_col
   `).all(req.params.roomAllocationId);
 
-  const maskedAssignments = assignments.map(a => {
-    let maskedPrn = a.prn;
-    if (a.prn && a.prn.length > 4) {
-      maskedPrn = '*'.repeat(a.prn.length - 4) + a.prn.slice(-4);
-    }
-    return { ...a, prn: maskedPrn };
-  });
-
-  res.json({ classroom, assignments: maskedAssignments });
+  res.json({ classroom, assignments });
 }));
 
 // GET /api/public/server-time
